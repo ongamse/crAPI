@@ -18,3 +18,17 @@ MONGO_CONNECTION_URI_ATLAS = "mongodb+srv://%s:%s@%s?retryWrites=true&w=majority
     MONGO_PASSWORD,
     MONGO_HOST,
 )
+
+POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
+POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
+POSTGRES_USER = os.environ.get("POSTGRES_USER", "admin")
+POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "crapisecretpassword")
+POSTGRES_DB = os.environ.get("POSTGRES_DB", "crapi")
+
+POSTGRES_URI = "postgresql://%s:%s@%s:%s/%s?sslmode=disable" % (
+    POSTGRES_USER,
+    POSTGRES_PASSWORD,
+    POSTGRES_HOST,
+    POSTGRES_PORT,
+    POSTGRES_DB,
+)

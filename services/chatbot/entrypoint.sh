@@ -28,7 +28,7 @@ if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
   fi
   echo "TLS_CERTIFICATE: $TLS_CERTIFICATE"
   echo "TLS_KEY: $TLS_KEY"
-  gunicorn --timeout 600 --bind 0.0.0.0:${SERVER_PORT} --certfile $TLS_CERTIFICATE --keyfile $TLS_KEY --log-level=debug chatbot_api:app
+  uvicorn chatbot:app --timeout 600 --host 0.0.0.0 --port ${SERVER_PORT} --ssl-certfile $TLS_CERTIFICATE --ssl-keyfile $TLS_KEY --log-level=debug
 else
-  gunicorn --timeout 600 --bind 0.0.0.0:${SERVER_PORT} --log-level=debug chatbot_api:app
+  uvicorn chatbot:app --timeout 600 --host 0.0.0.0 --port ${SERVER_PORT} --log-level=debug
 fi
