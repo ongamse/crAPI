@@ -2,10 +2,13 @@ import logging
 
 from quart import Blueprint, jsonify, request, session
 
-from .chat_service import (delete_chat_history, get_chat_history,
-                           process_user_message)
-from .session_service import (delete_api_key, get_api_key,
-                              get_or_create_session_id, store_api_key)
+from .chat_service import delete_chat_history, get_chat_history, process_user_message
+from .session_service import (
+    delete_api_key,
+    get_api_key,
+    get_or_create_session_id,
+    store_api_key,
+)
 
 chat_bp = Blueprint("chat", __name__, url_prefix="/genai")
 logger = logging.getLogger(__name__)
