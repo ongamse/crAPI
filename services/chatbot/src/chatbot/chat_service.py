@@ -25,15 +25,17 @@ async def delete_chat_history(session_id):
 async def process_user_message(session_id, user_message, api_key):
     history = await get_chat_history(session_id)
     # generate a unique numeric id for the message that is random but unique
-    source_message_id = uuid4().int & (1<<63)-1
+    source_message_id = uuid4().int & (1 << 63) - 1
     history.append({"id": source_message_id, "role": "user", "content": user_message})
     # Run LangGraph agent
     response = await execute_langgraph_agent(api_key, history, session_id)
     print("Response", response)
     reply: Messages = response.get("messages", [{}])[-1]
     print("Reply", reply.content)
-    response_message_id = uuid4().int & (1<<63)-1
-    history.append({"id": response_message_id, "role": "assistant", "content": reply.content})
+    response_message_id = uuid4().int & (1 << 63) - 1
+    history.append(
+        {"id": response_message_id, "role": "assistant", "content": reply.content}
+    )
     # Limit chat history to last 20 messages
     history = history[-20:]
     await update_chat_history(session_id, history)

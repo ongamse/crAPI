@@ -56,16 +56,28 @@ async def state():
     logger.debug("Checking state for session %s", session_id)
     openai_api_key = await get_api_key(session_id)
     if openai_api_key:
-        logger.debug("OpenAI API Key for session %s: %s", session_id, openai_api_key[:5])
+        logger.debug(
+            "OpenAI API Key for session %s: %s", session_id, openai_api_key[:5]
+        )
         chat_history = await get_chat_history(session_id)
         # Limit chat history to last 20 messages
         chat_history = chat_history[-20:]
-        return jsonify({"initialized": "true", "message": "Model initialized", "chat_history": chat_history}), 200
+        return (
+            jsonify(
+                {
+                    "initialized": "true",
+                    "message": "Model initialized",
+                    "chat_history": chat_history,
+                }
+            ),
+            200,
+        )
     return (
         jsonify({"initialized": "false", "message": "Model needs to be initialized"}),
         200,
     )
-    
+
+
 @chat_bp.route("/history", methods=["GET"])
 async def history():
     session_id = await get_or_create_session_id()

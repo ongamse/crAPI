@@ -38,25 +38,24 @@ API_PASSWORD = os.environ.get("API_PASSWORD", "Admin!123")
 API_KEY = None
 API_AUTH_TYPE = "ApiKey"
 
+
 async def get_api_key():
     if API_KEY is None:
-        login_body = {
-            "username": API_USER,
-            "password": API_PASSWORD
-        }
+        login_body = {"username": API_USER, "password": API_PASSWORD}
         apikey_url = f"{API_URL}/identity/management/user/apikey"
         headers = {}
         async with httpx.AsyncClient(
-                    base_url=API_URL,
-                    headers=headers,
-                ) as client:
+            base_url=API_URL,
+            headers=headers,
+        ) as client:
             response = await client.post(apikey_url, json=login_body)
             response.raise_for_status()
             API_KEY = response.json().get("apiKey")
             logger.info(f"Chatbot API Key: {API_KEY[:5]}...")
             return API_KEY
     return API_KEY
-        
+
+
 # Async HTTP client for API calls
 async def get_http_client():
     """Create and configure the HTTP client with appropriate authentication."""
@@ -68,6 +67,7 @@ async def get_http_client():
 
 
 # MCP tools for API operations
+
 
 @mcp.tool(description="Used to create an account")
 async def signup(ctx: Context) -> str:
