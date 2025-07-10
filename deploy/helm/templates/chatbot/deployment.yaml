@@ -21,12 +21,24 @@ spec:
         {{- end }}
     spec:
       initContainers:
+        - name: wait-for-postgres
+          image: {{ .Values.waitForK8sResources.image }}
+          imagePullPolicy: {{ .Values.waitForK8sResources.imagePullPolicy }}
+          args:
+            - "service"
+            - {{ .Values.postgresdb.service.name | quote }}
         - name: wait-for-mongo
           image: {{ .Values.waitForK8sResources.image }}
           imagePullPolicy: {{ .Values.waitForK8sResources.imagePullPolicy }}
           args:
             - "service"
             - {{ .Values.mongodb.service.name | quote }}
+        - name: wait-for-identity
+          image: {{ .Values.waitForK8sResources.image }}
+          imagePullPolicy: {{ .Values.waitForK8sResources.imagePullPolicy }}
+          args:
+            - "service"
+            - {{ .Values.identity.service.name | quote }}
       containers:
         - name: {{ .Values.chatbot.name }}
           image: {{ .Values.chatbot.image }}:{{ .Chart.AppVersion }}
