@@ -30,30 +30,28 @@ def get_api_key():
     MAX_ATTEMPTS = 5
     for i in range(MAX_ATTEMPTS):
         logger.info(f"Attempt {i+1} to get API key...")
-        try:
-            if API_KEY is None:
-                login_body = {"email": API_USER, "password": API_PASSWORD}
-                apikey_url = f"{BASE_IDENTITY_URL}/identity/management/user/apikey"
-                headers = {
-                    "Content-Type": "application/json",
+        if API_KEY is None:
+            login_body = {"email": API_USER, "password": API_PASSWORD}
+            apikey_url = f"{BASE_IDENTITY_URL}/identity/management/user/apikey"
+            headers = {
+                "Content-Type": "application/json",
             }
-                with httpx.Client(
-                    base_url=API_URL,
-                    headers=headers,
-                ) as client:
-                    response = client.post(apikey_url, json=login_body)
-                    response.raise_for_status()
-                    response_json = response.json()
-                    logger.info(f"Response: {response_json}")
-                    API_KEY = response_json.get("apiKey")
-                    logger.info(f"Chatbot API Key: {API_KEY}")
-                    return API_KEY
-        except Exception as e:
-            if i == MAX_ATTEMPTS - 1:
-                logger.error(f"Failed to get API key after {i+1} attempts. Giving up.")
-                raise
-            logger.error(f"Failed to get API key in attempt {i+1}: {e}. Sleeping for {i} seconds...")
-            time.sleep(i)
+            with httpx.Client(
+                base_url=API_URL,
+                headers=headers,
+            ) as client:
+                response = client.post(apikey_url, json=login_body)
+                if response.status_code != 200:
+                    if i == MAX_ATTEMPTS - 1:
+                        logger.error(f"Failed to get API key after {i+1} attempts: {response.status_code} {response.text}")
+                        raise Exception(f"Failed to get API key after {i+1} attempts: {response.status_code} {response.text}")
+                    logger.error(f"Failed to get API key in attempt {i+1}: {response.status_code} {response.text}. Sleeping for {i} seconds...")
+                    time.sleep(i)
+                response_json = response.json()
+                logger.info(f"Response: {response_json}")
+                API_KEY = response_json.get("apiKey")
+                logger.info(f"Chatbot API Key: {API_KEY}")
+                return API_KEY
     return API_KEY
 
 
