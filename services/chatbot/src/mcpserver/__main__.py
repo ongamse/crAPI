@@ -1,7 +1,7 @@
 import logging
 import os
 
-from .mcp_server import app
+from .server import mcp as app
 
 # Configure logging
 logging.basicConfig(
@@ -11,11 +11,5 @@ logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     logger.info("Starting MCP server...")
-    app.settings.host = "0.0.0.0"
-    app.settings.port = 5002
-    app.settings.debug = os.getenv("DEBUG", "False").lower() in (
-        "true",
-        "1",
-        "yes",
-    )
-    app.run(transport="streamable-http")
+    mcp_server_port = int(os.environ.get("MCP_SERVER_PORT", 5500))
+    app.run(transport="streamable-http",  host="0.0.0.0", port=mcp_server_port)

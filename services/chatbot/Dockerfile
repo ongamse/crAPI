@@ -16,6 +16,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src /app
 COPY certs /app/certs
 COPY retrieval /app/retrieval
+RUN mkdir -p /app/resources
+COPY src/resources/crapi-openapi-spec.json /app/resources/crapi-openapi-spec.json
 ENV PYTHONPATH="/app"
 COPY entrypoint.sh /app/entrypoint.sh
 CMD /app/entrypoint.sh

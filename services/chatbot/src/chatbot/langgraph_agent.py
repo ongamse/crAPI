@@ -48,7 +48,7 @@ async def get_retriever_tool(api_key):
     return retriever_tool
 
 
-async def build_langgraph_agent(api_key, session_id):
+async def build_langgraph_agent(api_key):
     system_prompt = textwrap.dedent(
         """
 You are crAPI Assistant — an expert agent that helps users explore and test the Completely Ridiculous API (crAPI), a vulnerable-by-design application for learning and evaluating modern API security issues.
@@ -93,12 +93,12 @@ Use the tools only if you don't know the answer.
     tools = mcp_tools + db_tools
     # retriever_tool = await get_retriever_tool(api_key)
     # tools.append(retriever_tool)
-    agent_node = create_react_agent(llm, tools=tools, prompt=system_prompt)
+    agent_node = create_react_agent(model=llm, tools=tools, prompt=system_prompt)
     return agent_node
 
 
 async def execute_langgraph_agent(api_key, messages, session_id=None):
-    agent = await build_langgraph_agent(api_key, session_id)
+    agent = await build_langgraph_agent(api_key)
     print("messages", messages)
     print("Session ID", session_id)
     response = await agent.ainvoke({"messages": messages})

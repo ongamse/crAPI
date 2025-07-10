@@ -15,8 +15,8 @@ services:
   crapi-identity:
     container_name: crapi-identity
     image: crapi/crapi-identity:${VERSION:-latest}
-    #ports:
-    #  - "${LISTEN_IP:-127.0.0.1}:8080:8080"
+    ports:
+     - "${LISTEN_IP:-127.0.0.1}:8080:8080"
     volumes:
       - ./keys:/app/keys
     environment:
@@ -169,6 +169,8 @@ services:
       # - CHATBOT_OPENAI_API_KEY=
     depends_on:
       mongodb:
+        condition: service_healthy
+      crapi-identity:
         condition: service_healthy
     # ports:
     #  - "${LISTEN_IP:-127.0.0.1}:5002:5002"
