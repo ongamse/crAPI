@@ -3,7 +3,7 @@ from fastmcp import FastMCP, settings
 import json
 import os
 import logging
-
+import time
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -26,23 +26,34 @@ API_AUTH_TYPE = "ApiKey"
 
 def get_api_key():
     global API_KEY
-    if API_KEY is None:
-        login_body = {"email": API_USER, "password": API_PASSWORD}
-        apikey_url = f"{BASE_IDENTITY_URL}/identity/management/user/apikey"
-        headers = {
-            "Content-Type": "application/json",
-        }
-        with httpx.Client(
-            base_url=API_URL,
-            headers=headers,
-        ) as client:
-            response = client.post(apikey_url, json=login_body)
-            response.raise_for_status()
-            response_json = response.json()
-            logger.info(f"Response: {response_json}")
-            API_KEY = response_json.get("apiKey")
-            logger.info(f"Chatbot API Key: {API_KEY}")
-            return API_KEY
+    # Try 5 times to get API key
+    MAX_ATTEMPTS = 5
+    for i in range(MAX_ATTEMPTS):
+        logger.info(f"Attempt {i+1} to get API key...")
+        try:
+            if API_KEY is None:
+                login_body = {"email": API_USER, "password": API_PASSWORD}
+                apikey_url = f"{BASE_IDENTITY_URL}/identity/management/user/apikey"
+                headers = {
+                    "Content-Type": "application/json",
+            }
+                with httpx.Client(
+                    base_url=API_URL,
+                    headers=headers,
+                ) as client:
+                    response = client.post(apikey_url, json=login_body)
+                    response.raise_for_status()
+                    response_json = response.json()
+                    logger.info(f"Response: {response_json}")
+                    API_KEY = response_json.get("apiKey")
+                    logger.info(f"Chatbot API Key: {API_KEY}")
+                    return API_KEY
+        except Exception as e:
+            if i == MAX_ATTEMPTS - 1:
+                logger.error(f"Failed to get API key after {i+1} attempts. Giving up.")
+                raise
+            logger.error(f"Failed to get API key in attempt {i+1}: {e}. Sleeping for {i} seconds...")
+            time.sleep(i)
     return API_KEY
 
 
