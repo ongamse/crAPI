@@ -25,6 +25,7 @@ import { Space } from "antd";
 import Icon, {
   CloseSquareOutlined,
   DeleteOutlined,
+  ExpandAltOutlined,
   WechatWorkOutlined,
 } from "@ant-design/icons";
 import "./chatbot.css";
@@ -61,6 +62,11 @@ interface ChatBotComponentProps {
 }
 
 const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
+  // Expanded state for chatbot container
+  const [expanded, setExpanded] = useState<boolean>(false);
+  // Set to true so chatbot is open on UI load
+  const [showBot, toggleBot] = useState<boolean>(true);
+
   const [chatbotState, setChatbotState] = useState<ChatBotState>({
     openapiKey: localStorage.getItem("openapi_key"),
     initializing: false,
@@ -71,8 +77,7 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
     messages: [],
   });
 
-  // Set to true so chatbot is open on UI load
-  const [showBot, toggleBot] = useState<boolean>(true);
+
 
   const headerText = (): JSX.Element => {
     return (
@@ -88,21 +93,22 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
           &nbsp; &nbsp; Exploit CrapBot &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
           &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
           &nbsp;
-          <a
-            style={{
-              color: "white",
-              fontWeight: "bold",
-              background: "#0a5e9c",
-              borderRadius: "0px",
-            }}
-            href="##"
-            onClick={(e) => {
-              e.preventDefault();
-              toggleBot((prev) => !prev);
-            }}
+          <button
+            className="expand-chatbot-btn"
+            style={{ position: "absolute", top: 10, right: 35, zIndex: 1100 }}
+            onClick={() => setExpanded((prev) => !prev)}
+            aria-label={expanded ? "Collapse Chatbot" : "Expand Chatbot"}
           >
-            <CloseSquareOutlined style={{ margin: "2px" }} />
-          </a>
+            <ExpandAltOutlined />
+          </button>
+          <button
+            className="toggle-chatbot-btn"
+            style={{ position: "absolute", top: 10, right: 10, zIndex: 1100 }}
+            onClick={() => toggleBot((prev) => !prev)}
+            aria-label={showBot ? "Hide Chatbot" : "Show Chatbot"}
+          >
+            <CloseSquareOutlined />
+          </button>
         </Space>
       </div>
     );
@@ -162,6 +168,16 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
           className="app-chatbot-button-icon"
           style={{ fontSize: "40", color: "white" }}
         />
+      ),
+      customButtons: (
+        <button
+              className="expand-chatbot-btn"
+              style={{ position: "absolute", top: 10, right: 10, zIndex: 1100 }}
+              onClick={() => setExpanded((prev) => !prev)}
+              aria-label={expanded ? "Collapse Chatbot" : "Expand Chatbot"}
+            >
+              ⤢   
+            </button>
       ),
     },
     state: chatbotState,
@@ -331,8 +347,8 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
   return (
     <Row>
       <Col xs={10}>
-        <div className="app-chatbot-container">
-          <div style={{ maxWidth: "500px" }}>
+        <div className={`app-chatbot-container${expanded ? ' expanded' : ''}`}>
+          <div style={{ maxWidth: "100%", maxHeight: "100%" }}>
             {/* Chatbot loads chat history from backend and renders it on UI load */}
             {showBot && initialMessages === null && <div>Loading chat...</div>}
             {showBot && initialMessages !== null && (
