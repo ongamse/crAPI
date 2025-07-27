@@ -8,6 +8,7 @@ from .tool_helpers import (
     get_any_api_key,
     get_chat_history_retriever,
 )
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -28,6 +29,7 @@ API_URL = f"{'https' if TLS_ENABLED else 'http'}://{WEB_SERVICE}"
 API_KEY = None
 API_AUTH_TYPE = "ApiKey"
 
+
 def get_api_key():
     global API_KEY
     # Try 5 times to get API key
@@ -47,9 +49,15 @@ def get_api_key():
                 response = client.post(apikey_url, json=login_body)
                 if response.status_code != 200:
                     if i == MAX_ATTEMPTS - 1:
-                        logger.error(f"Failed to get API key after {i+1} attempts: {response.status_code} {response.text}")
-                        raise Exception(f"Failed to get API key after {i+1} attempts: {response.status_code} {response.text}")
-                    logger.error(f"Failed to get API key in attempt {i+1}: {response.status_code} {response.text}. Sleeping for {i} seconds...")
+                        logger.error(
+                            f"Failed to get API key after {i+1} attempts: {response.status_code} {response.text}"
+                        )
+                        raise Exception(
+                            f"Failed to get API key after {i+1} attempts: {response.status_code} {response.text}"
+                        )
+                    logger.error(
+                        f"Failed to get API key in attempt {i+1}: {response.status_code} {response.text}. Sleeping for {i} seconds..."
+                    )
                     time.sleep(i)
                 response_json = response.json()
                 logger.info(f"Response: {response_json}")
@@ -70,38 +78,20 @@ def get_http_client():
         headers=headers,
     )
 
-# Load your OpenAPI spec 
+
+# Load your OpenAPI spec
 with open("/app/resources/crapi-openapi-spec.json", "r") as f:
     openapi_spec = json.load(f)
 
 # Create the MCP server
 mcp = FastMCP.from_openapi(
-    openapi_spec=openapi_spec,
-    client=get_http_client(),
-    name="My crAPI MCP Server"
+    openapi_spec=openapi_spec, client=get_http_client(), name="My crAPI MCP Server"
 )
-
-@mcp.tool(tags={"history", "search", "summary", "context"},)
-async def search_chat_history(question: str) -> str:
-    """Answer questions based on user chat history (summarized and semantically indexed). 
-    Use this when the user asks about prior chats, what they asked earlier, or wants a summary of past conversations.    
-    Answer questions based on the user's prior chat history.
-
-    Use this tool when the user refers to anything mentioned before, asks for a summary of previous messages or sessions, 
-    or references phrases like 'what I said earlier', 'things we discussed', 'my earlier question', 'until now', 'till date', 'all my conversations' or 'previously mentioned'.
-    The chat history is semantically indexed and summarized using vector search."""
-
-    logger.info(f"search_chat_history called with: {question}")
-    api_key=await get_any_api_key()
-    if not api_key:
-        logger.error("API key is not available. Cannot search chat history.")
-        return "OpenAI API key is not available. Cannot search chat history."
-    retriever = await get_chat_history_retriever(api_key=api_key)
-    response = await retriever.ainvoke({"query": question})
-    result = response["result"]
-    logger.info(f"RESULT: {result}")
-    return result
 
 if __name__ == "__main__":
     mcp_server_port = int(os.environ.get("MCP_SERVER_PORT", 5500))
-    mcp.run(transport="streamable-http", host="0.0.0.0", port=mcp_server_port,)
+    mcp.run(
+        transport="streamable-http",
+        host="0.0.0.0",
+        port=mcp_server_port,
+    )
