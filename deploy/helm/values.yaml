@@ -327,7 +327,6 @@ apiGatewayService:
   serviceSelectorLabels:
     app: gateway-service
 
-
 chromadb:
   name: chromadb
   image: chromadb/chroma
