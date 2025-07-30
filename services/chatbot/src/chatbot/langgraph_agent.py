@@ -4,7 +4,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from .extensions import postgresdb
 from .mcp_client import get_mcp_client
-
+from .retriever import get_retriever_tool
 
 async def build_langgraph_agent(api_key, model_name, user_jwt):
     system_prompt = textwrap.dedent(
@@ -49,7 +49,8 @@ Use the tools only if you don't know the answer.
     mcp_client = get_mcp_client(user_jwt)
     mcp_tools = await mcp_client.get_tools()
     db_tools = toolkit.get_tools()
-    tools = mcp_tools + db_tools
+    retriever_tool = get_retriever_tool(api_key)
+    tools = mcp_tools + db_tools + [retriever_tool]
     agent_node = create_react_agent(model=llm, tools=tools, prompt=system_prompt)
     return agent_node
 

@@ -1,6 +1,6 @@
 from uuid import uuid4
 from langgraph.graph.message import Messages
-from .vectordb import update_collection
+from .retriever import update_collection
 from .extensions import db
 from .langgraph_agent import execute_langgraph_agent
 

@@ -11,5 +11,3 @@ class Config:
     OPENAPI_SPEC = os.getenv("OPENAPI_SPEC", "/app/resources/crapi-openapi-spec.json")
     API_USER = os.getenv("API_USER", "admin@example.com")
     API_PASSWORD = os.getenv("API_PASSWORD", "Admin!123")
-    CHROMA_HOST = os.environ.get("CHROMA_HOST", "chromadb")
-    CHROMA_PORT = os.environ.get("CHROMA_PORT", "8000")
