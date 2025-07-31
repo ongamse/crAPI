@@ -72,7 +72,9 @@ const PastOrders: React.FC<PastOrdersProps> = (props) => {
   const renderOrderDescription = (order: Order) => (
     <div className="order-info">
       <div className="order-product-name">{order.product.name}</div>
-      <div className="order-price">${(Number(order.product.price) * order.quantity).toFixed(2)}</div>
+      <div className="order-price">
+        ${(Number(order.product.price) * order.quantity).toFixed(2)}
+      </div>
       <div className="order-date">{formatDateFromIso(order.created_on)}</div>
       <div className="order-actions">
         <Button

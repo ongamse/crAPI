@@ -276,7 +276,7 @@ const Profile: React.FC<PropsFromRedux> = (props) => {
               <div className="info-label">Name</div>
               <div className="info-value">{userData.name}</div>
             </div>
-            
+
             <div className="info-item">
               <div className="info-label">Email</div>
               <div className="info-value-with-action">
@@ -292,7 +292,7 @@ const Profile: React.FC<PropsFromRedux> = (props) => {
                 </Button>
               </div>
             </div>
-            
+
             <div className="info-item">
               <div className="info-label">Phone Number</div>
               <div className="info-value-with-action">
@@ -326,9 +326,11 @@ const Profile: React.FC<PropsFromRedux> = (props) => {
     <Layout className="page-container profile-page">
       <div className="profile-header-section">
         <h1 className="profile-title">Your Profile</h1>
-        <p className="profile-subtitle">Manage your personal information and settings</p>
+        <p className="profile-subtitle">
+          Manage your personal information and settings
+        </p>
       </div>
-      
+
       <Content className="profile-content-wrapper">
         <Card className="profile-card" hoverable>
           <Meta description={renderProfileDescription()} />
@@ -367,7 +369,7 @@ const Profile: React.FC<PropsFromRedux> = (props) => {
               )}
             </div>
           </div>
-          
+
           <input
             type="file"
             hidden
@@ -375,11 +377,9 @@ const Profile: React.FC<PropsFromRedux> = (props) => {
             accept="video/*"
             onChange={handleUploadVideo}
           />
-          
+
           {videoData && (
-            <div className="video-player-container">
-              {renderVideo()}
-            </div>
+            <div className="video-player-container">{renderVideo()}</div>
           )}
         </Card>
       </Content>
@@ -406,8 +406,8 @@ const Profile: React.FC<PropsFromRedux> = (props) => {
             initialValue={profileData.videoName}
             rules={[{ required: true, message: VIDEO_NAME_REQUIRED }]}
           >
-            <Input 
-              placeholder="Enter your video name..." 
+            <Input
+              placeholder="Enter your video name..."
               className="video-name-input"
               size="large"
             />
@@ -415,16 +415,16 @@ const Profile: React.FC<PropsFromRedux> = (props) => {
           <Form.Item className="form-actions">
             {hasErrored && <div className="error-message">{errorMessage}</div>}
             <div className="modal-buttons">
-              <Button 
+              <Button
                 onClick={() => setIsVideoModalOpen(false)}
                 className="cancel-btn"
                 size="large"
               >
                 Cancel
               </Button>
-              <Button 
-                type="primary" 
-                htmlType="submit" 
+              <Button
+                type="primary"
+                htmlType="submit"
                 className="submit-btn"
                 size="large"
                 icon={<VideoCameraOutlined />}

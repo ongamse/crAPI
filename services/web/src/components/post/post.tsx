@@ -88,7 +88,9 @@ const Posts: React.FC<PostProps> = ({
             <Col>
               <div className="post-avatar-container">
                 <Avatar
-                  src={(post && post.author.profile_pic_url) || defaultProficPic}
+                  src={
+                    (post && post.author.profile_pic_url) || defaultProficPic
+                  }
                   size={90}
                   className="post-avatar"
                 />
@@ -105,7 +107,7 @@ const Posts: React.FC<PostProps> = ({
             </Col>
           </Row>
         </div>
-        
+
         <div className="post-content-section">
           <Typography className="post-content">
             {post &&
@@ -118,7 +120,7 @@ const Posts: React.FC<PostProps> = ({
         </div>
 
         <Divider className="post-divider" />
-        
+
         <div className="comments-section">
           <div className="comments-header">
             <h2 className="comments-title">Comments</h2>
@@ -138,12 +140,17 @@ const Posts: React.FC<PostProps> = ({
             {post &&
               post.comments &&
               post.comments.map((comment, index) => (
-                <div key={`${comment.CreatedAt}-${index}`} className="comment-item">
+                <div
+                  key={`${comment.CreatedAt}-${index}`}
+                  className="comment-item"
+                >
                   <Row gutter={[16, 16]} align="top">
                     <Col>
                       <div className="comment-avatar-container">
                         <Avatar
-                          src={comment.author.profile_pic_url || defaultProficPic}
+                          src={
+                            comment.author.profile_pic_url || defaultProficPic
+                          }
                           size={50}
                           className="comment-avatar"
                         />
@@ -157,11 +164,16 @@ const Posts: React.FC<PostProps> = ({
                           )}`}
                         </div>
                         <Typography className="comment-text">
-                          {comment.content.split("\n").map((para, paraIndex) => (
-                            <Paragraph key={paraIndex} className="comment-paragraph">
-                              {para}
-                            </Paragraph>
-                          ))}
+                          {comment.content
+                            .split("\n")
+                            .map((para, paraIndex) => (
+                              <Paragraph
+                                key={paraIndex}
+                                className="comment-paragraph"
+                              >
+                                {para}
+                              </Paragraph>
+                            ))}
                         </Typography>
                       </div>
                     </Col>
@@ -193,7 +205,7 @@ const Posts: React.FC<PostProps> = ({
             label="Your Comment"
             rules={[{ required: true, message: COMMENT_REQUIRED }]}
           >
-            <Input.TextArea 
+            <Input.TextArea
               rows={4}
               placeholder="Share your thoughts..."
               className="comment-textarea"
@@ -202,15 +214,15 @@ const Posts: React.FC<PostProps> = ({
           <Form.Item className="form-actions">
             {hasErrored && <div className="error-message">{errorMessage}</div>}
             <div className="modal-buttons">
-              <Button 
+              <Button
                 onClick={() => setIsCommentFormOpen(false)}
                 className="cancel-btn"
               >
                 Cancel
               </Button>
-              <Button 
-                type="primary" 
-                htmlType="submit" 
+              <Button
+                type="primary"
+                htmlType="submit"
                 className="submit-btn"
                 icon={<CommentOutlined />}
               >

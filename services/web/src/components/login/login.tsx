@@ -86,7 +86,9 @@ const Login: React.FC<LoginProps> = ({
               >
                 Forgot Password?
               </button>
-              {hasErrored && <div className="error-message">{errorMessage}</div>}
+              {hasErrored && (
+                <div className="error-message">{errorMessage}</div>
+              )}
               <Button type="primary" htmlType="submit" className="form-button">
                 Login
               </Button>
