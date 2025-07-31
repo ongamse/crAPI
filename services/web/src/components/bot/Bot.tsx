@@ -363,7 +363,7 @@ What would you like to do next?`);
       title: (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           <span style={{ fontSize: '18px', fontWeight: '600', color: '#1f2937' }}>
-            CrAPI Chatbot
+            crAPI ChatBot
           </span>
           <button
             className="expand-chatbot-btn"
