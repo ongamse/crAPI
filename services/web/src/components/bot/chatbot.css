@@ -30,15 +30,31 @@
 
 
 .expand-chatbot-btn:hover {
-  background: rgba(229, 231, 235, 0.5);
   color: #ffffff;
   transform: scale(1.05);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	opacity: 1;
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
 .expand-chatbot-btn:focus {
   outline: none;
   border: none;
+}
+
+
+.expand-chatbot-btn:after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 0;
+	height: 0;
+	background-color: rgba(0, 0, 0, 0.1);
+	border-radius: 50%;
+	opacity: 0;
+	transition: width 0.2s ease-out, height 0.2s ease-out, opacity 0.2s ease-out;
 }
 
 
