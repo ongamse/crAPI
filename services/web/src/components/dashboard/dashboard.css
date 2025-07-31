@@ -49,6 +49,8 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  margin-left: 10px;
+  margin-right: 10px;
 }
 
 /* Enhanced vehicle card */

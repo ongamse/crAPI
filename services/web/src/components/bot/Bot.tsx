@@ -24,6 +24,13 @@ import {
   WechatWorkOutlined,
 } from "@ant-design/icons";
 import "./chatbot.css";
+import chatbotIcon from "../../assets/chatbot.svg";
+
+const ChatBotIcon = () => {
+  return (
+    <img src={chatbotIcon} alt="Chatbot" style={{ width: "50px", height: "50px", color: "#ffffff" }} />
+  );
+};
 
 const superagent = require("superagent");
 
@@ -384,7 +391,7 @@ What would you like to do next?`);
       disabled: true,
     },
     chatButton: {
-      icon: "💬",
+      icon: ChatBotIcon,
     },
     userBubble: {
       animate: true,

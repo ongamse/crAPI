@@ -123,17 +123,19 @@ const Navbar: React.FC<NavbarProps> = (props) => {
       {isLoggedIn ? (
         <Space className="top-nav-right">
           <div className="greeting-text">{`Good Morning, ${name}!`}</div>
-          <div className="avatarContainer">
-            <Avatar
-              src={profilePicData || defaultProficPic}
-              className="avatar"
-              size="large"
-              onClick={() => navigate("/my-profile")}
-            />
-          </div>
-          <Dropdown menu={{ items: sideMenuItems }} placement="bottomRight">
-            <div className="nav-items">
-              <CaretDownOutlined />
+          <Dropdown menu={{ items: sideMenuItems }} placement="bottomRight" trigger={['click', 'hover']}>
+            <div className="profile-dropdown-trigger">
+              <div className="avatarContainer">
+                <Avatar
+                  src={profilePicData || defaultProficPic}
+                  className="avatar"
+                  size="large"
+                />
+              </div>
+              <div className="dropdown-info">
+                <span className="user-name">{name}</span>
+                <CaretDownOutlined className="dropdown-arrow" />
+              </div>
             </div>
           </Dropdown>
         </Space>

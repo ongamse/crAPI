@@ -43,6 +43,17 @@ body > iframe {
   padding: var(--spacing-lg) 0;
 }
 
+.page-container .ant-page-header-heading-title {
+  padding: 0;
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+.page-container .ant-page-header-heading-extra {
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
 .page-container .ant-layout-content {
   background: transparent;
 }
