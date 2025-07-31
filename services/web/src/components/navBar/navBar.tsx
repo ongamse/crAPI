@@ -122,7 +122,7 @@ const Navbar: React.FC<NavbarProps> = (props) => {
       </Space>
       {isLoggedIn ? (
         <Space className="top-nav-right">
-          <div>{`Good Morning, ${name}!`}</div>
+          <div className="greeting-text">{`Good Morning, ${name}!`}</div>
           <div className="avatarContainer">
             <Avatar
               src={profilePicData || defaultProficPic}
