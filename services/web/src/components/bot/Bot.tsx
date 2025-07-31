@@ -14,8 +14,8 @@
  */
 
 import React, { useState, useEffect } from "react";
-import ChatBot from "react-chatbotify";
-import MarkdownRenderer from "@rcb-plugins/markdown-renderer";
+import ChatBot, { Params } from "react-chatbotify";
+import MarkdownRenderer, { MarkdownRendererBlock } from "@rcb-plugins/markdown-renderer";
 import { APIService } from "../../constants/APIConstant";
 import { Row, Col } from "antd";
 import {
@@ -49,8 +49,11 @@ interface ChatBotComponentProps {
   role: string;
 }
 
+
 const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
   const [expanded, setExpanded] = useState<boolean>(false);
+  const helpOptions = ["Initialize", "Clear", "Help"];
+
 
   const [chatbotState, setChatbotState] = useState<ChatBotState>({
     openapiKey: localStorage.getItem("openapi_key"),
@@ -61,6 +64,62 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
     role: props.role,
     messages: [],
   });
+
+  // Handle initialization
+  const handleInitialization = async (apiKey: string) => {
+    try {
+      const initUrl = APIService.CHATBOT_SERVICE + "genai/init";
+      const response = await superagent
+        .post(initUrl)
+        .set("Accept", "application/json")
+        .set("Content-Type", "application/json")
+        .set("Authorization", `Bearer ${props.accessToken}`)
+        .send({ openai_key: apiKey });
+
+      console.log("Initialization response:", response.body);
+      return response.body.success || response.status === 200;
+    } catch (err) {
+      console.error("Error initializing chatbot:", err);
+      return false;
+    }
+  };
+
+  // Fetch chat history from backend
+  const fetchChatHistory = async () => {
+    try {
+      const stateUrl = APIService.CHATBOT_SERVICE + "genai/state";
+      const response = await superagent
+        .get(stateUrl)
+        .set("Accept", "application/json")
+        .set("Content-Type", "application/json")
+        .set("Authorization", `Bearer ${props.accessToken}`);
+
+      console.log("Chat history response:", response.body);
+      return response.body.chat_history || [];
+    } catch (err) {
+      console.error("Error fetching chat history:", err);
+      return [];
+    }
+  };
+
+  // Clear chat history
+  const clearChatHistory = async () => {
+    try {
+      const clearUrl = APIService.CHATBOT_SERVICE + "genai/clear";
+      await superagent
+        .post(clearUrl)
+        .set("Accept", "application/json")
+        .set("Content-Type", "application/json")
+        .set("Authorization", `Bearer ${props.accessToken}`)
+        .send();
+
+      console.log("Chat history cleared");
+      return true;
+    } catch (err) {
+      console.error("Error clearing chat history:", err);
+      return false;
+    }
+  };
 
   // Handle user messages
   const handleUserMessage = async (message: string) => {
@@ -96,6 +155,7 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
       }
       
       console.log("Bot response to render:", botResponse);
+      console.log("Testing markdown in response:", botResponse.includes('**') || botResponse.includes('*') || botResponse.includes('#'));
       return botResponse;
     } catch (err) {
       console.error("Error in chat API:", err);
@@ -107,21 +167,155 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
   // React Chatbotify flow configuration
   const flow = {
     start: {
-      message: "Hi, How can I help?",
-      function: async (params: any) => {
-        const response = await handleUserMessage(params.userInput);
-        await params.injectMessage(response);
+      message: "Welcome to crAPI! How can I assist you today?",
+      transition: { duration: 1000 },
+      path: "check_initialization",
+    },
+    check_initialization: {
+      transition: { duration: 0 },
+      chatDisabled: true,
+      path: async (params: Params) => {
+        // Check if chatbot is already initialized
+        try {
+          const stateUrl = APIService.CHATBOT_SERVICE + "genai/state";
+          const response = await superagent
+            .get(stateUrl)
+            .set("Accept", "application/json")
+            .set("Content-Type", "application/json")
+            .set("Authorization", `Bearer ${props.accessToken}`);
+
+          const isInitialized = response.body.initialized === "true" || response.body.initialized === true;
+          
+          if (isInitialized) {
+            await params.injectMessage("Chatbot is already initialized! Loading chat history...");
+            
+            // Fetch and display chat history
+            const chatHistory = await fetchChatHistory();
+            console.log("Chat history:", chatHistory);
+            setChatbotState(prev => ({
+              ...prev,
+              messages: chatHistory,
+              initializationRequired: false
+            }));
+            
+            if (chatHistory.length > 0) {
+              // inject all the messages in the chat history
+              for (const message of chatHistory) {
+                await params.injectMessage(message.content, message.role === "user" ? "user" : "bot");
+              }
+              await params.injectMessage(`Loaded ${chatHistory.length} previous messages. You can now start chatting!`);
+            } else {
+              await params.injectMessage("No previous chat history found. You can start chatting now!");
+            }
+            
+            return "chat";
+          } else {
+            await params.injectMessage("Chatbot is not initialized. Please choose an option:");
+            return "show_options";
+          }
+        } catch (err) {
+          console.error("Error checking initialization:", err);
+          await params.injectMessage("Unable to check initialization status. Please choose an option:");
+          return "show_options";
+        }
+      },
+      renderMarkdown: ['BOT'],
+    },
+    show_options: {
+      message: "What would you like to do?",
+      options: helpOptions,
+      path: "process_options",
+    },
+    process_options: {
+      transition: { duration: 0 },
+      chatDisabled: true,
+      path: async (params: Params) => {
+        switch (params.userInput) {
+          case "Initialize":
+            await params.injectMessage("Please enter your OpenAI API key to initialize the chatbot:");
+            return "initialize";
+          case "Clear":
+            await params.injectMessage("Clearing the chat history...");
+            const cleared = await clearChatHistory();
+            if (cleared) {
+              await params.injectMessage("Chat history cleared successfully!");
+              setChatbotState(prev => ({ ...prev, messages: [] }));
+            } else {
+              await params.injectMessage("Failed to clear chat history. Please try again.");
+            }
+            return "show_options";
+          case "Help":
+            await params.injectMessage(`**crAPI Chatbot Help**
+
+**Available Commands:**
+- **Initialize**: Set up the chatbot with your OpenAI API key
+- **Clear**: Clear the chat history
+- **Help**: Show this help message
+
+**Usage:**
+1. First, initialize the chatbot with your OpenAI API key
+2. Once initialized, you can ask questions about crAPI
+3. Use the Clear option to reset your chat history
+
+What would you like to do next?`);
+            return "show_options";
+          default:
+            await params.injectMessage("Invalid option. Please choose from the available options.");
+            return "show_options";
+        }
+      },
+      renderMarkdown: ['BOT'],
+    },
+    initialize: {
+      message: "Please paste your OpenAI API key below:",
+      isSensitive: true,
+      function: async (params: Params) => {
+        const apiKey = params.userInput.trim();
+        
+        if (!apiKey) {
+          await params.injectMessage("API key cannot be empty. Please enter a valid OpenAI API key:");
+          return;
+        }
+        
+        await params.injectMessage("Initializing chatbot with your API key...");
+        
+        const success = await handleInitialization(apiKey);
+        
+        if (success) {
+          await params.injectMessage("✅ Chatbot initialized successfully! Loading chat history...");
+          
+          // Fetch chat history after successful initialization
+          const chatHistory = await fetchChatHistory();
+          setChatbotState(prev => ({
+            ...prev,
+            messages: chatHistory,
+            initializationRequired: false
+          }));
+          
+          if (chatHistory.length > 0) {
+            await params.injectMessage(`Loaded ${chatHistory.length} previous messages. You can now start chatting!`);
+          } else {
+            await params.injectMessage("Ready to chat! Ask me anything about crAPI.");
+          }
+        } else {
+          await params.injectMessage("❌ Failed to initialize chatbot. Please check your API key and try again:");
+          return;
+        }
       },
       path: "chat",
+      renderMarkdown: ['BOT'],
     },
     chat: {
-      function: async (params: any) => {
+      function: async (params: Params) => {
         const response = await handleUserMessage(params.userInput);
         await params.injectMessage(response);
       },
-      path: "chat", // Loop back to chat for continuous conversation
+      renderMarkdown: ['BOT'],
+      path: "chat",
     },
   };
+
+  const plugins = [MarkdownRenderer()];
 
   // React Chatbotify settings
   const settings = {
@@ -129,9 +323,19 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
       primaryColor: "#8b5cf6",
       secondaryColor: "#a855f7",
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      embedded: false,
     },
     chatHistory: {
-      storageKey: "crapi_chat_history"
+      storageKey: `chat_history`
+    },
+    chatWindow: {
+      showScrollbar: true,
+      showHeader: true,
+      showFooter: true,
+      showChatButton: true,
+      showChatInput: true,
+      showChatHistory: true,
+      showChatWindow: true,
     },
     chatInput: {
       placeholder: "Type your message here...",
@@ -141,6 +345,12 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
       sendButtonStyle: {
         background: "#10b981",
       }
+    },
+    botBubble: {
+      showAvatar: true,
+      allowMarkdown: true,
+      animate: true,
+      avatar: "🤖",
     },
     header: {
       title: (
@@ -176,11 +386,6 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
     chatButton: {
       icon: "💬",
     },
-    botBubble: {
-      animate: true,
-      showAvatar: true,
-      avatar: "🤖",
-    },
     userBubble: {
       animate: true,
       showAvatar: true,
@@ -188,33 +393,9 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
     },
   };
 
-  // Initialize chat history
+  // Initialize component
   useEffect(() => {
-    const fetchInit = async () => {
-      try {
-        const stateUrl = APIService.CHATBOT_SERVICE + "genai/state";
-        const response = await superagent
-          .get(stateUrl)
-          .set("Accept", "application/json")
-          .set("Content-Type", "application/json")
-          .set("Authorization", `Bearer ${props.accessToken}`);
-
-        const { init_required, chat_history } = response.body;
-        
-        setChatbotState({
-          ...chatbotState,
-          initializationRequired: init_required,
-          messages: chat_history || [],
-          initializing: false,
-        });
-      } catch (err) {
-        console.error("Error fetching chat state:", err);
-      }
-    };
-
-    if (props.accessToken && props.isLoggedIn) {
-      fetchInit();
-    }
+    console.log("ChatBot component initialized");
   }, [props.accessToken, props.isLoggedIn]);
 
   return (
@@ -223,7 +404,7 @@ const ChatBotComponent: React.FC<ChatBotComponentProps> = (props) => {
         <div className={`app-chatbot-container${expanded ? " expanded" : ""}`}>
           <ChatBot
               flow={flow}
-              plugins={[MarkdownRenderer()]}
+              plugins={plugins}
               settings={settings}
               styles={{
                 chatWindowStyle: {
