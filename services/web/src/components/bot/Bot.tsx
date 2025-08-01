@@ -308,24 +308,28 @@ What would you like to do next?`);
     },
     initialize: {
       component: (
-        <input 
-          type="password" 
+        <input
+          type="password"
           placeholder="Please paste your OpenAI API key here"
           onChange={handleApiKey}
         />
-        ),
+      ),
       path: async (params: Params) => {
         const APIKey = apiKey.trim();
-				if (!APIKey) {
-					await params.injectMessage("API key cannot be empty. Please enter a valid OpenAI API key and enter 'Submit' in the chat.");
-					return "initialize";
-				}
-        if(params.userInput.toLowerCase() !== "submit") {
-          await params.injectMessage("Please type 'Submit' to confirm your API key.");
+        if (!APIKey) {
+          await params.injectMessage(
+            "API key cannot be empty. Please enter a valid OpenAI API key and enter 'Submit' in the chat.",
+          );
+          return "initialize";
+        }
+        if (params.userInput.toLowerCase() !== "submit") {
+          await params.injectMessage(
+            "Please type 'Submit' to confirm your API key.",
+          );
           return;
         }
         const success = await handleInitialization(APIKey);
-				if (success) {
+        if (success) {
           // Fetch chat history after successful initialization
           const chatHistory = await fetchChatHistory();
           setChatbotState((prev) => ({
