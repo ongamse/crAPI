@@ -390,15 +390,13 @@ class DownloadReportView(APIView):
             )
         #Checks for directory traversal in plain as well as single URL-encoded form
         #Since Django automatically decodes URL-encoded parameters once
-        if '..' in filename_from_user or '/' in filename_from_user:
+        if '../' in filename_from_user:
             return Response(
                 {"message": "Forbidden input."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         filename_from_user = unquote(filename_from_user)
-        filename_from_user = filename_from_user.replace("../", "")
-
-        #VULNERABLE: Double URL-encoded nested path can be used for exploit
+        #VULNERABLE: Double URL-encoded path can be used for exploit
         full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
         print(f"Attempting to serve file from: {full_path}")
         logger.info(f"Attempting to serve file from: {full_path}")
