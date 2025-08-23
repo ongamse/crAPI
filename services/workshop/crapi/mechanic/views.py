@@ -388,7 +388,7 @@ class DownloadReportView(APIView):
         #Checks if input before decoding contains only allowed characters
         if not validate_filename(filename_from_user):
             return Response(
-                {"message": "Forbidden input."}, 
+                {"message": "Invalid input."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
