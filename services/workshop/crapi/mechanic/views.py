@@ -17,7 +17,7 @@ contains all the views related to Mechanic
 """
 import os
 import bcrypt
-import logging
+import re
 from urllib.parse import unquote
 from django.template.loader import get_template
 from xhtml2pdf import pisa
@@ -45,8 +45,6 @@ from .serializers import (
     ServiceCommentViewSerializer,
 )
 from rest_framework.pagination import LimitOffsetPagination
-
-logger = logging.getLogger()
 
 class SignUpView(APIView):
     """
@@ -379,7 +377,6 @@ class ServiceRequestView(APIView):
 class DownloadReportView(APIView):
     """
     A view to download a service report.
-    This view contains an intentional LFI vulnerability.
     """
     def get(self, request, format=None):
         filename_from_user = request.query_params.get('filename')
@@ -388,19 +385,15 @@ class DownloadReportView(APIView):
                 {"message": "Parameter 'filename' is required."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        #Checks for directory traversal in plain as well as single URL-encoded form
-        #Since Django automatically decodes URL-encoded parameters once
-        if '../' in filename_from_user:
+        #Checks if input before decoding contains only allowed characters
+        if not validate_filename(filename_from_user):
             return Response(
                 {"message": "Forbidden input."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
-        filename_from_user = unquote(filename_from_user)
-        #VULNERABLE: Double URL-encoded path can be used for exploit
-        full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
-        print(f"Attempting to serve file from: {full_path}")
-        logger.info(f"Attempting to serve file from: {full_path}")
 
+        filename_from_user = unquote(filename_from_user)
+        full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
         if os.path.exists(full_path) and os.path.isfile(full_path):
             return FileResponse(open(full_path, 'rb'))
         elif not os.path.exists(full_path):
@@ -414,6 +407,13 @@ class DownloadReportView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+def validate_filename(input: str) -> bool:
+    """
+    Allowed: alphanumerics, _, :, %HH
+    """
+    url_encoded_pattern = re.compile(r'^(?:[A-Za-z0-9:_]|%[0-9A-Fa-f]{2})*$')
+    return bool(url_encoded_pattern.fullmatch(input))
+
 
 def service_report_pdf(response_data, report_id):
     """
@@ -421,7 +421,7 @@ def service_report_pdf(response_data, report_id):
     """
     reports_dir = os.path.join(settings.BASE_DIR, 'reports')
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = os.path.join(reports_dir, f"report_{report_id}.pdf")
+    report_filepath = os.path.join(reports_dir, f"report_{report_id}")
 
     template = get_template('service_report.html')
     html_string = template.render({'service': response_data})
