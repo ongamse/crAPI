@@ -11,10 +11,12 @@ apiGatewayServiceInstall: true
 apiGatewayPassword:
 tlsEnabled: false
 jwtExpiration: 604800000
+openAIApiKey: ""
 logLevel: INFO
 
 waitForK8sResources:
-  image: groundnuty/k8s-wait-for:v1.3
+  enabled: True
+  image: groundnuty/k8s-wait-for:v2.0
   imagePullPolicy: IfNotPresent
 
 web:
@@ -124,6 +126,7 @@ workshop:
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
     secretKey: crapi
+    filesLimit: 1000
   deploymentLabels:
     app: crapi-workshop
   podLabels:
@@ -132,6 +135,53 @@ workshop:
     app: crapi-workshop
   serviceSelectorLabels:
     app: crapi-workshop
+
+chatbot:
+  name: crapi-chatbot
+  image: crapi/crapi-chatbot
+  port: 5002
+  replicaCount: 1
+  service:
+    name: crapi-chatbot
+    labels:
+      app: crapi-chatbot
+  config:
+    name: crapi-chatbot-configmap
+    labels:
+      app: crapi-chatbot
+    postgresDbDriver: postgres
+    mongoDbDriver: mongodb
+    secretKey: crapi
+    defaultModel: gpt-4o-mini
+    chromaPersistDirectory: /app/vectorstore
+    apiUser: admin@example.com
+    apiPassword: Admin!123
+    openapiSpec: /app/resources/crapi-openapi-spec.json
+  storage:
+    # type: "manual"
+    # pv:
+    #   name: chatbot-vectors-pv
+    #   labels:
+    #     app: crapi-chatbot
+    #   resources:
+    #     storage: 1Gi
+    #   hostPath: /mnt/vectorstore
+    type: "default"
+    pvc:
+      name: chatbot-vectors-pv-claim
+      labels:
+        app: crapi-chatbot
+      resources:
+        requests:
+          storage: 1Gi
+  deploymentLabels:
+    app: crapi-chatbot
+  podLabels:
+    app: crapi-chatbot
+  deploymentSelectorMatchLabels:
+    app: crapi-chatbot
+  serviceSelectorLabels:
+    app: crapi-chatbot
 
 mailhog:
   name: mailhog
@@ -186,13 +236,23 @@ mongodb:
     mongoPassword: crapisecretpassword
     mongoDbName: crapi
     mongoUri: "admin:crapisecretpassword@mongodb:27017"
-  pvc:
-    name: mongodb-pv-claim
-    labels:
-      app: mongodb
-    resources:
-      requests:
-        storage: 2Gi
+  storage: 
+    # type: "manual"
+    # pv:
+    #   name: mongodb-pv
+    #   labels:
+    #     app: mongodb
+    #   resources:
+    #     storage: 2Gi
+    #   hostPath: /mnt/test
+    type: "default"
+    pvc:
+      name: mongodb-pv-claim
+      labels:
+        app: mongodb
+      resources:
+        requests:
+          storage: 2Gi
   serviceSelectorLabels:
     app: mongodb
   podLabels:
@@ -220,13 +280,23 @@ postgresdb:
     postgresUser: admin
     postgresPassword: crapisecretpassword
     postgresDbName: crapi
-  pvc:
-    name: postgres-pv-claim
-    labels:
-      app: postgresdb
-    resources:
-      requests:
-        storage: 2Gi
+  storage:
+    # type: "manual"
+    # pv:
+    #   name: postgres-pv
+    #   labels:
+    #     app: postgresdb
+    #   resources:
+    #     storage: 2Gi
+    #   hostPath: /mnt/test
+    type: "default"
+    pvc:
+      name: postgres-pv-claim
+      labels:
+        app: postgresdb
+      resources:
+        requests:
+          storage: 2Gi
   serviceSelectorLabels:
     app: postgresdb
   podLabels:
@@ -257,3 +327,46 @@ apiGatewayService:
     app: gateway-service
   serviceSelectorLabels:
     app: gateway-service
+
+
+chromadb:
+  name: chromadb
+  image: chromadb/chroma
+  version: latest
+  imagePullPolicy: IfNotPresent
+  port: 8000
+  replicaCount: 1
+  service:
+    name: chromadb
+    labels:
+      app: chromadb
+  config:
+    name: chromadb-config
+    labels:
+      app: chromadb
+    isPersistent: true
+  storage:
+    # type: "manual"
+    # pv:
+    #   name: chromadb-pv
+    #   labels:
+    #     app: chromadb
+    #   resources:
+    #     storage: 1Gi
+    #   hostPath: /mnt/chromadb
+    type: "default"
+    pvc:
+      name: chromadb-pv-claim
+      labels:
+        app: chromadb
+      resources:
+        requests:
+          storage: 2Gi
+  serviceSelectorLabels:
+    app: chromadb
+  podLabels:
+    app: chromadb
+  statefulsetLabels:
+    app: chromadb
+  statefulsetSelectorMatchLabels:
+    app: chromadb

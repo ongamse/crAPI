@@ -99,6 +99,20 @@ After solving the "Find an API endpoint that leaks an internal property of video
 
 JWT Authentication in crAPI is vulnerable to various attacks. Find any one way to forge a valid JWT token and get full access to the platform.
 
-## << 2 secret challenges >>
+## LLM Vulnerabilities
+
+### Challenge 16 - Use the chatbot to do a successfull prompt injection
+
+Chatbot is vulnerable to prompt injection. Inject a malicious prompt in your query to do a client side rendering injection.
+
+### Challenge 17 - Extract the credentials of another user using chatbot
+
+Extract the credentials of another user and check their orders.
+
+### Challenge 18 - Make the chatbot do an action on behalf of another user.
+
+Use the chatbot to perform an action like placing order on behalf on another user. 
+
+## << 3 secret challenges >>
 
 There are two more secret challenges in crAPI, that are pretty complex, and for now we don’t share details about them, except the fact they are really cool. 

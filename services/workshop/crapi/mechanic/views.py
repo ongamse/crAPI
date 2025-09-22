@@ -15,7 +15,12 @@
 """
 contains all the views related to Mechanic
 """
+import os
 import bcrypt
+import re
+from urllib.parse import unquote
+from django.template.loader import get_template
+from xhtml2pdf import pisa
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
@@ -23,20 +28,23 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db import models
+from django.http import FileResponse
 from crapi_site import settings
 from utils.jwt import jwt_auth_required
 from utils import messages
 from crapi.user.models import User, Vehicle, UserDetails
 from utils.logging import log_error
-from .models import Mechanic, ServiceRequest
+from .models import Mechanic, ServiceRequest, ServiceComment
 from .serializers import (
     MechanicSerializer,
-    ServiceRequestSerializer,
+    MechanicServiceRequestSerializer,
     ReceiveReportSerializer,
     SignUpSerializer,
+    ServiceRequestStatusUpdateSerializer,
+    ServiceCommentCreateSerializer,
+    ServiceCommentViewSerializer,
 )
 from rest_framework.pagination import LimitOffsetPagination
-
 
 class SignUpView(APIView):
     """
@@ -230,18 +238,19 @@ class GetReportView(APIView):
                 {"message": messages.REPORT_DOES_NOT_EXIST},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        serializer = ServiceRequestSerializer(service_request)
+        serializer = MechanicServiceRequestSerializer(service_request)
         response_data = dict(serializer.data)
+        service_report_pdf(response_data, report_id)
         return Response(response_data, status=status.HTTP_200_OK)
 
 
-class ServiceRequestsView(APIView, LimitOffsetPagination):
+class MechanicServiceRequestsView(APIView, LimitOffsetPagination):
     """
     View to return all the service requests
     """
 
     def __init__(self):
-        super(ServiceRequestsView, self).__init__()
+        super(MechanicServiceRequestsView, self).__init__()
         self.default_limit = settings.DEFAULT_LIMIT
 
     @jwt_auth_required
@@ -258,7 +267,7 @@ class ServiceRequestsView(APIView, LimitOffsetPagination):
         """
 
         service_requests = ServiceRequest.objects.filter(mechanic__user=user).order_by(
-            "id"
+            "-created_on"
         )
         paginated = self.paginate_queryset(service_requests, request)
         if paginated is None:
@@ -266,7 +275,7 @@ class ServiceRequestsView(APIView, LimitOffsetPagination):
                 {"message": messages.NO_OBJECT_FOUND},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        serializer = ServiceRequestSerializer(service_requests, many=True)
+        serializer = MechanicServiceRequestSerializer(service_requests, many=True)
         response_data = dict(
             service_requests=serializer.data,
             next_offset=(
@@ -280,3 +289,172 @@ class ServiceRequestsView(APIView, LimitOffsetPagination):
             count=self.get_count(paginated),
         )
         return Response(response_data, status=status.HTTP_200_OK)
+
+
+class ServiceCommentView(APIView):
+    """
+    View to add a comment to a service request
+    """
+
+    @jwt_auth_required
+    def post(self, request, user=None, service_request_id=None):
+        """
+        add a comment to a service request
+        """
+        if user.role != User.ROLE_CHOICES.MECH:
+            return Response(
+                {"message": messages.UNAUTHORIZED},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        serializer = ServiceCommentCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                serializer.errors,
+            )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        service_request = ServiceRequest.objects.get(id=service_request_id)
+        service_comment = ServiceComment(
+            comment=serializer.data["comment"],
+            service_request=service_request,
+            created_on=timezone.now(),
+        )
+        service_comment.save()
+        service_request.updated_on = timezone.now()
+        service_request.save()
+        serializer = ServiceCommentViewSerializer(service_comment)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @jwt_auth_required
+    def get(self, request, user=None, service_request_id=None):
+        """
+        get all comments for a service request
+        """
+        service_request = ServiceRequest.objects.get(id=service_request_id)
+        comments = ServiceComment.objects.filter(service_request=service_request)
+        serializer = ServiceCommentViewSerializer(comments, many=True)
+        response_data = dict(comments=serializer.data)
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+class ServiceRequestView(APIView):
+    """
+    View to update the status of a service request
+    """
+
+    @jwt_auth_required
+    def put(self, request, user=None, service_request_id=None):
+        """
+        update the status of a service request
+        """
+        serializer = ServiceRequestStatusUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                serializer.errors,
+            )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        service_request = ServiceRequest.objects.get(id=service_request_id)
+        service_request.status = request.data["status"]
+        service_request.updated_on = timezone.now()
+        service_request.save()
+        serializer = MechanicServiceRequestSerializer(service_request)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def get(self, request, user=None, service_request_id=None):
+        """
+        get a service request
+        """
+        service_request = ServiceRequest.objects.get(id=service_request_id)
+        serializer = MechanicServiceRequestSerializer(service_request)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class DownloadReportView(APIView):
+    """
+    A view to download a service report.
+    """
+    def get(self, request, format=None):
+        filename_from_user = request.query_params.get('filename')
+        if not filename_from_user:
+            return Response(
+                {"message": "Parameter 'filename' is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        #Checks if input before decoding contains only allowed characters
+        if not validate_filename(filename_from_user):
+            return Response(
+                {"message": "Invalid input."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        filename_from_user = unquote(filename_from_user)
+        full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
+        if os.path.exists(full_path) and os.path.isfile(full_path):
+            return FileResponse(open(full_path, 'rb'))
+        elif not os.path.exists(full_path):
+            return Response(
+                {"message": f"File not found at '{full_path}'."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        else:
+            return Response(
+                {"message": f"'{full_path}' is not a file."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+def validate_filename(input: str) -> bool:
+    """
+    Allowed: alphanumerics, _, :, %HH
+    """
+    url_encoded_pattern = re.compile(r'^(?:[A-Za-z0-9:_]|%[0-9A-Fa-f]{2})*$')
+    return bool(url_encoded_pattern.fullmatch(input))
+
+
+def service_report_pdf(response_data, report_id):
+    """
+    Generates service report's PDF file from a template and saves it to the disk.
+    """
+    reports_dir = os.path.join(settings.BASE_DIR, 'reports')
+    os.makedirs(reports_dir, exist_ok=True)
+    report_filepath = os.path.join(reports_dir, f"report_{report_id}")
+
+    template = get_template('service_report.html')
+    html_string = template.render({'service': response_data})
+    with open(report_filepath, "w+b") as pdf_file:
+        pisa.CreatePDF(src=html_string, dest=pdf_file)
+
+    manage_reports_directory()
+
+
+def manage_reports_directory():
+    """
+    Checks reports directory and deletes the oldest one if the
+    count exceeds the maximum limit.
+    """
+    try:
+        reports_dir = os.path.join(settings.BASE_DIR, 'reports')
+        report_files = os.listdir(reports_dir)
+        
+        if len(report_files) >= settings.FILES_LIMIT:
+            oldest_file = None
+            oldest_time = float('inf')
+            for filename in report_files:
+                filepath = os.path.join(reports_dir, filename)
+                try:
+                    current_mtime = os.path.getmtime(filepath)
+                    if current_mtime < oldest_time:
+                        oldest_time = current_mtime
+                        oldest_file = filepath
+                except FileNotFoundError:
+                    continue
+
+            if oldest_file:
+                os.remove(oldest_file)
+
+    except (OSError, FileNotFoundError) as e:
+        print(f"Error during report directory management: {e}")

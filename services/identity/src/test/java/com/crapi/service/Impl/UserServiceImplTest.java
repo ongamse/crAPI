@@ -20,19 +20,23 @@ import com.crapi.config.JwtAuthTokenFilter;
 import com.crapi.config.JwtProvider;
 import com.crapi.constant.UserMessage;
 import com.crapi.entity.ChangeEmailRequest;
+import com.crapi.entity.ChangePhoneRequest;
 import com.crapi.entity.ProfileVideo;
 import com.crapi.entity.User;
 import com.crapi.entity.UserDetails;
 import com.crapi.enums.ERole;
 import com.crapi.exception.EntityNotFoundException;
+import com.crapi.model.ApiKeyResponse;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.ChangeEmailForm;
+import com.crapi.model.ChangePhoneForm;
 import com.crapi.model.DashboardResponse;
 import com.crapi.model.JwtResponse;
 import com.crapi.model.LoginForm;
 import com.crapi.model.LoginWithEmailToken;
 import com.crapi.model.SignUpForm;
 import com.crapi.repository.ChangeEmailRepository;
+import com.crapi.repository.ChangePhoneRepository;
 import com.crapi.repository.ProfileVideoRepository;
 import com.crapi.repository.UserDetailsRepository;
 import com.crapi.repository.UserRepository;
@@ -60,6 +64,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -78,6 +83,7 @@ public class UserServiceImplTest {
   @Mock private SMTPMailServer smtpMailServer;
   @Mock private ProfileVideoRepository profileVideoRepository;
   @Mock private ChangeEmailRepository changeEmailRepository;
+  @Mock private ChangePhoneRepository changePhoneRepository;
   @Mock Appender appender;
   @Captor ArgumentCaptor<LogEvent> logCaptor;
 
@@ -140,6 +146,19 @@ public class UserServiceImplTest {
     ResponseEntity<JwtResponse> jwtResponse = userService.authenticateUserLogin(loginForm);
     Assertions.assertEquals(jwtResponse.getBody().getToken(), sampleJwtToken);
     Mockito.verify(userRepository, Mockito.times(1)).saveAndFlush(Mockito.any());
+  }
+
+  @Test
+  public void testAuthenticateUserApiKey() throws UnsupportedEncodingException {
+    LoginForm loginForm = getDummyLoginForm();
+    User user = getDummyUser();
+    user.setApiKey("sampleApiKey");
+    Authentication mockAuth = Mockito.mock(Authentication.class);
+    Mockito.when(authenticationManager.authenticate(Mockito.any(Authentication.class)))
+        .thenReturn(mockAuth);
+    Mockito.when(userRepository.findByEmail(Mockito.anyString())).thenReturn(user);
+    ApiKeyResponse jwtResponse = userService.generateApiKey(getMockHttpRequest(), loginForm);
+    Assertions.assertEquals(jwtResponse.getApiKey(), "sampleApiKey");
   }
 
   @Test
@@ -496,6 +515,135 @@ public class UserServiceImplTest {
     Assertions.assertEquals(UserMessage.INVALID_JWT_TOKEN, crapiResponse.getMessage());
   }
 
+  @Test
+  public void changePhoneRequestSuccess() {
+    ChangePhoneForm changePhoneForm = getDummyChangePhoneForm();
+    User user = getDummyUser();
+    String expectedMessage = UserMessage.CHANGE_PHONE_MESSAGE + changePhoneForm.getNew_number();
+    ChangePhoneRequest changePhoneRequest = getDummyChangePhoneRequest();
+    Mockito.when(userRepository.existsByNumber(changePhoneForm.getNew_number())).thenReturn(false);
+    Mockito.when(userRepository.existsByNumber(changePhoneForm.getOld_number())).thenReturn(true);
+    Mockito.doReturn(user).when(userService).getUserFromToken(Mockito.any());
+    Mockito.doReturn(changePhoneRequest).when(changePhoneRepository).save(Mockito.any());
+    Mockito.when(changePhoneRepository.findByUser(user)).thenReturn(changePhoneRequest);
+    Mockito.doNothing()
+        .when(smtpMailServer)
+        .sendMail(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+
+    CRAPIResponse crapiResponse =
+        userService.changePhoneRequest(getMockHttpRequest(), changePhoneForm);
+    Mockito.verify(smtpMailServer, Mockito.times(1))
+        .sendMail(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+    Assertions.assertEquals(expectedMessage, crapiResponse.getMessage());
+    Assertions.assertEquals(HttpStatus.OK.value(), crapiResponse.getStatus());
+  }
+
+  @Test
+  public void changePhoneRequestOldPhoneDoesNotExists() {
+    ChangePhoneForm changePhoneForm = getDummyChangePhoneForm();
+    String expectedMessage = UserMessage.NUMBER_NOT_REGISTERED + changePhoneForm.getOld_number();
+    Mockito.when(userRepository.existsByNumber(changePhoneForm.getOld_number())).thenReturn(false);
+    CRAPIResponse crapiResponse =
+        userService.changePhoneRequest(getMockHttpRequest(), changePhoneForm);
+    Assertions.assertEquals(expectedMessage, crapiResponse.getMessage());
+    Assertions.assertEquals(HttpStatus.NOT_FOUND.value(), crapiResponse.getStatus());
+  }
+
+  @Test
+  public void changePhoneRequestNewPhoneAlreadyExists() {
+    ChangePhoneForm changePhoneForm = getDummyChangePhoneForm();
+    String expectedMessage =
+        UserMessage.NUMBER_ALREADY_REGISTERED + changePhoneForm.getNew_number();
+    Mockito.when(userRepository.existsByNumber(changePhoneForm.getNew_number())).thenReturn(true);
+    CRAPIResponse crapiResponse =
+        userService.changePhoneRequest(getMockHttpRequest(), changePhoneForm);
+    Assertions.assertEquals(expectedMessage, crapiResponse.getMessage());
+    Assertions.assertEquals(HttpStatus.FORBIDDEN.value(), crapiResponse.getStatus());
+  }
+
+  @Test
+  public void verifyPhoneOTPSuccessful() {
+    ChangePhoneRequest changePhoneRequest = getDummyChangePhoneRequest();
+    User user = getDummyUser();
+    user.setNumber(changePhoneRequest.getOldPhone());
+    String expectedMessage = UserMessage.NUMBER_CHANGE_SUCCESSFUL;
+    ChangePhoneForm changePhoneForm = getDummyChangePhoneForm();
+    Mockito.when(changePhoneRepository.findByUser(Mockito.any())).thenReturn(changePhoneRequest);
+    Mockito.doReturn(user).when(userService).getUserFromToken(Mockito.any());
+    CRAPIResponse crapiResponse = userService.verifyPhoneOTP(getMockHttpRequest(), changePhoneForm);
+    Assertions.assertEquals(expectedMessage, crapiResponse.getMessage());
+    Assertions.assertEquals(HttpStatus.OK.value(), crapiResponse.getStatus());
+  }
+
+  @Test
+  public void verifyOTPFailWhenChangePhoneRequestIsNull() {
+    User user = getDummyUser();
+    String expectedMessage = UserMessage.INVALID_CHANGE_REQUEST;
+    ChangePhoneForm changePhoneForm = getDummyChangePhoneForm();
+    Mockito.doReturn(user).when(userService).getUserFromToken(Mockito.any());
+    Mockito.when(changePhoneRepository.findByUser(user)).thenReturn(null);
+    CRAPIResponse crapiResponse = userService.verifyPhoneOTP(getMockHttpRequest(), changePhoneForm);
+    Assertions.assertEquals(expectedMessage, crapiResponse.getMessage());
+    Assertions.assertEquals(HttpStatus.BAD_REQUEST.value(), crapiResponse.getStatus());
+  }
+
+  @Test
+  public void verifyOTPFailWhenOTPIsNull() {
+    ChangePhoneRequest changePhoneRequest = getDummyChangePhoneRequest();
+    User user = getDummyUser();
+    String expectedMessage = UserMessage.INVALID_OTP;
+    ChangePhoneForm changePhoneForm = getDummyChangePhoneForm();
+    changePhoneForm.setOtp(null);
+    Mockito.doReturn(user).when(userService).getUserFromToken(Mockito.any());
+    Mockito.when(changePhoneRepository.findByUser(user)).thenReturn(changePhoneRequest);
+    CRAPIResponse crapiResponse = userService.verifyPhoneOTP(getMockHttpRequest(), changePhoneForm);
+    Assertions.assertEquals(expectedMessage, crapiResponse.getMessage());
+    Assertions.assertEquals(HttpStatus.BAD_REQUEST.value(), crapiResponse.getStatus());
+  }
+
+  @Test
+  public void verifyOTPFailWhenOTPNotMatch() {
+    ChangePhoneRequest changePhoneRequest = getDummyChangePhoneRequest();
+    User user = getDummyUser();
+    String expectedMessage = UserMessage.INVALID_OTP;
+    ChangePhoneForm changePhoneForm = getDummyChangePhoneForm();
+    changePhoneForm.setOtp("4321");
+    Mockito.doReturn(user).when(userService).getUserFromToken(Mockito.any());
+    Mockito.when(changePhoneRepository.findByUser(user)).thenReturn(changePhoneRequest);
+    CRAPIResponse crapiResponse = userService.verifyPhoneOTP(getMockHttpRequest(), changePhoneForm);
+    Assertions.assertEquals(expectedMessage, crapiResponse.getMessage());
+    Assertions.assertEquals(HttpStatus.BAD_REQUEST.value(), crapiResponse.getStatus());
+  }
+
+  @Test
+  public void verifyOTPFailWhenOldNumberNotMatch() {
+    ChangePhoneRequest changePhoneRequest = getDummyChangePhoneRequest();
+    User user = getDummyUser();
+    String expectedMessage = UserMessage.OLD_NUMBER_DOES_NOT_BELONG;
+    ChangePhoneForm changePhoneForm = getDummyChangePhoneForm();
+    changePhoneForm.setOld_number("1");
+    Mockito.doReturn(user).when(userService).getUserFromToken(Mockito.any());
+    Mockito.when(changePhoneRepository.findByUser(user)).thenReturn(changePhoneRequest);
+    CRAPIResponse crapiResponse = userService.verifyPhoneOTP(getMockHttpRequest(), changePhoneForm);
+    Assertions.assertEquals(expectedMessage, crapiResponse.getMessage());
+    Assertions.assertEquals(HttpStatus.FORBIDDEN.value(), crapiResponse.getStatus());
+  }
+
+  @Test
+  public void verifyOTPFailWhenNewNumberNotMatch() {
+    ChangePhoneRequest changePhoneRequest = getDummyChangePhoneRequest();
+    User user = getDummyUser();
+    user.setNumber(changePhoneRequest.getOldPhone());
+    String expectedMessage = UserMessage.NEW_NUMBER_DOES_NOT_BELONG;
+    ChangePhoneForm changePhoneForm = getDummyChangePhoneForm();
+    changePhoneForm.setNew_number("1");
+    Mockito.doReturn(user).when(userService).getUserFromToken(Mockito.any());
+    Mockito.when(changePhoneRepository.findByUser(user)).thenReturn(changePhoneRequest);
+    CRAPIResponse crapiResponse = userService.verifyPhoneOTP(getMockHttpRequest(), changePhoneForm);
+    Assertions.assertEquals(expectedMessage, crapiResponse.getMessage());
+    Assertions.assertEquals(HttpStatus.FORBIDDEN.value(), crapiResponse.getStatus());
+  }
+
   private LoginWithEmailToken getDummyLoginWithEmailToken() {
     LoginWithEmailToken loginWithEmailToken = new LoginWithEmailToken();
     loginWithEmailToken.setEmail("user@email.com");
@@ -579,5 +727,24 @@ public class UserServiceImplTest {
 
   private MockHttpServletRequest getMockHttpRequest() {
     return new MockHttpServletRequest();
+  }
+
+  private ChangePhoneForm getDummyChangePhoneForm() {
+    ChangePhoneForm changePhoneForm = new ChangePhoneForm();
+    changePhoneForm.setOtp("1234");
+    changePhoneForm.setNew_number("12345679");
+    changePhoneForm.setOld_number("12345678");
+    return changePhoneForm;
+  }
+
+  private ChangePhoneRequest getDummyChangePhoneRequest() {
+    ChangePhoneRequest changePhoneRequest = new ChangePhoneRequest();
+    changePhoneRequest.setOldPhone("12345678");
+    changePhoneRequest.setNewPhone("12345679");
+    changePhoneRequest.setOtp("1234");
+    changePhoneRequest.setStatus("DUMMY");
+    changePhoneRequest.setUser(getDummyUser());
+    changePhoneRequest.setId(1l);
+    return changePhoneRequest;
   }
 }

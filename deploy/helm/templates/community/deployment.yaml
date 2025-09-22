@@ -21,6 +21,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      {{- if .Values.waitForK8sResources.enabled }}
       initContainers:
         - name: wait-for-postgres
           image: {{ .Values.waitForK8sResources.image }}
@@ -34,12 +35,13 @@ spec:
           args:
             - "service"
             - {{ .Values.mongodb.service.name | quote }}
-        - name: wait-for-java
+        - name: wait-for-identity
           image: {{ .Values.waitForK8sResources.image }}
           imagePullPolicy: {{ .Values.waitForK8sResources.imagePullPolicy }}
           args:
             - "service"
             - {{ .Values.identity.service.name | quote }}
+      {{- end }}
       containers:
         - name: {{ .Values.community.name }}
           image: {{ .Values.community.image }}:{{ .Chart.AppVersion }}

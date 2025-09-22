@@ -35,7 +35,11 @@ public interface UserService {
 
   CRAPIResponse changeEmailRequest(HttpServletRequest request, ChangeEmailForm loginForm);
 
+  CRAPIResponse changePhoneRequest(HttpServletRequest request, ChangePhoneForm changePhoneForm);
+
   CRAPIResponse verifyEmailToken(HttpServletRequest request, ChangeEmailForm changeEmailForm);
+
+  CRAPIResponse verifyPhoneOTP(HttpServletRequest request, ChangePhoneForm changePhoneForm);
 
   User getUserFromToken(HttpServletRequest request);
 
@@ -52,5 +56,5 @@ public interface UserService {
 
   CRAPIResponse lockAccount(HttpServletRequest request, LockAccountForm lockAccountForm);
 
-  ApiKeyResponse generateApiKey(HttpServletRequest request);
+  ApiKeyResponse generateApiKey(HttpServletRequest request, LoginForm loginForm);
 }

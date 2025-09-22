@@ -25,7 +25,6 @@ import com.crapi.exception.EntityNotFoundException;
 import com.crapi.model.*;
 import com.crapi.repository.*;
 import com.crapi.service.UserService;
-import com.crapi.utils.ApiKeyGenerator;
 import com.crapi.utils.EmailTokenGenerator;
 import com.crapi.utils.MailBody;
 import com.crapi.utils.OTPGenerator;
@@ -71,6 +70,8 @@ public class UserServiceImpl implements UserService {
   @Autowired JwtProvider jwtProvider;
 
   @Autowired AuthenticationManager authenticationManager;
+
+  @Autowired ChangePhoneRepository changePhoneRepository;
 
   public UserServiceImpl() {
     setFactory(log4jContextFactory);
@@ -329,6 +330,7 @@ public class UserServiceImpl implements UserService {
       if (user != null) {
         return user;
       } else {
+        log.error("User not found with email: {}", username);
         throw new EntityNotFoundException(User.class, "userEmail", username);
       }
     } catch (ParseException exception) {
@@ -458,17 +460,125 @@ public class UserServiceImpl implements UserService {
     return jwtResponse;
   }
 
+  /**
+   * @param request None
+   * @param loginForm LoginForm with user email and password
+   * @return ApiKeyResponse with generated API key
+   */
   @Override
   @Transactional
-  public ApiKeyResponse generateApiKey(HttpServletRequest request) {
-    User user = getUserFromToken(request);
-    if (user != null) {
-      String apiKey = ApiKeyGenerator.generateRandom(512);
-      log.debug("Api Key for user {}: {}", user.getEmail(), apiKey);
-      user.setApiKey(apiKey);
-      userRepository.save(user);
-      return new ApiKeyResponse(user.getApiKey(), UserMessage.API_KEY_GENERATED_MESSAGE);
+  public ApiKeyResponse generateApiKey(HttpServletRequest request, LoginForm loginForm) {
+    Authentication authentication =
+        authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(loginForm.getEmail(), loginForm.getPassword()));
+    if (authentication == null) {
+      return new ApiKeyResponse(null, UserMessage.INVALID_CREDENTIALS);
     }
-    return new ApiKeyResponse("");
+    log.info("Generate Api Key for user: {}", loginForm.getEmail());
+    User user;
+    if (request == null || jwtAuthTokenFilter.getToken(request) == null) {
+      user = userRepository.findByEmail(loginForm.getEmail());
+    } else {
+      user = getUserFromToken(request);
+    }
+    if (user == null) {
+      log.debug("User not found to generate API key");
+      return new ApiKeyResponse(null, UserMessage.INVALID_CREDENTIALS);
+    }
+    // if apiKey is already generated
+    if (user.getApiKey() != null) {
+      log.debug("Api Key already generated for user: {}", user.getEmail());
+      return new ApiKeyResponse(user.getApiKey());
+    }
+    String apiKey = jwtProvider.generateApiKey(user);
+    log.debug("Api Key for user {}: {}", user.getEmail(), apiKey);
+    if (apiKey == null) {
+      return new ApiKeyResponse(null, UserMessage.API_KEY_GENERATION_FAILED);
+    }
+    user.setApiKey(apiKey);
+    userRepository.saveAndFlush(user);
+    return new ApiKeyResponse(user.getApiKey(), UserMessage.API_KEY_GENERATED_MESSAGE);
+  }
+
+  /**
+   * @param changePhoneForm contains old phone number and new phone number, api will send otp to
+   *     change number to email address.
+   * @return send otp to email with random generated otp.
+   */
+  @Transactional
+  @Override
+  public CRAPIResponse changePhoneRequest(
+      HttpServletRequest request, ChangePhoneForm changePhoneForm) {
+    String otp;
+    User user;
+    ChangePhoneRequest changePhoneRequest;
+    // checking if new phone in user login table if present then disallow
+    if (userRepository.existsByNumber(changePhoneForm.getNew_number())) {
+      return new CRAPIResponse(
+          UserMessage.NUMBER_ALREADY_REGISTERED + changePhoneForm.getNew_number(), 403);
+    }
+    // checking if old phone is registered or not
+    if (!userRepository.existsByNumber(changePhoneForm.getOld_number())) {
+      return new CRAPIResponse(
+          (UserMessage.NUMBER_NOT_REGISTERED) + changePhoneForm.getOld_number(), 404);
+    }
+
+    otp = OTPGenerator.generateRandom(4);
+    user = getUserFromToken(request);
+    // fetching change phone data for user
+    changePhoneRequest = changePhoneRepository.findByUser(user);
+    if (changePhoneRequest == null) {
+      // Creating new object if changePhone data for user in not in database
+      changePhoneRequest =
+          new ChangePhoneRequest(
+              changePhoneForm.getNew_number(), changePhoneForm.getOld_number(), otp, user);
+    } else {
+      // updating existing record
+      changePhoneRequest.setOtp(otp);
+      changePhoneRequest.setOldPhone(changePhoneForm.getOld_number());
+      changePhoneRequest.setNewPhone(changePhoneForm.getNew_number());
+    }
+    changePhoneForm.setOtp(otp);
+    changePhoneRepository.save(changePhoneRequest);
+    smtpMailServer.sendMail(
+        user.getEmail(),
+        MailBody.changeMailBody(changePhoneForm),
+        "crAPI: Change Phone Number OTP");
+
+    return new CRAPIResponse(
+        UserMessage.CHANGE_PHONE_MESSAGE + changePhoneForm.getNew_number(), 200);
+  }
+
+  /**
+   * @param request getting jwt token for user from request header
+   * @param changePhoneForm contains old phone number and new phone number, with otp, this function
+   *     will verify phone number and otp
+   * @return it checks user token and verify with otp if user verify then correct then we will
+   *     update email for user.
+   */
+  @Transactional
+  @Override
+  public CRAPIResponse verifyPhoneOTP(HttpServletRequest request, ChangePhoneForm changePhoneForm) {
+    ChangePhoneRequest changePhoneRequest;
+    User user;
+    user = getUserFromToken(request);
+    changePhoneRequest = changePhoneRepository.findByUser(user);
+    if (changePhoneRequest != null) {
+      if (changePhoneForm.getOtp() != null
+          && changePhoneForm.getOtp().equalsIgnoreCase(changePhoneRequest.getOtp())) {
+        if (changePhoneForm.getOld_number().equalsIgnoreCase((user.getNumber()))) {
+          if (changePhoneForm.getNew_number().equalsIgnoreCase(changePhoneRequest.getNewPhone())) {
+            user.setNumber(changePhoneRequest.getNewPhone());
+            userRepository.save(user);
+            return new CRAPIResponse(UserMessage.NUMBER_CHANGE_SUCCESSFUL, 200);
+          }
+          return new CRAPIResponse(UserMessage.NEW_NUMBER_DOES_NOT_BELONG, 403);
+        }
+        return new CRAPIResponse(UserMessage.OLD_NUMBER_DOES_NOT_BELONG, 403);
+      }
+      return new CRAPIResponse(UserMessage.INVALID_OTP, 400);
+    }
+
+    return new CRAPIResponse(UserMessage.INVALID_CHANGE_REQUEST, 400);
   }
 }

@@ -25,6 +25,7 @@ import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jwt.JWTParser;
+import com.nimbusds.jwt.PlainJWT;
 import com.nimbusds.jwt.SignedJWT;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
@@ -102,27 +103,27 @@ public class JwtProvider {
   }
 
   /**
-   * @param token
-   * @return username from JWT Token
+   * @param user
+   * @return generated apikey token without expiry date
    */
-  public String getUserNameFromJwtToken(String token) throws ParseException {
-    // Parse without verifying token signature
-    return JWTParser.parse(token).getJWTClaimsSet().getSubject();
+  public String generateApiKey(User user) {
+    JwtBuilder builder =
+        Jwts.builder()
+            .subject(user.getEmail())
+            .issuedAt(new Date())
+            .claim("role", user.getRole().getName())
+            .signWith(this.keyPair.getPrivate());
+    String jwt = builder.compact();
+    return jwt;
   }
 
   /**
    * @param token
    * @return username from JWT Token
    */
-  public String getUserNameFromApiToken(String token) throws ParseException {
+  public String getUserNameFromJwtToken(String token) throws ParseException {
     // Parse without verifying token signature
-    if (token != null) {
-      User user = userRepository.findByApiKey(token);
-      if (user != null) {
-        return user.getEmail();
-      }
-    }
-    return null;
+    return JWTParser.parse(token).getJWTClaimsSet().getSubject();
   }
 
   // Load RSA Public Key for JKU header if present
@@ -194,7 +195,12 @@ public class JwtProvider {
       }
 
     } catch (ParseException e) {
-      log.error("Could not parse JWT Token -> Message: %d", e);
+      try {
+        PlainJWT jwt = PlainJWT.parse(authToken);
+        return true;
+      } catch (ParseException parseException) {
+        log.error("Could not parse JWT Token -> Message: %d", parseException);
+      }
     } catch (JOSEException e) {
       log.error("RSA JWK Extraction failed -> Message: %d", e);
     }

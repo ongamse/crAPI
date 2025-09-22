@@ -41,6 +41,8 @@ def get_env_value(env_variable):
         raise ImproperlyConfigured(error_msg)
 
 
+FILES_LIMIT = int(os.environ.get("FILES_LIMIT", 1000))
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -108,7 +110,7 @@ TEST_OUTPUT_DIR = os.path.join(BASE_DIR, "test-reports")
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [os.path.join(BASE_DIR, 'utils')],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -240,11 +242,17 @@ IDENTITY_VERIFY = "http://{}/identity/api/auth/verify".format(
 IDENTITY_LOGIN = "http://{}/identity/api/auth/login".format(
     get_env_value("IDENTITY_SERVICE")
 )
+IDENTITY_HEALTH = "http://{}/identity/health_check".format(
+    get_env_value("IDENTITY_SERVICE")
+)
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(
         get_env_value("IDENTITY_SERVICE")
     )
     IDENTITY_LOGIN = "https://{}/identity/api/auth/login".format(
+        get_env_value("IDENTITY_SERVICE")
+    )
+    IDENTITY_HEALTH = "https://{}/identity/health_check".format(
         get_env_value("IDENTITY_SERVICE")
     )
