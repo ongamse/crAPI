@@ -1229,7 +1229,7 @@
               "application/json" : {
                 "schema" : {
                   "type" : "object",
-                  "required" : [ "CreatedAt", "author", "authorid", "comments", "content", "id", "title" ],
+                  "required" : [ "createdAt", "author", "authorid", "comments", "content", "id", "title" ],
                   "properties" : {
                     "author" : {
                       "type" : "object",
@@ -1262,7 +1262,7 @@
                     "content" : {
                       "type" : "string"
                     },
-                    "CreatedAt" : {
+                    "createdAt" : {
                       "type" : "string"
                     },
                     "title" : {
@@ -1312,7 +1312,7 @@
               "application/json" : {
                 "schema" : {
                   "type" : "object",
-                  "required" : [ "CreatedAt", "author", "authorid", "comments", "content", "id", "title" ],
+                  "required" : [ "createdAt", "author", "authorid", "comments", "content", "id", "title" ],
                   "properties" : {
                     "author" : {
                       "type" : "object",
@@ -1345,7 +1345,7 @@
                     "content" : {
                       "type" : "string"
                     },
-                    "CreatedAt" : {
+                    "createdAt" : {
                       "type" : "string"
                     },
                     "title" : {
@@ -1355,9 +1355,9 @@
                       "type" : "array",
                       "items" : {
                         "type" : "object",
-                        "required" : [ "CreatedAt", "author", "content", "id" ],
+                        "required" : [ "createdAt", "author", "content", "id" ],
                         "properties" : {
-                          "CreatedAt" : {
+                          "createdAt" : {
                             "type" : "string"
                           },
                           "author" : {
@@ -1506,7 +1506,7 @@
                   },
                   "comments" : [ ],
                   "authorid" : 3,
-                  "CreatedAt" : "2021-09-16T01:46:32.432Z"
+                  "createdAt" : "2021-09-16T01:46:32.432Z"
                 }, {
                   "id" : "rj2md2VVDBjYUGNG6LmQ9e",
                   "title" : "Title 2",
@@ -1520,7 +1520,7 @@
                   },
                   "comments" : [ ],
                   "authorid" : 2,
-                  "CreatedAt" : "2021-09-16T01:46:32.429Z"
+                  "createdAt" : "2021-09-16T01:46:32.429Z"
                 }, {
                   "id" : "C68Hgjaow2jieF59LWzqTH",
                   "title" : "Title 1",
@@ -1534,7 +1534,7 @@
                   },
                   "comments" : [ ],
                   "authorid" : 1,
-                  "CreatedAt" : "2021-09-16T01:46:32.413Z"
+                  "createdAt" : "2021-09-16T01:46:32.413Z"
                 } ]
               }
             }
@@ -3026,7 +3026,7 @@
       },
       "Post" : {
         "title" : "Post",
-        "required" : [ "id", "title", "content", "author", "comments", "authorid", "CreatedAt" ],
+        "required" : [ "id", "title", "content", "author", "comments", "authorid", "createdAt" ],
         "type" : "object",
         "properties" : {
           "id" : {
@@ -3052,7 +3052,7 @@
             "type" : "integer",
             "format" : "int32"
           },
-          "CreatedAt" : {
+          "createdAt" : {
             "type" : "string"
           }
         },
@@ -3069,7 +3069,7 @@
           },
           "comments" : [ ],
           "authorid" : 3,
-          "CreatedAt" : "2021-09-16T01:46:32.432Z"
+          "createdAt" : "2021-09-16T01:46:32.432Z"
         }
       },
       "Author" : {
@@ -3191,7 +3191,7 @@
       },
       "ProfileVideo" : {
         "type" : "object",
-        "required" : [ "id", "video_name", "converstion_params", "video", "user" ],
+        "required" : [ "id", "video_name", "conversion_params", "video", "user" ],
         "properties" : {
           "id" : {
             "type" : "number"
@@ -3277,11 +3277,11 @@
             "type" : "string"
           }
         },
-        "required" : [ "amount", "coupon_code", "CreatedAt" ],
+        "required" : [ "amount", "coupon_code", "createdAt" ],
         "example" : {
           "coupon_code" : "TRAC075",
           "amount" : "75",
-          "CreatedAt" : "2023-12-07T14:22:29.832Z"
+          "createdAt" : "2023-12-07T14:22:29.832Z"
         }
       },
       "ValidateCouponRequest" : {
@@ -3309,11 +3309,11 @@
             "type" : "string"
           }
         },
-        "required" : [ "amount", "coupon_code", "CreatedAt" ],
+        "required" : [ "amount", "coupon_code", "createdAt" ],
         "example" : {
           "coupon_code" : "TRAC075",
           "amount" : "75",
-          "CreatedAt" : "2023-12-07T14:22:29.832Z"
+          "createdAt" : "2023-12-07T14:22:29.832Z"
         }
       },
       "ServiceRequests" : {
