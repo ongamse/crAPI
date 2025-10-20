@@ -19,11 +19,13 @@ interface APIServiceType {
   IDENTITY_SERVICE: string;
   WORKSHOP_SERVICE: string;
   COMMUNITY_SERVICE: string;
+  CHATBOT_SERVICE: string;
 }
 
 export const APIService: APIServiceType = {
   IDENTITY_SERVICE: crapienv.IDENTITY_SERVICE,
   WORKSHOP_SERVICE: crapienv.WORKSHOP_SERVICE,
+  CHATBOT_SERVICE: crapienv.CHATBOT_SERVICE,
   COMMUNITY_SERVICE: crapienv.COMMUNITY_SERVICE,
 };
 
@@ -63,6 +65,7 @@ export const requestURLS: RequestURLSType = {
   UPDATE_SERVICE_REQUEST_STATUS: "api/mechanic/service_request/<serviceId>",
   GET_VEHICLE_SERVICES: "api/merchant/service_requests/<vehicleVIN>",
   GET_SERVICE_REPORT: "api/mechanic/mechanic_report",
+  DOWNLOAD_SERVICE_REPORT: "api/mechanic/download_report",
   BUY_PRODUCT: "api/shop/orders",
   GET_ORDERS: "api/shop/orders/all",
   GET_ORDER_BY_ID: "api/shop/orders/<orderId>",

@@ -26,6 +26,7 @@ import com.crapi.entity.User;
 import com.crapi.entity.UserDetails;
 import com.crapi.enums.ERole;
 import com.crapi.exception.EntityNotFoundException;
+import com.crapi.model.ApiKeyResponse;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.ChangeEmailForm;
 import com.crapi.model.ChangePhoneForm;
@@ -63,6 +64,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -144,6 +146,19 @@ public class UserServiceImplTest {
     ResponseEntity<JwtResponse> jwtResponse = userService.authenticateUserLogin(loginForm);
     Assertions.assertEquals(jwtResponse.getBody().getToken(), sampleJwtToken);
     Mockito.verify(userRepository, Mockito.times(1)).saveAndFlush(Mockito.any());
+  }
+
+  @Test
+  public void testAuthenticateUserApiKey() throws UnsupportedEncodingException {
+    LoginForm loginForm = getDummyLoginForm();
+    User user = getDummyUser();
+    user.setApiKey("sampleApiKey");
+    Authentication mockAuth = Mockito.mock(Authentication.class);
+    Mockito.when(authenticationManager.authenticate(Mockito.any(Authentication.class)))
+        .thenReturn(mockAuth);
+    Mockito.when(userRepository.findByEmail(Mockito.anyString())).thenReturn(user);
+    ApiKeyResponse jwtResponse = userService.generateApiKey(getMockHttpRequest(), loginForm);
+    Assertions.assertEquals(jwtResponse.getApiKey(), "sampleApiKey");
   }
 
   @Test
