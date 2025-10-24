@@ -241,6 +241,11 @@ jobs:
           working-directory: services/community
 
 
+      - name: Install system dependencies for workshop
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcairo2-dev pkg-config python3-dev
+
       - name: Run workshop tests
         run: |
           cd services/workshop
