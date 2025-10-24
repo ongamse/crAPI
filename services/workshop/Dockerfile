@@ -24,7 +24,8 @@ RUN apk add --update --no-cache --virtual .build-deps \
         libffi-dev gcc py3-pip \
         python3-dev \
         musl-dev \
-        libffi-dev
+        libffi-dev \
+        cairo-dev cairo cairo-tools
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
