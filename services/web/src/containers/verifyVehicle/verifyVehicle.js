@@ -18,7 +18,10 @@ import React from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { Modal } from "antd";
-import { registerVehicleAction, verifyVehicleAction } from "../../actions/vehicleActions";
+import {
+  registerVehicleAction,
+  verifyVehicleAction,
+} from "../../actions/vehicleActions";
 import VerifyVehicle from "../../components/verifyVehicle/verifyVehicle";
 import responseTypes from "../../constants/responseTypes";
 import { SUCCESS_MESSAGE } from "../../constants/messages";
@@ -81,7 +84,10 @@ const VerifyVehicleContainer = (props) => {
   );
 };
 
-const mapStateToProps = ({ userReducer: { accessToken }, vehicleReducer: { vehicles } }) => {
+const mapStateToProps = ({
+  userReducer: { accessToken },
+  vehicleReducer: { vehicles },
+}) => {
   return { accessToken, vehicles };
 };
 

@@ -60,7 +60,9 @@ const VerifyVehicle: React.FC<VerifyVehicleProps> = ({
                 loading={vehicleRegistered === 1}
                 className="form-button"
               >
-                {vehicleRegistered === 2 ? "Vehicle Registered" : "Register Your New Vehicle"}
+                {vehicleRegistered === 2
+                  ? "Vehicle Registered"
+                  : "Register Your New Vehicle"}
               </Button>
               {registrationMessage && (
                 <Alert
@@ -74,7 +76,7 @@ const VerifyVehicle: React.FC<VerifyVehicleProps> = ({
             </Card>
           </Col>
         )}
-        
+
         <Col xs={24} md={vehicles.length ? 11 : 20}>
           <Card
             title="Verify Vehicle Details"
@@ -112,8 +114,14 @@ const VerifyVehicle: React.FC<VerifyVehicleProps> = ({
                 <Input placeholder="Vehicle No." />
               </Form.Item>
               <Form.Item wrapperCol={{ sm: { span: 24 } }}>
-                {hasErrored && <div className="error-message">{errorMessage}</div>}
-                <Button type="primary" htmlType="submit" className="form-button">
+                {hasErrored && (
+                  <div className="error-message">{errorMessage}</div>
+                )}
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  className="form-button"
+                >
                   Verify Vehicle Details
                 </Button>
               </Form.Item>

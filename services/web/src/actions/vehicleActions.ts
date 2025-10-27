@@ -25,7 +25,10 @@ interface GetVehiclesPayload extends ActionPayload {
   email?: string;
 }
 
-export const registerVehicleAction = ({ callback, accessToken }: ActionPayload) => {
+export const registerVehicleAction = ({
+  callback,
+  accessToken,
+}: ActionPayload) => {
   return {
     type: actionTypes.REGISTER_VEHICLE,
     payload: {
