@@ -46,7 +46,7 @@ const VerifyVehicle: React.FC<VerifyVehicleProps> = ({
   return (
     <div className="container add-vehicle-container">
       <Row justify="center">
-        {vehicles.length && (
+        {vehicles.length > 0 && (
           <Col xs={24} md={11}>
             <Card
               title="Register New Vehicle"
