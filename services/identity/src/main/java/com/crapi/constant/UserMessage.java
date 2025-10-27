@@ -60,7 +60,7 @@ public class UserMessage {
   public static final String VEHICLE_DETAILS_SENT_TO_EMAIL =
       "Your newly purchased vehicle details have been sent to you email address. Verify them to add your vehicle. [If you have used example.com email, check your email using the MailHog web portal]";
   public static final String CHANGE_EMAIL_MESSAGE =
-      "The token has been sent to your email. If you have used example.com email, check your email using the MailHog web portal.";
+      "The token has been sent to your email. If you have used example.com email, check your email using the MailHog web portal.   ";
   public static final String CHANGE_EMAIL_OLD_USEREMAIL_NOT_FOUND_MESSAGE =
       "Sorry, we didn't find any user for ";
   public static final String INVALID_EMAIL_TOKEN = "Sorry, Token did't match";

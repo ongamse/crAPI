@@ -1009,9 +1009,9 @@
       },
       "parameters" : [ ]
     },
-    "/identity/api/v2/vehicle/verify_vehicle" : {
+    "/identity/api/v2/vehicle/add_vehicle" : {
       "post" : {
-        "operationId" : "verify_vehicle",
+        "operationId" : "add_vehicle",
         "summary" : "Add the user vehicle",
         "tags" : [ "Identity / Vehicle" ],
         "security" : [ {

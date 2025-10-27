@@ -18,34 +18,34 @@ import React from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { Modal } from "antd";
-import { createVehicleAction, verifyVehicleAction } from "../../actions/vehicleActions";
-import AddVehicle from "../../components/addVehicle/addVehicle";
+import { registerVehicleAction, verifyVehicleAction } from "../../actions/vehicleActions";
+import VerifyVehicle from "../../components/verifyVehicle/verifyVehicle";
 import responseTypes from "../../constants/responseTypes";
 import { SUCCESS_MESSAGE } from "../../constants/messages";
 import { useNavigate } from "react-router-dom";
 
-const AddVehicleContainer = (props) => {
+const VerifyVehicleContainer = (props) => {
   const navigate = useNavigate();
-  const { createVehicle, verifyVehicle } = props;
-  const { accessToken } = props;
+  const { registerVehicle, verifyVehicle } = props;
+  const { accessToken, vehicles } = props;
 
   const [hasErrored, setHasErrored] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState("");
-  const [vehicleCreated, setVehicleCreated] = React.useState(0);
-  const [creationMessage, setCreationMessage] = React.useState("");
+  const [vehicleRegistered, setVehicleRegistered] = React.useState(0);
+  const [registrationMessage, setRegistrationMessage] = React.useState("");
 
-  const onCreateVehicle = () => {
-    setVehicleCreated(1);
+  const onRegisterVehicle = () => {
+    setVehicleRegistered(1);
     const callback = (res, data) => {
       if (res === responseTypes.SUCCESS) {
-        setVehicleCreated(2);
-        setCreationMessage(data);
+        setVehicleRegistered(2);
+        setRegistrationMessage(data);
       } else {
-        setVehicleCreated(0);
-        setCreationMessage(data);
+        setVehicleRegistered(0);
+        setRegistrationMessage(data);
       }
     };
-    createVehicle({ callback, accessToken });
+    registerVehicle({ callback, accessToken });
   };
 
   const onFinish = (values) => {
@@ -69,33 +69,35 @@ const AddVehicleContainer = (props) => {
   };
 
   return (
-    <AddVehicle
+    <VerifyVehicle
       onFinish={onFinish}
       hasErrored={hasErrored}
       errorMessage={errorMessage}
-      onCreateVehicle={onCreateVehicle}
-      vehicleCreated={vehicleCreated}
-      creationMessage={creationMessage}
+      onRegisterVehicle={onRegisterVehicle}
+      vehicleRegistered={vehicleRegistered}
+      registrationMessage={registrationMessage}
+      vehicles={vehicles}
     />
   );
 };
 
-const mapStateToProps = ({ userReducer: { accessToken } }) => {
-  return { accessToken };
+const mapStateToProps = ({ userReducer: { accessToken }, vehicleReducer: { vehicles } }) => {
+  return { accessToken, vehicles };
 };
 
 const mapDispatchToProps = {
-  createVehicle: createVehicleAction,
+  registerVehicle: registerVehicleAction,
   verifyVehicle: verifyVehicleAction,
 };
 
-AddVehicleContainer.propTypes = {
+VerifyVehicleContainer.propTypes = {
   accessToken: PropTypes.string,
-  createVehicle: PropTypes.func,
+  registerVehicle: PropTypes.func,
   verifyVehicle: PropTypes.func,
+  vehicles: PropTypes.array,
 };
 
 export default connect(
   mapStateToProps,
   mapDispatchToProps,
-)(AddVehicleContainer);
+)(VerifyVehicleContainer);

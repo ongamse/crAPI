@@ -775,7 +775,7 @@
         "uid": "13872198-c0ef62ef-8ca0-4eaf-a3d8-44c1aa41a407"
       },
       {
-        "name": "Verify Vehicle from Mail",
+        "name": "Add Vehicle from Mail",
         "event": [
           {
             "listen": "test",
@@ -850,7 +850,7 @@
             "raw": "{\"vin\": \"{{VIN}}\", \"pincode\": \"{{PIN}}\"}"
           },
           "url": {
-            "raw": "{{url}}/identity/api/v2/vehicle/verify_vehicle",
+            "raw": "{{url}}/identity/api/v2/vehicle/add_vehicle",
             "host": [
               "{{url}}"
             ],
@@ -859,7 +859,7 @@
               "api",
               "v2",
               "vehicle",
-              "verify_vehicle"
+              "add_vehicle"
             ]
           }
         },

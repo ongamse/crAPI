@@ -109,11 +109,11 @@ public class VehicleServiceImpl implements VehicleService {
 
   /**
    * @param request
-   * @return CRAPIResponse after creating a new vehicle and assigning it to the current user
+   * @return CRAPIResponse after creating a new vehicle and sending details to current user
    */
   @Transactional
   @Override
-  public CRAPIResponse createVehicle(HttpServletRequest request) {
+  public CRAPIResponse registerVehicle(HttpServletRequest request) {
     User user = null;
     UserDetails userDetails = null;
     VehicleDetails vehicleDetails = null;
@@ -205,7 +205,7 @@ public class VehicleServiceImpl implements VehicleService {
    */
   @Transactional
   @Override
-  public CRAPIResponse verifyVehicle(VehicleForm vehicleForm, HttpServletRequest request) {
+  public CRAPIResponse checkVehicle(VehicleForm vehicleForm, HttpServletRequest request) {
     VehicleDetails checkVehicle = null;
     User user = null;
     checkVehicle = vehicleDetailsRepository.findByVin(vehicleForm.getVin());

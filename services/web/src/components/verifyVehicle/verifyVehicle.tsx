@@ -22,56 +22,60 @@ import {
   INVALID_VIN,
 } from "../../constants/messages";
 import { PIN_CODE_VALIDATION, VIN_VALIDATION } from "../../constants/constants";
-import "./addVehicle.css";
+import "./verifyVehicle.css";
 
-interface AddVehicleProps {
+interface VerifyVehicleProps {
   hasErrored: boolean;
   errorMessage: string;
   onFinish: (values: any) => void;
-  onCreateVehicle: () => void;
-  vehicleCreated: number;
-  creationMessage: string;
+  onRegisterVehicle: () => void;
+  vehicleRegistered: number;
+  registrationMessage: string;
+  vehicles: any[];
 }
 
-const AddVehicle: React.FC<AddVehicleProps> = ({
+const VerifyVehicle: React.FC<VerifyVehicleProps> = ({
   hasErrored,
   errorMessage,
   onFinish,
-  onCreateVehicle,
-  vehicleCreated,
-  creationMessage,
+  onRegisterVehicle,
+  vehicleRegistered,
+  registrationMessage,
+  vehicles,
 }) => {
   return (
     <div className="container add-vehicle-container">
       <Row justify="center">
-        <Col xs={24} md={11}>
-          <Card
-            title="Create New Vehicle"
-            bordered={false}
-            className="add-vehicle-card"
-          >
-            <Button
-              type="primary"
-              onClick={onCreateVehicle}
-              disabled={vehicleCreated !== 0}
-              loading={vehicleCreated === 1}
-              className="form-button"
+        {vehicles.length && (
+          <Col xs={24} md={11}>
+            <Card
+              title="Register New Vehicle"
+              bordered={false}
+              className="add-vehicle-card"
             >
-              {vehicleCreated === 2 ? "Vehicle Created" : "Create Your New Vehicle"}
-            </Button>
-            {creationMessage && (
-              <Alert
-                message={vehicleCreated === 2 ? "Success" : "Error"}
-                description={creationMessage}
-                type={vehicleCreated === 2 ? "success" : "warning"}
-                showIcon
-                className="vehicle-alert"
-              />
-            )}
-          </Card>
-        </Col>
+              <Button
+                type="primary"
+                onClick={onRegisterVehicle}
+                disabled={vehicleRegistered !== 0}
+                loading={vehicleRegistered === 1}
+                className="form-button"
+              >
+                {vehicleRegistered === 2 ? "Vehicle Registered" : "Register Your New Vehicle"}
+              </Button>
+              {registrationMessage && (
+                <Alert
+                  message={vehicleRegistered === 2 ? "Success" : "Error"}
+                  description={registrationMessage}
+                  type={vehicleRegistered === 2 ? "success" : "warning"}
+                  showIcon
+                  className="vehicle-alert"
+                />
+              )}
+            </Card>
+          </Col>
+        )}
         
-        <Col xs={24} md={11}>
+        <Col xs={24} md={vehicles.length ? 11 : 20}>
           <Card
             title="Verify Vehicle Details"
             bordered={false}
@@ -121,4 +125,4 @@ const AddVehicle: React.FC<AddVehicleProps> = ({
   );
 };
 
-export default AddVehicle;
+export default VerifyVehicle;

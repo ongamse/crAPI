@@ -27,7 +27,7 @@ import {
   SERVICE_REQUEST_NOT_SENT,
   LOC_NOT_REFRESHED,
   NO_SERVICES,
-  VEHICLE_NOT_CREATED,
+  VEHICLE_NOT_REGISTERED,
 } from "../constants/messages";
 
 interface ReceivedResponse extends Response {
@@ -72,17 +72,17 @@ export function* resendMail(action: MyAction): Generator<any, void, any> {
 }
 
 /**
- * create a new vehicle with dummy data
+ * register a new vehicle
  * @payload { accessToken, callback } payload
  * accessToken: access token of the user
  * callback : callback method
  */
-export function* createVehicle(action: MyAction): Generator<any, void, any> {
+export function* registerVehicle(action: MyAction): Generator<any, void, any> {
   const { accessToken, callback } = action.payload;
   let recievedResponse: ReceivedResponse = {} as ReceivedResponse;
   try {
     yield put({ type: actionTypes.FETCHING_DATA });
-    const postUrl = APIService.IDENTITY_SERVICE + requestURLS.CREATE_VEHICLE;
+    const postUrl = APIService.IDENTITY_SERVICE + requestURLS.REGISTER_VEHICLE;
     const headers = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
@@ -99,11 +99,11 @@ export function* createVehicle(action: MyAction): Generator<any, void, any> {
     if (recievedResponse.ok) {
       callback(responseTypes.SUCCESS, responseJson.message);
     } else {
-      callback(responseTypes.FAILURE, VEHICLE_NOT_CREATED);
+      callback(responseTypes.FAILURE, VEHICLE_NOT_REGISTERED);
     }
   } catch (e) {
     yield put({ type: actionTypes.FETCHED_DATA, payload: recievedResponse });
-    callback(responseTypes.FAILURE, VEHICLE_NOT_CREATED);
+    callback(responseTypes.FAILURE, VEHICLE_NOT_REGISTERED);
   }
 }
 
@@ -120,7 +120,7 @@ export function* verifyVehicle(action: MyAction): Generator<any, void, any> {
   let recievedResponse: ReceivedResponse = {} as ReceivedResponse;
   try {
     yield put({ type: actionTypes.FETCHING_DATA });
-    const postUrl = APIService.IDENTITY_SERVICE + requestURLS.VERIFY_VEHICLE;
+    const postUrl = APIService.IDENTITY_SERVICE + requestURLS.ADD_VEHICLE;
     const headers = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
@@ -430,7 +430,7 @@ export function* getServiceReport(action: MyAction): Generator<any, void, any> {
 
 export function* vehicleActionWatcher(): Generator<any, void, any> {
   yield takeLatest(actionTypes.RESEND_MAIL, resendMail);
-  yield takeLatest(actionTypes.CREATE_VEHICLE, createVehicle);
+  yield takeLatest(actionTypes.REGISTER_VEHICLE, registerVehicle);
   yield takeLatest(actionTypes.VERIFY_VEHICLE, verifyVehicle);
   yield takeLatest(actionTypes.GET_VEHICLES, getVehicles);
   yield takeLatest(actionTypes.GET_MECHANICS, getMechanics);

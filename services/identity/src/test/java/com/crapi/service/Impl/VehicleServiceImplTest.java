@@ -181,7 +181,7 @@ public class VehicleServiceImplTest {
   }
 
   @Test
-  public void verifyVehicleSuccessFull() {
+  public void checkVehicleSuccessFull() {
     VehicleForm vehicleForm = getDummyVehicleForm();
     VehicleDetails vehicleDetails = getDummyVehicleDetails();
     User user = getDummyUser();
@@ -191,14 +191,14 @@ public class VehicleServiceImplTest {
         .thenReturn(vehicleDetails);
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(user);
     CRAPIResponse crapiAPIResponse =
-        vehicleService.verifyVehicle(vehicleForm, getDummyHttpRequest());
+        vehicleService.checkVehicle(vehicleForm, getDummyHttpRequest());
     Mockito.verify(vehicleDetailsRepository, Mockito.times(1)).save(Mockito.any());
     Assertions.assertEquals(UserMessage.VEHICLE_SAVED_SUCCESSFULLY, crapiAPIResponse.getMessage());
     Assertions.assertEquals(HttpStatus.OK.value(), crapiAPIResponse.getStatus());
   }
 
   @Test
-  public void verifyVehicleFailWhenPinCodeNotEqual() {
+  public void checkVehicleFailWhenPinCodeNotEqual() {
     VehicleForm vehicleForm = getDummyVehicleForm();
     VehicleDetails vehicleDetails = getDummyVehicleDetails();
     User user = getDummyUser();
@@ -206,27 +206,27 @@ public class VehicleServiceImplTest {
         .thenReturn(vehicleDetails);
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(user);
     CRAPIResponse crapiAPIResponse =
-        vehicleService.verifyVehicle(vehicleForm, getDummyHttpRequest());
+        vehicleService.checkVehicle(vehicleForm, getDummyHttpRequest());
     Mockito.verify(vehicleDetailsRepository, Mockito.times(0)).save(Mockito.any());
     Assertions.assertEquals(UserMessage.VEHICLE_ALREADY_CREATED, crapiAPIResponse.getMessage());
     Assertions.assertEquals(HttpStatus.FORBIDDEN.value(), crapiAPIResponse.getStatus());
   }
 
   @Test
-  public void verifyVehicleFailWhenVehicleDetailsNotFound() {
+  public void checkVehicleFailWhenVehicleDetailsNotFound() {
     VehicleForm vehicleForm = getDummyVehicleForm();
     User user = getDummyUser();
     Mockito.when(vehicleDetailsRepository.findByVin(Mockito.anyString())).thenReturn(null);
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(user);
     CRAPIResponse crapiAPIResponse =
-        vehicleService.verifyVehicle(vehicleForm, getDummyHttpRequest());
+        vehicleService.checkVehicle(vehicleForm, getDummyHttpRequest());
     Mockito.verify(vehicleDetailsRepository, Mockito.times(0)).save(Mockito.any());
     Assertions.assertEquals(UserMessage.VEHICLE_ALREADY_CREATED, crapiAPIResponse.getMessage());
     Assertions.assertEquals(HttpStatus.FORBIDDEN.value(), crapiAPIResponse.getStatus());
   }
 
   @Test
-  public void verifyVehicleFailWhenUserNotFound() {
+  public void checkVehicleFailWhenUserNotFound() {
     VehicleForm vehicleForm = getDummyVehicleForm();
     VehicleDetails vehicleDetails = getDummyVehicleDetails();
     vehicleDetails.setPincode(vehicleForm.getPincode());
@@ -234,7 +234,7 @@ public class VehicleServiceImplTest {
         .thenReturn(vehicleDetails);
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(null);
     CRAPIResponse crapiAPIResponse =
-        vehicleService.verifyVehicle(vehicleForm, getDummyHttpRequest());
+        vehicleService.checkVehicle(vehicleForm, getDummyHttpRequest());
     Mockito.verify(vehicleDetailsRepository, Mockito.times(0)).save(Mockito.any());
     Assertions.assertEquals(UserMessage.VEHICLE_ALREADY_CREATED, crapiAPIResponse.getMessage());
     Assertions.assertEquals(HttpStatus.FORBIDDEN.value(), crapiAPIResponse.getStatus());

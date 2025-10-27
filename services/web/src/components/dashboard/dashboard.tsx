@@ -186,8 +186,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       <span className="alert-msg">{NO_VEHICLE_DESC_3}</span>
     </>
   );
-  const handleAddVehicleClick = () => {
-    navigate("/add-vehicle");
+  const handleVerifyVehicleClick = () => {
+    navigate("/verify-vehicle");
   };
 
   const handleVehicleServiceClick = (vin: string) => {
@@ -208,8 +208,8 @@ const Dashboard: React.FC<DashboardProps> = ({
               shape="round"
               icon={<PlusOutlined />}
               size="large"
-              onClick={handleAddVehicleClick}
-              key="add-vehicle"
+              onClick={handleVerifyVehicleClick}
+              key="verify-vehicle"
             >
               Add Vehicle
             </Button>,
