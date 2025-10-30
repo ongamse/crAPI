@@ -22,6 +22,7 @@ import {
   getProductsAction,
   buyProductAction,
   applyCouponAction,
+  newCouponAction,
 } from "../../actions/shopActions";
 import Shop from "../../components/shop/shop";
 import { useNavigate } from "react-router-dom";
@@ -35,6 +36,10 @@ const ShopContainer = (props) => {
   const [hasErrored, setHasErrored] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState("");
   const [isCouponFormOpen, setIsCouponFormOpen] = useState(false);
+
+  const [newCouponHasErrored, setNewCouponHasErrored] = React.useState(false);
+  const [newCouponErrorMessage, setNewCouponErrorMessage] = React.useState("");
+  const [isNewCouponFormOpen, setIsNewCouponFormOpen] = useState(false);
 
   useEffect(() => {
     const callback = (res, data) => {
@@ -98,6 +103,26 @@ const ShopContainer = (props) => {
     });
   };
 
+  const handleNewCouponFormFinish = (values) => {
+    const callback = (res, data) => {
+      if (res === responseTypes.SUCCESS) {
+        setIsNewCouponFormOpen(false);
+        Modal.success({
+          title: SUCCESS_MESSAGE,
+          content: data,
+        });
+      } else {
+        setNewCouponHasErrored(true);
+        setNewCouponErrorMessage(data);
+      }
+    };
+    props.newCoupon({
+      callback,
+      accessToken,
+      ...values,
+    });
+  };
+
   return (
     <Shop
       onBuyProduct={handleBuyProduct}
@@ -107,6 +132,11 @@ const ShopContainer = (props) => {
       errorMessage={errorMessage}
       onFinish={handleFormFinish}
       onOffsetChange={handleOffsetChange}
+      isNewCouponFormOpen={isNewCouponFormOpen}
+      setIsNewCouponFormOpen={setIsNewCouponFormOpen}
+      newCouponHasErrored={newCouponHasErrored}
+      newCouponErrorMessage={newCouponErrorMessage}
+      onNewCouponFinish={handleNewCouponFormFinish}
       {...props}
     />
   );
@@ -122,6 +152,7 @@ const mapDispatchToProps = {
   getProducts: getProductsAction,
   buyProduct: buyProductAction,
   applyCoupon: applyCouponAction,
+  newCoupon: newCouponAction,
 };
 
 ShopContainer.propTypes = {
@@ -129,6 +160,7 @@ ShopContainer.propTypes = {
   getProducts: PropTypes.func,
   buyProduct: PropTypes.func,
   applyCoupon: PropTypes.func,
+  newCoupon: PropTypes.func,
   nextOffset: PropTypes.number,
   prevOffset: PropTypes.number,
   onOffsetChange: PropTypes.func,
