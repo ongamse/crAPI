@@ -108,7 +108,7 @@ const AfterLogin: React.FC<AfterLoginProps> = ({
     return <Navigate to="/login" />;
   }
 
-  if (!componentRole || (componentRole && componentRole === userRole)) {
+  if (!componentRole || (componentRole && componentRole === userRole) || (componentRole && componentRole === roleTypes.ROLE_USER && userRole && userRole === roleTypes.ROLE_ADMIN)) {
     return <Component />;
   }
 
