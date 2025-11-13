@@ -2617,7 +2617,7 @@
                     "coupon_code": {
                       "type": "string"
                     },
-                    "createdAt": {
+                    "CreatedAt": {
                       "type": "string"
                     }
                   },
@@ -5171,7 +5171,7 @@
           "coupon_code": {
             "type": "string"
           },
-          "createdAt": {
+          "CreatedAt": {
             "type": "string"
           }
         },
