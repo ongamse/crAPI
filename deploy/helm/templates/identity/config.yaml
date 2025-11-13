@@ -8,32 +8,32 @@ metadata:
     {{- toYaml . | nindent 4 }}
     {{- end }}
 data:
-  LOG_LEVEL: {{ .Values.logLevel | upper }}
-  JWT_SECRET: {{ .Values.jwtSecret }} #Used for creating a JWT. Can be anything
-  APP_NAME: {{ .Values.identity.config.appName }}
+  LOG_LEVEL: {{ .Values.logLevel | upper | quote }}
+  JWT_SECRET: {{ .Values.jwtSecret | quote }} # Used for creating a JWT. Can be anything
+  APP_NAME: {{ .Values.identity.config.appName | quote }}
   ENABLE_SHELL_INJECTION: {{ .Values.enableShellInjection | quote }}
   ENABLE_LOG4J: {{ .Values.enableLog4j | quote }}
-  DB_HOST: {{ .Values.postgresdb.service.name }}
-  DB_USER: {{ .Values.postgresdb.config.postgresUser }}
-  DB_PASSWORD: {{ .Values.postgresdb.config.postgresPassword }}
-  DB_NAME: {{ .Values.postgresdb.config.postgresDbName }}
+  DB_HOST: {{ .Values.postgresdb.service.name | quote }}
+  DB_USER: {{ .Values.postgresdb.config.postgresUser | quote }}
+  DB_PASSWORD: {{ .Values.postgresdb.config.postgresPassword | quote }}
+  DB_NAME: {{ .Values.postgresdb.config.postgresDbName | quote }}
   DB_PORT: {{ .Values.postgresdb.port | quote }}
-  MAILHOG_HOST: {{ .Values.mailhog.smtpService.name }}
+  MAILHOG_HOST: {{ .Values.mailhog.smtpService.name | quote }}
   MAILHOG_PORT: {{ .Values.mailhog.smtpPort | quote }}
-  MAILHOG_DOMAIN: {{ .Values.identity.config.mailhogDomain }}
-  SMTP_HOST: {{ .Values.identity.config.smtpHost}}
+  MAILHOG_DOMAIN: {{ .Values.identity.config.mailhogDomain | quote }}
+  SMTP_HOST: {{ .Values.identity.config.smtpHost | quote }}
   SMTP_PORT: {{ .Values.identity.config.smtpPort | quote }}
-  SMTP_EMAIL: {{ .Values.identity.config.smtpEmail }}
-  SMTP_PASS: {{ .Values.identity.config.smtpPass }}
-  SMTP_FROM: {{ .Values.identity.config.smtpFrom }}
+  SMTP_EMAIL: {{ .Values.identity.config.smtpEmail | quote }}
+  SMTP_PASS: {{ .Values.identity.config.smtpPass | quote }}
+  SMTP_FROM: {{ .Values.identity.config.smtpFrom | quote }}
   SMTP_AUTH: {{ .Values.identity.config.smtpAuth | quote }}
   JWT_EXPIRATION: {{ .Values.jwtExpiration | quote }}
   SMTP_STARTTLS: {{ .Values.identity.config.smtpStartTLS | quote }}
   SERVER_PORT: {{ .Values.identity.port | quote }}
-  API_GATEWAY_URL: {{ if .Values.apiGatewayServiceInstall }}"https://{{ .Values.apiGatewayService.service.name }}"{{ else }}{{ .Values.apiGatewayServiceUrl }}{{ end }}
+  API_GATEWAY_URL: {{ if .Values.apiGatewayServiceInstall }}"https://{{ .Values.apiGatewayService.service.name }}"{{ else }}{{ .Values.apiGatewayServiceUrl | quote }}{{ end }}
   TLS_ENABLED: {{ .Values.tlsEnabled | quote }}
-  TLS_KEYSTORE_TYPE: {{ .Values.identity.config.keyStoreType }}
-  TLS_KEYSTORE: {{ .Values.identity.config.keyStore }}
-  TLS_KEYSTORE_PASSWORD: {{ .Values.identity.config.keyStorePassword }}
-  TLS_KEY_PASSWORD: {{ .Values.identity.config.keyPassword }}
-  TLS_KEY_ALIAS: {{ .Values.identity.config.keyAlias }}
+  TLS_KEYSTORE_TYPE: {{ .Values.identity.config.keyStoreType | quote }}
+  TLS_KEYSTORE: {{ .Values.identity.config.keyStore | quote }}
+  TLS_KEYSTORE_PASSWORD: {{ .Values.identity.config.keyStorePassword | quote }}
+  TLS_KEY_PASSWORD: {{ .Values.identity.config.keyPassword | quote }}
+  TLS_KEY_ALIAS: {{ .Values.identity.config.keyAlias | quote }}
