@@ -6,5 +6,5 @@ metadata:
     release: {{ .Release.Name }}
     {{- toYaml .Values.mailhog.config.labels | nindent 4 }}
 data:
-  MH_MONGO_URI: {{ .Values.mongodb.config.mongoUri }}
-  MH_STORAGE: {{ .Values.mailhog.config.mailhogStorage }}
+  MH_MONGO_URI: {{ .Values.mongodb.config.mongoUri | quote }}
+  MH_STORAGE: {{ .Values.mailhog.config.mailhogStorage | quote }}
