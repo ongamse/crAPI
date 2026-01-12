@@ -33,6 +33,7 @@ jobs:
       id: extract_branch
 
     - name: QwietAI preZero Analysis
-      run: ${GITHUB_WORKSPACE}/sl analyze --strict --wait --verbose --app QWIETAI-crAPI --tag branch=${{ github.head_ref || steps.extract_branch.outputs.branch }}
+      #run: ${GITHUB_WORKSPACE}/sl analyze --strict --wait --verbose --app QWIETAI-crAPI --tag branch=${{ github.head_ref || steps.extract_branch.outputs.branch }}
+      run: ${GITHUB_WORKSPACE}/sl analyze --strict --wait --verbose --app crAPI --tag branch=${{ github.head_ref || steps.extract_branch.outputs.branch }}
       env:
         SHIFTLEFT_ACCESS_TOKEN: ${{ secrets.SHIFTLEFT_ACCESS_TOKEN_POC }}
