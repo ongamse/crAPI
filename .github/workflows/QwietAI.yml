@@ -25,6 +25,7 @@ jobs:
 
     - name: Gradle
       run: |
+        cd services/identity /
         ./gradlew build
 
     
