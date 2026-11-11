@@ -10,3 +10,5 @@ docker-compose.local.yml
 # TLS private keys are supplied at runtime and never committed
 services/**/server.key
 deploy/docker/certs/
+# Private JWKS is supplied at runtime and never committed
+jwks.json

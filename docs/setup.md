@@ -1,7 +1,7 @@
 Setup | crAPI
 =============
 
-> **Note**: Custom jwks key can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys`
+> **Note**: A custom (private) jwks key can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys`. This file is git-ignored and must never be committed. If it is absent, the identity service generates an ephemeral signing key at startup (tokens are invalidated on restart).
 
 ## Docker and docker compose
 
