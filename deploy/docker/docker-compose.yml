@@ -141,6 +141,7 @@ services:
       - FILES_LIMIT=1000
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
       - MECHANIC_API_ALLOWED_HOSTS=${MECHANIC_API_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - ALLOWED_HOSTS=${WORKSHOP_ALLOWED_HOSTS:-}
     depends_on:
       postgresdb:
         condition: service_healthy

@@ -62,7 +62,23 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Explicit Host header allowlist (protects against DNS rebinding / Host header
+# attacks). Defaults cover loopback, the container healthcheck (0.0.0.0) and the
+# in-cluster / compose service name that the web proxy sends as the Host header.
+# Extra hostnames (e.g. an ingress host) can be added with the comma separated
+# ALLOWED_HOSTS environment variable. A bare "*" wildcard is ignored.
+DEFAULT_ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "0.0.0.0",
+    "crapi-workshop",
+]
+ALLOWED_HOSTS = DEFAULT_ALLOWED_HOSTS + [
+    h.strip().lower()
+    for h in os.environ.get("ALLOWED_HOSTS", "").split(",")
+    if h.strip() and h.strip() != "*" and h.strip().lower() not in DEFAULT_ALLOWED_HOSTS
+]
 
 # Comma separated hostnames the contact mechanic feature may call even when
 # they resolve to non-public addresses. Empty by default (public hosts only).

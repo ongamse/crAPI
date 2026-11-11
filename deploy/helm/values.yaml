@@ -136,6 +136,9 @@ workshop:
   image: crapi/crapi-workshop
   port: 8000
   replicaCount: 1
+  # Extra comma separated Host header values accepted by workshop (defaults already
+  # cover localhost, 127.0.0.1 and crapi-workshop)
+  allowedHosts: ""
   service:
     name: crapi-workshop
     labels:
