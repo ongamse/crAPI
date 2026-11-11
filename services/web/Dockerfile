@@ -26,7 +26,7 @@ RUN ls /app/build
 
 # Main Image
 FROM openresty/openresty:alpine
-RUN apk add gettext curl
+RUN apk add gettext curl openssl
 # React
 RUN rm /etc/nginx/conf.d/default.conf
 COPY --from=build /app/build /usr/share/nginx/html

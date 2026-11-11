@@ -179,7 +179,17 @@ func main() {
 	http.HandleFunc("/v1/payment", GetPayMentInfo)
 	listen_addr := fmt.Sprintf(":%d", *port)
 	log.Printf("Listening on %s", listen_addr)
-	err := http.ListenAndServeTLS(listen_addr, "server.crt", "server.key", nil)
+	// The private key is supplied at runtime (baked in at image build time or
+	// mounted); TLS_CERTIFICATE / TLS_KEY override the default file locations.
+	certFile := os.Getenv("TLS_CERTIFICATE")
+	if certFile == "" {
+		certFile = "server.crt"
+	}
+	keyFile := os.Getenv("TLS_KEY")
+	if keyFile == "" {
+		keyFile = "server.key"
+	}
+	err := http.ListenAndServeTLS(listen_addr, certFile, keyFile, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}

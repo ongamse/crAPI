@@ -25,6 +25,14 @@ credentials:
   mechanicDefaultPassword: ""
   apiGatewayPassword: ""
 
+# TLS key pair used when tlsEnabled is true (see templates/tls-secret.yaml).
+# With generate=true a self-signed certificate is created at install time and
+# reused on upgrade; set generate=false to supply your own kubernetes.io/tls
+# Secret named secretName.
+tls:
+  secretName: crapi-tls
+  generate: true
+
 waitForK8sResources:
   enabled: True
   image: groundnuty/k8s-wait-for:v2.0

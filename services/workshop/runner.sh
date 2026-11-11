@@ -44,6 +44,10 @@ if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
   if [ "$TLS_KEY" = "" ]; then
     TLS_KEY=$DIR/certs/server.key
   fi
+  if [ ! -f "$TLS_KEY" ]; then
+    echo "TLS private key not found at $TLS_KEY. Mount one (see deploy/docker/generate-credentials.sh) or set TLS_KEY." >&2
+    exit 1
+  fi
   echo "TLS_CERTIFICATE: $TLS_CERTIFICATE"
   echo "TLS_KEY: $TLS_KEY"
   # python3 manage.py runserver_plus --cert-file $TLS_CERTIFICATE --key-file $TLS_KEY --noreload 0.0.0.0:${SERVER_PORT}

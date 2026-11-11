@@ -21,6 +21,17 @@ else
     export HTTP_PROTOCOL=http
     export NGINX_TEMPLATE=/etc/nginx/conf.d/default.conf.template
 fi
+# The TLS private key is never baked into the image. It is normally mounted at
+# /app/certs (see deploy/docker/generate-credentials.sh and the helm tls Secret).
+# nginx's 443 listener needs a key pair to start, so when none was supplied
+# generate a throwaway self-signed pair for this container only.
+if [ ! -f /app/certs/server.key ] || [ ! -f /app/certs/server.crt ]; then
+    echo "No TLS key pair mounted at /app/certs; generating an ephemeral self-signed certificate"
+    mkdir -p /app/certs
+    (umask 077 && openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 30 \
+        -subj "/CN=crapi-web" \
+        -keyout /app/certs/server.key -out /app/certs/server.crt) || exit 1
+fi
 ls -al /app/certs
 env
 envsubst '${HTTP_PROTOCOL} ${COMMUNITY_SERVICE} ${IDENTITY_SERVICE} ${WORKSHOP_SERVICE} ${CHATBOT_SERVICE} ${MAILHOG_WEB_SERVICE}' < $NGINX_TEMPLATE > /etc/nginx/conf.d/default.conf
