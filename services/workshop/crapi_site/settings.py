@@ -25,6 +25,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
+import secrets
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -61,11 +62,41 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Explicit Host header allowlist (protects against DNS rebinding / Host header
+# attacks). Defaults cover loopback, the container healthcheck (0.0.0.0) and the
+# in-cluster / compose service name that the web proxy sends as the Host header.
+# Extra hostnames (e.g. an ingress host) can be added with the comma separated
+# ALLOWED_HOSTS environment variable. A bare "*" wildcard is ignored.
+DEFAULT_ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "0.0.0.0",
+    "crapi-workshop",
+]
+ALLOWED_HOSTS = DEFAULT_ALLOWED_HOSTS + [
+    h.strip().lower()
+    for h in os.environ.get("ALLOWED_HOSTS", "").split(",")
+    if h.strip() and h.strip() != "*" and h.strip().lower() not in DEFAULT_ALLOWED_HOSTS
+]
+
+# Comma separated hostnames the contact mechanic feature may call even when
+# they resolve to non-public addresses. Empty by default (public hosts only).
+MECHANIC_API_ALLOWED_HOSTS = [
+    h.strip().lower()
+    for h in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
+
+# Password for the pre-populated mechanic accounts. When not supplied, a random
+# one is generated so no well-known credential exists in the source tree.
+MECHANIC_DEFAULT_PASSWORD = os.environ.get(
+    "MECHANIC_DEFAULT_PASSWORD"
+) or secrets.token_urlsafe(16)
 
 # Application definition
 
@@ -99,7 +130,14 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Explicit, env-driven CORS allowlist (comma separated origins, e.g.
+# "https://crapi.example.com"). Empty by default, i.e. same-origin only.
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if o.strip() and o.strip() != "*"
+]
 
 ROOT_URLCONF = "crapi_site.urls"
 
@@ -246,6 +284,13 @@ IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
+# Value passed as `verify` to outbound `requests` calls. TLS certificate and
+# hostname verification are always on. To trust a private/self-signed CA, point
+# TLS_CA_BUNDLE (or REQUESTS_CA_BUNDLE) at a PEM CA bundle file mounted into the
+# container; otherwise the default system trust store is used.
+TLS_CA_BUNDLE = (
+    os.environ.get("TLS_CA_BUNDLE") or os.environ.get("REQUESTS_CA_BUNDLE") or True
+)
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(
         get_env_value("IDENTITY_SERVICE")

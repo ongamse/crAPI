@@ -7,6 +7,7 @@ Requires=docker.service
 Type=oneshot
 RemainAfterExit=true
 WorkingDirectory=/opt/crapi
+EnvironmentFile=/opt/crapi/.env.credentials
 ExecStart=/bin/bash -c "/usr/local/bin/docker-compose up -d --remove-orphans"
 ExecStop=/bin/bash -c "/usr/local/bin/docker-compose down –volumes"
 

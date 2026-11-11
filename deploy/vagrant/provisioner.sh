@@ -42,6 +42,9 @@ mkdir /opt/crapi
 cp "$MOUNT_DIR/deploy/docker/docker-compose.yml" /opt/crapi \
     && sed -i /opt/crapi/docker-compose.yml \
     -e 's/${LISTEN_IP:-127\.0\.0\.1}:8888:80/80:80/; s/${LISTEN_IP:-127\.0\.0\.1}:8025:8025/8025:8025/'
+# Generate random credentials for this install (kept out of git, root-only)
+cp "$MOUNT_DIR/deploy/docker/generate-credentials.sh" /opt/crapi/ \
+    && /opt/crapi/generate-credentials.sh /opt/crapi/.env.credentials
 cp "$MOUNT_DIR/deploy/vagrant/crapi.service" /etc/systemd/system/ \
     && systemctl daemon-reload \
     && systemctl enable crapi.service

@@ -42,8 +42,9 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
-      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
+      InternetAddress[] emails = parseRecipients(sendMail);
+      String safeSubject = sanitizeHeaderValue(subject);
+      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, emails.length);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -62,24 +63,51 @@ public class SMTPMailServer {
       }
       if (!useMailHog) {
         session = mailConfiguration.sendmail();
-        log.info("Using Mail Configuration for sending email: " + sendMail);
+        log.info("Using Mail Configuration for sending email");
       }
 
       Message msg = new MimeMessage(session);
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
-      msg.setSubject(subject);
-      msg.setContent(body, "text/html");
+      msg.setRecipients(Message.RecipientType.TO, emails);
+      ((MimeMessage) msg).setSubject(safeSubject, "UTF-8");
+      msg.setContent(body, "text/html; charset=UTF-8");
       msg.setSentDate(new Date());
-
-      MimeBodyPart messageBodyPart = new MimeBodyPart();
-      messageBodyPart.setContent(body, "text/html");
 
       Transport.send(msg);
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  /**
+   * Reject header-injection attempts (CR/LF) and parse the recipient list strictly, validating each
+   * address.
+   */
+  private static InternetAddress[] parseRecipients(String recipients) throws AddressException {
+    if (recipients == null || recipients.isBlank()) {
+      throw new AddressException("Recipient address is empty");
+    }
+    sanitizeHeaderValue(recipients);
+    InternetAddress[] parsed = InternetAddress.parse(recipients, true);
+    if (parsed.length == 0) {
+      throw new AddressException("No valid recipient address", recipients);
+    }
+    for (InternetAddress address : parsed) {
+      address.validate();
+    }
+    return parsed;
+  }
+
+  /** Fail closed when a value destined for a mail header contains line breaks. */
+  private static String sanitizeHeaderValue(String value) throws AddressException {
+    if (value == null) {
+      return "";
+    }
+    if (value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0) {
+      throw new AddressException("Illegal line break in mail header value");
+    }
+    return value;
   }
 }

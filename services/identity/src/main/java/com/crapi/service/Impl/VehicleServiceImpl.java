@@ -138,18 +138,24 @@ public class VehicleServiceImpl implements VehicleService {
 
   /**
    * @param carId
-   * @return VehicleDetails which is linked with this carId.
+   * @param request used to resolve the calling user
+   * @return VehicleDetails which is linked with this carId, only if the caller owns the vehicle.
    */
   @Transactional
   @Override
-  public VehicleLocationResponse getVehicleLocation(UUID carId) {
+  public VehicleLocationResponse getVehicleLocation(UUID carId, HttpServletRequest request) {
     VehicleDetails vehicleDetails = null;
     VehicleLocationResponse vehicleLocationForm = null;
     UserDetails userDetails = null;
     Random random = new Random();
     try {
+      User caller = userService.getUserFromToken(request);
       vehicleDetails = vehicleDetailsRepository.findByUuid(carId);
-      if (vehicleDetails != null) {
+      if (caller != null
+          && vehicleDetails != null
+          && vehicleDetails.getOwner() != null
+          && vehicleDetails.getOwner().getId() != null
+          && vehicleDetails.getOwner().getId().equals(caller.getId())) {
         // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);
         // vehicleDetails.setVehicleLocation(getVehicleLocationList().get(random.nextInt(getVehicleLocationList().size())));
         if (vehicleDetails.getOwner() != null) {

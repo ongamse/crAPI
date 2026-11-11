@@ -6,3 +6,9 @@ deploy/vagrant/.vagrant
 services/chatbot/db
 services/certs/
 docker-compose.local.yml
+.env.credentials
+# TLS private keys are supplied at runtime and never committed
+services/**/server.key
+deploy/docker/certs/
+# Private JWKS is supplied at runtime and never committed
+jwks.json

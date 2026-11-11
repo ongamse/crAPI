@@ -27,6 +27,12 @@ spec:
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.apiGatewayService.port }}
+          env:
+            - name: API_GATEWAY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentials.secretName }}
+                  key: API_GATEWAY_PASSWORD
           {{- if .Values.apiGatewayService.resources }}
           resources:
             {{- toYaml .Values.apiGatewayService.resources | nindent 12 }}

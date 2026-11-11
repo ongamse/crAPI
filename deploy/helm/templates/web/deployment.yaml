@@ -32,3 +32,20 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.web.config.name }}
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /app/certs
+              readOnly: true
+          {{- end }}
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: {{ .Values.tls.secretName }}
+            items:
+              - key: tls.crt
+                path: server.crt
+              - key: tls.key
+                path: server.key
+      {{- end }}

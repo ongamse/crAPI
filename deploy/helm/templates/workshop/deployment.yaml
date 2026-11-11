@@ -44,6 +44,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.workshop.config.name }}
+            - secretRef:
+                name: {{ .Values.credentials.secretName }}
           {{- if .Values.workshop.resources }}
           resources:
             {{- toYaml .Values.workshop.resources | nindent 12 }}
@@ -53,3 +55,20 @@ spec:
               port: {{ .Values.workshop.port }}
             initialDelaySeconds: 15
             periodSeconds: 10
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /app/certs
+              readOnly: true
+          {{- end }}
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: {{ .Values.tls.secretName }}
+            items:
+              - key: tls.crt
+                path: server.crt
+              - key: tls.key
+                path: server.key
+      {{- end }}

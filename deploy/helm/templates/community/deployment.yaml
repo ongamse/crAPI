@@ -51,7 +51,26 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.community.config.name }}
+            - secretRef:
+                name: {{ .Values.credentials.secretName }}
           {{- if .Values.community.resources }}
           resources:
             {{- toYaml .Values.community.resources | nindent 12 }}
           {{- end }}
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /app/certs
+              readOnly: true
+          {{- end }}
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: {{ .Values.tls.secretName }}
+            items:
+              - key: tls.crt
+                path: server.crt
+              - key: tls.key
+                path: server.key
+      {{- end }}

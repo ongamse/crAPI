@@ -5,5 +5,6 @@ metadata:
   labels:
     app: mailhog
 data:
-  MH_MONGO_URI: admin:crapisecretpassword@mongodb:27017
+  # MH_MONGO_URI (contains the MongoDB password) is provided by the
+  # crapi-credentials Secret (see deploy/k8s/base/create-credentials.sh).
   MH_STORAGE: mongodb

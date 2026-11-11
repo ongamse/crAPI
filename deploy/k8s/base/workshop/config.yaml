@@ -6,15 +6,20 @@ metadata:
     app: crapi-workshop
 data:
     IDENTITY_SERVICE: crapi-identity:8080
-    SECRET_KEY: crapi
+    # SECRET_KEY, DB_PASSWORD, MONGO_DB_PASSWORD,
+    # MECHANIC_DEFAULT_PASSWORD and API_GATEWAY_PASSWORD are provided by the crapi-credentials Secret
+    # (see deploy/k8s/base/create-credentials.sh).
     DB_HOST: postgresdb
     DB_USER: admin
-    DB_PASSWORD: crapisecretpassword
     DB_NAME: crapi
     DB_PORT: "5432"
     MONGO_DB_HOST: mongodb
     MONGO_DB_PORT: "27017"
     MONGO_DB_USER: admin
-    MONGO_DB_PASSWORD: crapisecretpassword
     MONGO_DB_NAME: crapi
     SERVER_PORT: "8000"
+    # Comma separated allowed CORS origins (empty = same-origin only)
+    CORS_ALLOWED_ORIGINS: ""
+    # Extra comma separated Host header values accepted by the workshop service
+    # (defaults already cover localhost, 127.0.0.1 and crapi-workshop)
+    ALLOWED_HOSTS: ""

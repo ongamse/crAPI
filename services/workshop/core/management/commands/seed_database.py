@@ -63,14 +63,14 @@ def create_mechanics():
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": settings.MECHANIC_DEFAULT_PASSWORD,
             "mechanic_code": "TRAC_JHN",
         },
         {
             "name": "James",
             "email": "james@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": settings.MECHANIC_DEFAULT_PASSWORD,
             "mechanic_code": "TRAC_JME",
         },
     ]
@@ -217,7 +217,9 @@ def ping_identity_server():
         headers = {
             "Accept": "*/*",
         }
-        request = requests.get(identity_health_url, headers, verify=False)
+        request = requests.get(
+            identity_health_url, headers=headers, verify=settings.TLS_CA_BUNDLE
+        )
         if request.status_code == 200:
             return True
         else:

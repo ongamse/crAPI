@@ -9,13 +9,11 @@ metadata:
     {{- end }}
 data:
   LOG_LEVEL: {{ .Values.logLevel | upper }}
-  JWT_SECRET: {{ .Values.jwtSecret }} #Used for creating a JWT. Can be anything
   APP_NAME: {{ .Values.identity.config.appName }}
   ENABLE_SHELL_INJECTION: {{ .Values.enableShellInjection | quote }}
   ENABLE_LOG4J: {{ .Values.enableLog4j | quote }}
   DB_HOST: {{ .Values.postgresdb.service.name }}
   DB_USER: {{ .Values.postgresdb.config.postgresUser }}
-  DB_PASSWORD: {{ .Values.postgresdb.config.postgresPassword }}
   DB_NAME: {{ .Values.postgresdb.config.postgresDbName }}
   DB_PORT: {{ .Values.postgresdb.port | quote }}
   MAILHOG_HOST: {{ .Values.mailhog.smtpService.name }}
@@ -30,6 +28,7 @@ data:
   JWT_EXPIRATION: {{ .Values.jwtExpiration | quote }}
   SMTP_STARTTLS: {{ .Values.identity.config.smtpStartTLS | quote }}
   SERVER_PORT: {{ .Values.identity.port | quote }}
+  CORS_ALLOWED_ORIGINS: {{ .Values.corsAllowedOrigins | default "" | quote }}
   API_GATEWAY_URL: {{ if .Values.apiGatewayServiceInstall }}"https://{{ .Values.apiGatewayService.service.name }}"{{ else }}{{ .Values.apiGatewayServiceUrl }}{{ end }}
   TLS_ENABLED: {{ .Values.tlsEnabled | quote }}
   TLS_KEYSTORE_TYPE: {{ .Values.identity.config.keyStoreType }}

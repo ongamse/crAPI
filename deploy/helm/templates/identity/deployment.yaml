@@ -50,6 +50,8 @@ spec:
           envFrom:
               - configMapRef:
                   name: {{ .Values.identity.config.name }}
+              - secretRef:
+                  name: {{ .Values.credentials.secretName }}
           {{- if .Values.identity.resources }}
           resources:
             {{- toYaml .Values.identity.resources | nindent 12 }}

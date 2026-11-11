@@ -134,13 +134,14 @@ public class VehicleServiceImplTest {
 
   @Test
   public void getVehicleLocationSuccessWithUserDetailsNotNull() {
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     VehicleDetails vehicleDetails = getDummyVehicleDetails();
     UserDetails userDetails = getDummyUserDetails();
     Mockito.when(vehicleDetailsRepository.findByUuid(vehicleDetails.getUuid()))
         .thenReturn(vehicleDetails);
     Mockito.when(userDetailsRepository.findByUser_id(Mockito.anyLong())).thenReturn(userDetails);
     VehicleLocationResponse vehicleLocationResponse =
-        vehicleService.getVehicleLocation(vehicleDetails.getUuid());
+        vehicleService.getVehicleLocation(vehicleDetails.getUuid(), getDummyHttpRequest());
     Assertions.assertNotNull(vehicleLocationResponse);
     Assertions.assertEquals(userDetails.getName(), vehicleLocationResponse.getFullName());
     Assertions.assertEquals(userDetails.getUser().getEmail(), vehicleLocationResponse.getEmail());
@@ -148,6 +149,7 @@ public class VehicleServiceImplTest {
 
   @Test
   public void getVehicleLocationSuccessWithUserDetailsNull() {
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     VehicleDetails vehicleDetails = getDummyVehicleDetails();
     UserDetails userDetails = getDummyUserDetails();
     userDetails.setName(null);
@@ -155,28 +157,43 @@ public class VehicleServiceImplTest {
         .thenReturn(vehicleDetails);
     Mockito.when(userDetailsRepository.findByUser_id(Mockito.anyLong())).thenReturn(userDetails);
     VehicleLocationResponse vehicleLocationResponse =
-        vehicleService.getVehicleLocation(vehicleDetails.getUuid());
+        vehicleService.getVehicleLocation(vehicleDetails.getUuid(), getDummyHttpRequest());
     Assertions.assertNotNull(vehicleLocationResponse);
     Assertions.assertNull(vehicleLocationResponse.getFullName());
   }
 
   @Test
   public void getVehicleLocationNotFoundWhenVehicleDetailsAreNull() {
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     VehicleDetails vehicleDetails = getDummyVehicleDetails();
     Mockito.when(vehicleDetailsRepository.findByUuid(vehicleDetails.getUuid())).thenReturn(null);
     VehicleLocationResponse vehicleLocationResponse =
-        vehicleService.getVehicleLocation(vehicleDetails.getUuid());
+        vehicleService.getVehicleLocation(vehicleDetails.getUuid(), getDummyHttpRequest());
     Assertions.assertNull(vehicleLocationResponse);
   }
 
   @Test
   public void getVehicleLocationNotFoundWhenVehicleDetailsOwnerIsNull() {
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     VehicleDetails vehicleDetails = getDummyVehicleDetails();
     vehicleDetails.setOwner(null);
     Mockito.when(vehicleDetailsRepository.findByUuid(vehicleDetails.getUuid()))
         .thenReturn(vehicleDetails);
     VehicleLocationResponse vehicleLocationResponse =
-        vehicleService.getVehicleLocation(vehicleDetails.getUuid());
+        vehicleService.getVehicleLocation(vehicleDetails.getUuid(), getDummyHttpRequest());
+    Assertions.assertNull(vehicleLocationResponse);
+  }
+
+  @Test
+  public void getVehicleLocationNotFoundWhenCallerIsNotOwner() {
+    VehicleDetails vehicleDetails = getDummyVehicleDetails();
+    User other = new User("other@example.com", "9798789213", "Pass", ERole.ROLE_USER);
+    other.setId(2l);
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(other);
+    Mockito.when(vehicleDetailsRepository.findByUuid(vehicleDetails.getUuid()))
+        .thenReturn(vehicleDetails);
+    VehicleLocationResponse vehicleLocationResponse =
+        vehicleService.getVehicleLocation(vehicleDetails.getUuid(), getDummyHttpRequest());
     Assertions.assertNull(vehicleLocationResponse);
   }
 

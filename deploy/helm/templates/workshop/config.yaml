@@ -8,18 +8,17 @@ metadata:
 data:
     LOG_LEVEL: {{ .Values.logLevel | upper }}
     IDENTITY_SERVICE: {{ .Values.identity.service.name }}:{{ .Values.identity.port }}
-    SECRET_KEY: {{ .Values.workshop.config.secretKey }}
     DB_HOST: {{ .Values.postgresdb.service.name }}
     DB_USER: {{ .Values.postgresdb.config.postgresUser }}
-    DB_PASSWORD: {{ .Values.postgresdb.config.postgresPassword }}
     DB_NAME: {{ .Values.postgresdb.config.postgresDbName }}
     DB_PORT: {{ .Values.postgresdb.port | quote }}
     MONGO_DB_HOST: {{ .Values.mongodb.service.name }}
     MONGO_DB_PORT: {{ .Values.mongodb.port | quote }}
     MONGO_DB_USER: {{ .Values.mongodb.config.mongoUser }}
-    MONGO_DB_PASSWORD: {{ .Values.mongodb.config.mongoPassword }}
     MONGO_DB_NAME: {{ .Values.mongodb.config.mongoDbName }}
     SERVER_PORT: {{ .Values.workshop.port | quote }}
+    CORS_ALLOWED_ORIGINS: {{ .Values.corsAllowedOrigins | default "" | quote }}
+    ALLOWED_HOSTS: {{ compact (list .Values.workshop.service.name (default "" .Values.workshop.allowedHosts)) | join "," | quote }}
     API_GATEWAY_URL: {{ if .Values.apiGatewayServiceInstall }}"https://{{ .Values.apiGatewayService.service.name }}"{{ else }}{{ .Values.apiGatewayServiceUrl }}{{ end }}
     TLS_ENABLED: {{ .Values.tlsEnabled | quote }}
     FILES_LIMIT: {{ .Values.workshop.config.filesLimit | quote }}

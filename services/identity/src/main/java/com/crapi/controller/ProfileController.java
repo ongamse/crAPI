@@ -27,7 +27,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-@CrossOrigin
 @RestController
 @RequestMapping("/identity")
 public class ProfileController {
@@ -97,7 +96,7 @@ public class ProfileController {
       @PathVariable("video_id") Long videoId,
       @RequestBody VideoForm videoForm,
       HttpServletRequest request) {
-    ProfileVideo profileVideo = profileService.updateProfileVideo(videoForm, request);
+    ProfileVideo profileVideo = profileService.updateProfileVideo(videoId, videoForm, request);
     if (profileVideo != null) return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
     else
       return ResponseEntity.status(HttpStatus.NO_CONTENT)
