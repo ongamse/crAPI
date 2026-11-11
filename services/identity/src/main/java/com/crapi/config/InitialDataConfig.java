@@ -29,6 +29,7 @@ import com.crapi.repository.*;
 import com.crapi.service.VehicleService;
 import com.crapi.utils.GenerateVIN;
 import com.crapi.utils.UserData;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -43,8 +44,6 @@ import org.springframework.util.CollectionUtils;
 @Component
 @Slf4j
 public class InitialDataConfig {
-
-  private static long seed = 0;
 
   private Random random;
 
@@ -110,8 +109,7 @@ public class InitialDataConfig {
 
   @EventListener
   public void setup(ApplicationReadyEvent event) {
-    random = new Random();
-    random.setSeed(seed);
+    random = new SecureRandom();
     generateVIN = new GenerateVIN();
     addVehicleModel();
     addUser();
