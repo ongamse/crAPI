@@ -261,6 +261,13 @@ IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
+# Value passed as `verify` to outbound `requests` calls. TLS certificate and
+# hostname verification are always on. To trust a private/self-signed CA, point
+# TLS_CA_BUNDLE (or REQUESTS_CA_BUNDLE) at a PEM CA bundle file mounted into the
+# container; otherwise the default system trust store is used.
+TLS_CA_BUNDLE = (
+    os.environ.get("TLS_CA_BUNDLE") or os.environ.get("REQUESTS_CA_BUNDLE") or True
+)
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(
         get_env_value("IDENTITY_SERVICE")

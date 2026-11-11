@@ -19,23 +19,12 @@ import com.crapi.repository.*;
 import com.crapi.service.UserService;
 import com.crapi.service.VehicleOwnershipService;
 import com.crapi.utils.SMTPMailServer;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import javax.net.ssl.SSLContext;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hc.client5.http.classic.HttpClient;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.TrustAllStrategy;
-import org.apache.http.conn.ssl.TrustStrategy;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -64,19 +53,13 @@ public class VehicleOwnershipServiceImpl implements VehicleOwnershipService {
   @Value("${api.gateway.password}")
   private String apiGatewayPassword;
 
-  public RestTemplate restTemplate()
-      throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
+  public RestTemplate restTemplate() {
+    // Uses the JVM default SSL context: certificate chain and hostname are always verified.
+    // To trust a private CA, point the JVM at a truststore via the standard
+    // javax.net.ssl.trustStore / javax.net.ssl.trustStorePassword system properties
+    // (for example through JAVA_TOOL_OPTIONS).
     RestTemplateBuilder builder = new RestTemplateBuilder();
-    TrustStrategy allTrustStrategy = new TrustAllStrategy();
-    SSLContext sslContext =
-        org.apache.http.ssl.SSLContexts.custom().loadTrustMaterial(null, allTrustStrategy).build();
-    SSLConnectionSocketFactory csf =
-        new SSLConnectionSocketFactory(sslContext, NoopHostnameVerifier.INSTANCE);
-    CloseableHttpClient httpClient =
-        HttpClients.custom().setSSLSocketFactory(csf).setSSLContext(sslContext).build();
-    builder =
-        builder.requestFactory(
-            () -> new HttpComponentsClientHttpRequestFactory((HttpClient) httpClient));
+    builder = builder.requestFactory(SimpleClientHttpRequestFactory::new);
 
     // Add basic auth header
     builder = builder.basicAuthentication(apiGatewayUsername, apiGatewayPassword);
