@@ -114,7 +114,14 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Explicit, env-driven CORS allowlist (comma separated origins, e.g.
+# "https://crapi.example.com"). Empty by default, i.e. same-origin only.
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if o.strip() and o.strip() != "*"
+]
 
 ROOT_URLCONF = "crapi_site.urls"
 

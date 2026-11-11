@@ -28,6 +28,7 @@ data:
   JWT_EXPIRATION: {{ .Values.jwtExpiration | quote }}
   SMTP_STARTTLS: {{ .Values.identity.config.smtpStartTLS | quote }}
   SERVER_PORT: {{ .Values.identity.port | quote }}
+  CORS_ALLOWED_ORIGINS: {{ .Values.corsAllowedOrigins | default "" | quote }}
   API_GATEWAY_URL: {{ if .Values.apiGatewayServiceInstall }}"https://{{ .Values.apiGatewayService.service.name }}"{{ else }}{{ .Values.apiGatewayServiceUrl }}{{ end }}
   TLS_ENABLED: {{ .Values.tlsEnabled | quote }}
   TLS_KEYSTORE_TYPE: {{ .Values.identity.config.keyStoreType }}

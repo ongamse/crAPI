@@ -12,6 +12,8 @@ tlsEnabled: false
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
+# Comma separated list of origins allowed to call identity/workshop cross-origin (empty = same-origin only)
+corsAllowedOrigins: ""
 
 # Credentials are rendered into the Secret in templates/credentials-secret.yaml.
 # Leave empty to have random values generated (and reused on upgrade), or supply

@@ -18,3 +18,5 @@ data:
     MONGO_DB_USER: admin
     MONGO_DB_NAME: crapi
     SERVER_PORT: "8000"
+    # Comma separated allowed CORS origins (empty = same-origin only)
+    CORS_ALLOWED_ORIGINS: ""
