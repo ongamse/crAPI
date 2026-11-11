@@ -131,7 +131,7 @@ public class ProfileServiceImplTest {
     User user = getDummyUser();
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(user);
     Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong())).thenReturn(null);
-    profileService.updateProfileVideo(getDummyVideoForm(), getMockHttpRequest());
+    profileService.updateProfileVideo(1L, getDummyVideoForm(), getMockHttpRequest());
     Mockito.verify(profileVideoRepository, Mockito.times(0)).save(Mockito.any());
   }
 
@@ -145,7 +145,7 @@ public class ProfileServiceImplTest {
     Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong())).thenReturn(profileVideo);
     Mockito.when(profileVideoRepository.save(Mockito.any())).thenReturn(profileVideo);
     ProfileVideo profileVideoResponse =
-        profileService.updateProfileVideo(videoForm, getMockHttpRequest());
+        profileService.updateProfileVideo(1L, videoForm, getMockHttpRequest());
     Mockito.verify(profileVideoRepository, Mockito.times(1)).save(Mockito.any());
     Assertions.assertEquals(profileVideo.getVideo_name(), profileVideoResponse.getVideo_name());
   }
@@ -161,7 +161,7 @@ public class ProfileServiceImplTest {
     Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong())).thenReturn(profileVideo);
     Mockito.when(profileVideoRepository.save(Mockito.any())).thenReturn(profileVideo);
     ProfileVideo profileVideoResponse =
-        profileService.updateProfileVideo(videoForm, getMockHttpRequest());
+        profileService.updateProfileVideo(1L, videoForm, getMockHttpRequest());
     Mockito.verify(profileVideoRepository, Mockito.times(1)).save(Mockito.any());
     Assertions.assertEquals(profileVideo.getVideo_name(), profileVideoResponse.getVideo_name());
   }
@@ -175,7 +175,7 @@ public class ProfileServiceImplTest {
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(user);
     Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong())).thenReturn(null);
     ProfileVideo profileVideoResponse =
-        profileService.updateProfileVideo(videoForm, getMockHttpRequest());
+        profileService.updateProfileVideo(1L, videoForm, getMockHttpRequest());
     Mockito.verify(profileVideoRepository, Mockito.times(0)).save(Mockito.any());
   }
 
@@ -184,6 +184,7 @@ public class ProfileServiceImplTest {
   public void deleteProfileVideoSuccess() {
     VideoForm videoForm = getDummyVideoForm();
     ProfileVideo profileVideo = getDummyProfileVideo();
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     Mockito.when(profileVideoRepository.findById(Mockito.anyLong()))
         .thenReturn(Optional.of(profileVideo));
     // Mockito.when(profileVideoRepository.save(Mockito.any()))
@@ -200,6 +201,7 @@ public class ProfileServiceImplTest {
   public void deleteProfileAdminVideoSuccess() {
     VideoForm videoForm = getDummyVideoForm();
     ProfileVideo profileVideo = getDummyProfileVideo();
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     Mockito.when(profileVideoRepository.findById(Mockito.anyLong()))
         .thenReturn(Optional.of(profileVideo));
     // Mockito.when(profileVideoRepository.save(Mockito.any())).thenReturn(profileVideo);
@@ -215,6 +217,7 @@ public class ProfileServiceImplTest {
   @DisplayName("deleteProfileVideoFailWithUserNotFound")
   public void deleteProfileVideoFailWithUserNotFoundThrowsException() {
     VideoForm videoForm = getDummyVideoForm();
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     Mockito.when(profileVideoRepository.findById(Mockito.anyLong()))
         .thenReturn(Optional.ofNullable(null));
     CRAPIResponse crapiAPIResponse =
@@ -257,6 +260,7 @@ public class ProfileServiceImplTest {
     MockHttpServletRequest request = getMockHttpRequest();
     request.addHeader(
         HttpHeaders.HOST, "localhost:" + String.valueOf(System.getenv("SERVER_PORT")));
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     Mockito.when(profileVideoRepository.findById(videoId)).thenReturn(Optional.ofNullable(null));
     CRAPIResponse crapiAPIResponse = profileService.convertVideo(videoId, request);
     Assertions.assertEquals(UserMessage.ERROR_EXECUTING_STRING, crapiAPIResponse.getMessage());
@@ -273,6 +277,7 @@ public class ProfileServiceImplTest {
     MockHttpServletRequest request = getMockHttpRequest();
     request.addHeader(
         HttpHeaders.HOST, "localhost:" + String.valueOf(System.getenv("SERVER_PORT")));
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     Mockito.when(profileVideoRepository.findById(videoId)).thenReturn(Optional.of(profileVideo));
     CRAPIResponse crapiAPIResponse = profileService.convertVideo(videoId, request);
     Assertions.assertEquals(
@@ -289,6 +294,7 @@ public class ProfileServiceImplTest {
     MockHttpServletRequest request = getMockHttpRequest();
     request.addHeader(
         HttpHeaders.HOST, "localhost:" + String.valueOf(System.getenv("SERVER_PORT")));
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     Mockito.when(profileVideoRepository.findById(videoId)).thenReturn(Optional.of(profileVideo));
     CRAPIResponse crapiAPIResponse = profileService.convertVideo(videoId, request);
     Assertions.assertEquals(UserMessage.YOU_WON_THE_GAME, crapiAPIResponse.getMessage());
@@ -305,10 +311,49 @@ public class ProfileServiceImplTest {
     MockHttpServletRequest request = getMockHttpRequest();
     request.addHeader(
         HttpHeaders.HOST, "localhost:" + String.valueOf(System.getenv("SERVER_PORT")));
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     Mockito.when(profileVideoRepository.findById(videoId)).thenReturn(Optional.of(profileVideo));
     CRAPIResponse crapiAPIResponse = profileService.convertVideo(videoId, request);
     Assertions.assertEquals(UserMessage.CONVERSION_VIDEO_OK, crapiAPIResponse.getMessage());
     Assertions.assertEquals(HttpStatus.OK.value(), crapiAPIResponse.getStatus());
+  }
+
+  @Test(expected = CRAPIExceptionHandler.class)
+  @DisplayName("updateProfileVideoFailsWhenVideoIdIsNotOwnedByCaller")
+  public void updateProfileVideoFailWhenVideoIdNotOwned() {
+    User user = getDummyUser();
+    ProfileVideo profileVideo = getDummyProfileVideo();
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(user);
+    Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong())).thenReturn(profileVideo);
+    profileService.updateProfileVideo(99L, getDummyVideoForm(), getMockHttpRequest());
+  }
+
+  @Test(expected = CRAPIExceptionHandler.class)
+  @DisplayName("deleteAdminProfileVideoFailsWhenCallerDoesNotOwnVideo")
+  public void deleteAdminProfileVideoFailWhenNotOwner() {
+    User other = new User("other@example.com", "9798789213", "Pass", ERole.ROLE_USER);
+    other.setId(2l);
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(other);
+    Mockito.when(profileVideoRepository.findById(Mockito.anyLong()))
+        .thenReturn(Optional.of(getDummyProfileVideo()));
+    profileService.deleteAdminProfileVideo(1L, getMockHttpRequest());
+  }
+
+  @Test
+  @DisplayName("convertVideoFailWhenCallerDoesNotOwnVideo")
+  public void convertVideoFailWhenCallerDoesNotOwnVideo() {
+    ReflectionTestUtils.setField(profileService, "enable_shell_injection", false);
+    User other = new User("other@example.com", "9798789213", "Pass", ERole.ROLE_USER);
+    other.setId(2l);
+    Long videoId = Long.valueOf(2);
+    MockHttpServletRequest request = getMockHttpRequest();
+    request.addHeader(
+        HttpHeaders.HOST, "localhost:" + String.valueOf(System.getenv("SERVER_PORT")));
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(other);
+    Mockito.when(profileVideoRepository.findById(videoId))
+        .thenReturn(Optional.of(getDummyProfileVideo()));
+    CRAPIResponse crapiAPIResponse = profileService.convertVideo(videoId, request);
+    Assertions.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), crapiAPIResponse.getStatus());
   }
 
   private VideoForm getDummyVideoForm() {

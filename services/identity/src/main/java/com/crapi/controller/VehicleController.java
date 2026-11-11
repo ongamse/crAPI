@@ -106,8 +106,9 @@ public class VehicleController {
    * @return VehicleDetails on given car_id.
    */
   @GetMapping("/vehicle/{carId}/location")
-  public ResponseEntity<?> getLocationBOLA(@PathVariable("carId") UUID carId) {
-    VehicleLocationResponse vehicleDetails = vehicleService.getVehicleLocation(carId);
+  public ResponseEntity<?> getLocationBOLA(
+      @PathVariable("carId") UUID carId, HttpServletRequest request) {
+    VehicleLocationResponse vehicleDetails = vehicleService.getVehicleLocation(carId, request);
     if (vehicleDetails != null) return ResponseEntity.ok().body(vehicleDetails);
     else
       return ResponseEntity.status(HttpStatus.NOT_FOUND)
