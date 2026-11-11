@@ -134,6 +134,53 @@ class MerchantTestCase(TestCase):
         )
         self.assertNotEqual(res.status_code, 200)
 
+    def test_internal_mechanic_api_blocked(self):
+        """
+        points mechanic_api at loopback, metadata and non-http targets
+        should get a 400 and no outbound request should be made
+        :return: None
+        """
+        for url in (
+            "http://127.0.0.1:8000/workshop/api/mechanic/receive_report",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://[::1]/",
+            "http://user:pass@example.com/",
+            "file:///etc/passwd",
+        ):
+            self.contact_mechanic_request_body["mechanic_api"] = url
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+            self.assertEqual(res.status_code, 400, url)
+            mock_get.assert_not_called()
+
+    def test_allowlisted_internal_mechanic_api(self):
+        """
+        a host explicitly listed in MECHANIC_API_ALLOWED_HOSTS is permitted
+        :return: None
+        """
+        self.contact_mechanic_request_body["mechanic_api"] = (
+            "http://127.0.0.1:8000/workshop/api/mechanic/receive_report"
+        )
+        with patch(
+            "crapi.merchant.views.settings.MECHANIC_API_ALLOWED_HOSTS", ["127.0.0.1"]
+        ):
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                mock_get.return_value.status_code = 200
+                mock_get.return_value.json.return_value = {"ok": True}
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+        self.assertEqual(res.status_code, 200)
+        mock_get.assert_called_once()
+
     def test_contact_mechanic(self):
         """
         gives all correct field for contact mechanic

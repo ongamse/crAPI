@@ -63,6 +63,14 @@ if LOG_LEVEL == "DEBUG":
 
 ALLOWED_HOSTS = ["*"]
 
+# Comma separated hostnames the contact mechanic feature may call even when
+# they resolve to non-public addresses. Empty by default (public hosts only).
+MECHANIC_API_ALLOWED_HOSTS = [
+    h.strip().lower()
+    for h in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+]
+
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
 API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
