@@ -17,6 +17,7 @@ cd "$(dirname $0)"
 kubectl create namespace crapi
 
 kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
+../base/create-credentials.sh
 kubectl apply -n crapi -f ../base/rbac
 kubectl apply -n crapi -f ../base/mongodb
 kubectl apply -n crapi -f ../base/postgres

@@ -18,6 +18,12 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8087
+        env:
+        - name: API_GATEWAY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: crapi-credentials
+              key: API_GATEWAY_PASSWORD
         resources:
           limits:
             cpu: "100m"

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -151,10 +153,14 @@ func GetPayMentInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func checkCreds(user string, pass string) bool {
-	if user == "vendorcrapi" && pass == "Pa$$4Vendor_1" {
-		return true
+	expected := os.Getenv("API_GATEWAY_PASSWORD")
+	if expected == "" {
+		// Fail closed when no credential has been configured.
+		return false
 	}
-	return false
+	userOK := subtle.ConstantTimeCompare([]byte(user), []byte("vendorcrapi")) == 1
+	passOK := subtle.ConstantTimeCompare([]byte(pass), []byte(expected)) == 1
+	return userOK && passOK
 }
 
 func maskLeft(s string) string {

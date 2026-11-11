@@ -159,6 +159,14 @@ jobs:
       - name: Env seen
         run: env
 
+      - name: Generate ephemeral credentials
+        run: |
+          for v in DB_PASSWORD MONGO_DB_PASSWORD JWT_SECRET SECRET_KEY API_GATEWAY_PASSWORD MECHANIC_DEFAULT_PASSWORD; do
+            val="$(openssl rand -hex 16)"
+            echo "::add-mask::$val"
+            echo "$v=$val" >> "$GITHUB_ENV"
+          done
+
       - name: Cleanup docker before running
         if: always()
         continue-on-error: true
@@ -215,6 +223,14 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
+
+      - name: Generate ephemeral credentials
+        run: |
+          for v in DB_PASSWORD MONGO_DB_PASSWORD JWT_SECRET SECRET_KEY API_GATEWAY_PASSWORD MECHANIC_DEFAULT_PASSWORD; do
+            val="$(openssl rand -hex 16)"
+            echo "::add-mask::$val"
+            echo "$v=$val" >> "$GITHUB_ENV"
+          done
 
       - name: Start the database
         run: docker compose -f services/docker-database.yml up -d

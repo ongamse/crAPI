@@ -7,13 +7,13 @@ metadata:
 data:
     IDENTITY_SERVICE: crapi-identity:8080
     DB_HOST: postgresdb
+    # DB_PASSWORD and MONGO_DB_PASSWORD are provided by the crapi-credentials
+    # Secret (see deploy/k8s/base/create-credentials.sh).
     DB_USER: admin
-    DB_PASSWORD: crapisecretpassword
     DB_NAME: crapi
     DB_PORT: "5432"
     MONGO_DB_HOST: mongodb
     MONGO_DB_PORT: "27017"
     MONGO_DB_USER: admin
-    MONGO_DB_PASSWORD: crapisecretpassword
     MONGO_DB_NAME: crapi
     SERVER_PORT: "8087"

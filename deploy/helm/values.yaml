@@ -2,7 +2,6 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
@@ -13,6 +12,18 @@ tlsEnabled: false
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
+
+# Credentials are rendered into the Secret in templates/credentials-secret.yaml.
+# Leave empty to have random values generated (and reused on upgrade), or supply
+# them at install time, e.g. --set credentials.postgresPassword=...
+credentials:
+  secretName: crapi-credentials
+  postgresPassword: ""
+  mongoPassword: ""
+  jwtSecret: ""
+  secretKey: ""
+  mechanicDefaultPassword: ""
+  apiGatewayPassword: ""
 
 waitForK8sResources:
   enabled: True
@@ -125,7 +136,6 @@ workshop:
       app: crapi-workshop
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     filesLimit: 1000
   deploymentLabels:
     app: crapi-workshop
@@ -155,7 +165,7 @@ chatbot:
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    apiPassword: Admin!123
+    # apiPassword: set at install time (--set chatbot.config.apiPassword=...) to match the admin account password
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"
@@ -233,9 +243,7 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:
@@ -278,7 +286,6 @@ postgresdb:
     labels:
       app: postgresdb
     postgresUser: admin
-    postgresPassword: crapisecretpassword
     postgresDbName: crapi
   storage:
     # type: "manual"

@@ -51,20 +51,21 @@ def create_products():
 def create_mechanics():
     from crapi.user.models import User, UserDetails
     from crapi.mechanic.models import Mechanic
+    from django.conf import settings
 
     mechanic_details_all = [
         {
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": settings.MECHANIC_DEFAULT_PASSWORD,
             "mechanic_code": "TRAC_JHN",
         },
         {
             "name": "James",
             "email": "james@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": settings.MECHANIC_DEFAULT_PASSWORD,
             "mechanic_code": "TRAC_JME",
         },
     ]

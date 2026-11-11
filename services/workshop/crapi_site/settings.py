@@ -25,6 +25,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
+import secrets
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -73,7 +74,13 @@ MECHANIC_API_ALLOWED_HOSTS = [
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
+
+# Password for the pre-populated mechanic accounts. When not supplied, a random
+# one is generated so no well-known credential exists in the source tree.
+MECHANIC_DEFAULT_PASSWORD = os.environ.get(
+    "MECHANIC_DEFAULT_PASSWORD"
+) or secrets.token_urlsafe(16)
 
 # Application definition
 

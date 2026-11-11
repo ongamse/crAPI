@@ -242,7 +242,7 @@ public class UserServiceImplTest {
   @Test
   public void testUpdateUserPassword() {
     User user = getDummyUser();
-    String samplePassword = "samplePassword";
+    String samplePassword = java.util.UUID.randomUUID().toString();
     Mockito.when(userRepository.findByEmail(user.getEmail())).thenReturn(user);
     Mockito.when(userRepository.saveAndFlush(Mockito.any())).thenReturn(user);
     userService.updateUserPassword(samplePassword, getDummyUser().getEmail());

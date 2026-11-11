@@ -6,5 +6,5 @@ metadata:
     app: mongodb
 data:
   MONGO_INITDB_ROOT_USERNAME: admin
-  MONGO_INITDB_ROOT_PASSWORD: crapisecretpassword
- 
+  # MONGO_INITDB_ROOT_PASSWORD is provided by the crapi-credentials Secret
+  # (see deploy/k8s/base/create-credentials.sh).

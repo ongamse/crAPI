@@ -63,14 +63,14 @@ def create_mechanics():
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": settings.MECHANIC_DEFAULT_PASSWORD,
             "mechanic_code": "TRAC_JHN",
         },
         {
             "name": "James",
             "email": "james@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": settings.MECHANIC_DEFAULT_PASSWORD,
             "mechanic_code": "TRAC_JME",
         },
     ]

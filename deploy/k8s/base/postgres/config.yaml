@@ -6,6 +6,6 @@ metadata:
     app: postgresdb
 data:
   POSTGRES_USER: admin
-  POSTGRES_PASSWORD: crapisecretpassword
+  # POSTGRES_PASSWORD is provided by the crapi-credentials Secret
+  # (see deploy/k8s/base/create-credentials.sh).
   POSTGRES_DB: crapi
- 

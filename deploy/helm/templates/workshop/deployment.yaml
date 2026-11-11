@@ -44,6 +44,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.workshop.config.name }}
+            - secretRef:
+                name: {{ .Values.credentials.secretName }}
           {{- if .Values.workshop.resources }}
           resources:
             {{- toYaml .Values.workshop.resources | nindent 12 }}

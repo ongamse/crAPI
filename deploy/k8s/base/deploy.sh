@@ -4,6 +4,7 @@ kubectl create namespace crapi
 #kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 
 kubectl create -n secret generic jwt-key-secret --from-file=../keys
+./create-credentials.sh
 kubectl apply -n crapi -f ./rbac
 kubectl apply -n crapi -f ./mongodb
 kubectl apply -n crapi -f ./postgres
