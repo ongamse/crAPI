@@ -8,6 +8,30 @@ class UnsafeURLError(ValueError):
     """Raised when an outbound URL targets a disallowed destination."""
 
 
+class UnsafeHeaderError(ValueError):
+    """Raised when a value forwarded in an HTTP header contains unsafe characters."""
+
+
+def validate_header_value(value):
+    """
+    Validate a client supplied value before it is forwarded in an HTTP header.
+    Rejects CR, LF and other control characters (header injection / splitting)
+    and non-ASCII data.
+    :param value: header value taken from the incoming request (or None)
+    :returns the value unchanged
+    :raises UnsafeHeaderError if the value is not safe to forward
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise UnsafeHeaderError("Invalid header value.")
+    for char in value:
+        code = ord(char)
+        if code > 126 or (code < 32 and char != "\t") or code == 127:
+            raise UnsafeHeaderError("Invalid header value.")
+    return value
+
+
 def basic_auth(username, password=""):
     token = b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
     return f"Basic {token}"

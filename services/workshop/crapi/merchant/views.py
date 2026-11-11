@@ -27,7 +27,12 @@ from crapi.mechanic.serializers import (
 )
 from utils.jwt import jwt_auth_required
 from utils import messages
-from utils.helper import UnsafeURLError, validate_outbound_url
+from utils.helper import (
+    UnsafeHeaderError,
+    UnsafeURLError,
+    validate_header_value,
+    validate_outbound_url,
+)
 from rest_framework.pagination import LimitOffsetPagination
 from utils.logging import log_error
 from crapi_site import settings
@@ -88,10 +93,13 @@ class ContactMechanicView(APIView):
                 request_url = validate_outbound_url(
                     request_url, settings.MECHANIC_API_ALLOWED_HOSTS
                 )
+                authorization = validate_header_value(
+                    request.META.get("HTTP_AUTHORIZATION")
+                )
                 mechanic_response = requests.get(
                     request_url,
                     params=request_data,
-                    headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
+                    headers={"Authorization": authorization},
                     verify=False,
                     allow_redirects=False,
                 )
@@ -103,7 +111,7 @@ class ContactMechanicView(APIView):
                 if repeat_count == number_of_repeats:
                     break
                 repeat_count += 1
-            except (MissingSchema, InvalidURL, UnsafeURLError) as e:
+            except (MissingSchema, InvalidURL, UnsafeURLError, UnsafeHeaderError) as e:
                 log_error(request.path, request.data, status.HTTP_400_BAD_REQUEST, e)
                 return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
             except requests.exceptions.ConnectionError as e:

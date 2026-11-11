@@ -158,6 +158,19 @@ class MerchantTestCase(TestCase):
             self.assertEqual(res.status_code, 400, url)
             mock_get.assert_not_called()
 
+    def test_header_value_validation(self):
+        """
+        values forwarded in outbound headers must not carry CR/LF or control chars
+        :return: None
+        """
+        from utils.helper import UnsafeHeaderError, validate_header_value
+
+        self.assertIsNone(validate_header_value(None))
+        self.assertEqual(validate_header_value("Bearer abc.def-123"), "Bearer abc.def-123")
+        for bad in ("Bearer x\r\nX-Injected: 1", "Bearer x\ny", "Bearer \x00", "Bearer é"):
+            with self.assertRaises(UnsafeHeaderError):
+                validate_header_value(bad)
+
     def test_allowlisted_internal_mechanic_api(self):
         """
         a host explicitly listed in MECHANIC_API_ALLOWED_HOSTS is permitted
