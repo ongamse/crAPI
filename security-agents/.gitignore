@@ -1,0 +1,22 @@
+﻿# Credentials and local configuration
+.env
+.env.*
+config.json
+*token*
+*secret*
+
+# Generated correlation reports
+output/
+
+# Raw security exports and collected data
+data/
+
+# Python temporary files
+__pycache__/
+*.pyc
+
+# Local backup scripts
+*_backup.py
+correlate_before_*.py
+correlate_v2.py
+correlate_v3.py
