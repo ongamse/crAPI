@@ -9,6 +9,18 @@ def basic_auth(username, password=""):
     return f"Basic {token}"
 
 
+def is_safe_header_value(value):
+    """
+    Header injection guard for values copied from an incoming request into an
+    outbound HTTP header.
+    :returns True for a str made only of printable ASCII (plus space/tab), so
+        it contains no CR, LF, NUL or other control characters
+    """
+    if not isinstance(value, str):
+        return False
+    return all(ch == "\t" or " " <= ch <= "~" for ch in value)
+
+
 def _resolve_ips(hostname, port):
     """
     Resolve hostname to every IP address it points to.

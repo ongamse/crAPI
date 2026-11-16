@@ -27,6 +27,7 @@ import bcrypt
 from django.test import TestCase, Client
 from django.utils import timezone
 from utils import messages
+from utils.helper import is_safe_header_value
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
 
 
@@ -157,6 +158,43 @@ class MerchantTestCase(TestCase):
             )
             self.assertEqual(res.status_code, 400, url)
             self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
+
+    def test_is_safe_header_value(self):
+        """
+        header values containing CR/LF or other control characters are rejected
+        :return: None
+        """
+        self.assertTrue(is_safe_header_value("Bearer abc.def-123"))
+        for value in [
+            "Bearer abc\r\nX-Injected: 1",
+            "Bearer abc\nX-Injected: 1",
+            "Bearer abc\rX",
+            "Bearer \x00abc",
+            "Bearer é",
+            None,
+        ]:
+            self.assertFalse(is_safe_header_value(value), repr(value))
+
+    def test_contact_mechanic_forwards_safe_authorization_header(self):
+        """
+        a clean Authorization header is forwarded to the outbound request
+        :return: None
+        """
+        with patch("crapi.merchant.views.is_safe_outbound_url", return_value=True):
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                mock_get.return_value.status_code = 200
+                mock_get.return_value.json.return_value = {}
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(
+            mock_get.call_args.kwargs["headers"],
+            {"Authorization": self.user_auth_headers["HTTP_AUTHORIZATION"]},
+        )
 
     def test_contact_mechanic(self):
         """
