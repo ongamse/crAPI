@@ -17,31 +17,42 @@ package com.crapi.utils;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class BashCommand {
 
+  /** Allowlist for each whitespace-separated token: no shell metacharacters, quotes or expansion. */
+  private static final Pattern SAFE_ARGUMENT = Pattern.compile("^[A-Za-z0-9_@%+=:,./-]+$");
+
   /**
-   * Execute a bash command. We can handle complex bash commands including multiple executions (; |
-   * && ||), quotes, expansions ($), escapes (\), e.g.: "cd /abc/def; mv ghi 'older ghi '$(whoami)"
+   * Execute a command without a shell. The command line is split on whitespace into an argv array
+   * and run directly, so shell operators (; | && || $ ` quotes, redirects) are never interpreted.
+   * Every token must match a conservative allowlist, otherwise the command is rejected.
    *
-   * @param command
-   * @return true if bash got started, but your command may have failed.
+   * @param command whitespace-separated program and arguments
+   * @return the process standard output
    */
   public String executeBashCommand(String command) throws IOException {
     BufferedReader b = null;
     StringBuilder output;
-    log.info("Executing BASH command:\n   ", command);
-    Runtime r = Runtime.getRuntime();
-    // Use bash -c so we can handle things like multi commands separated by ; and
-    // things like quotes, $, |, and \. My tests show that command comes as
-    // one argument to bash, so we do not need to quote it to make it one thing.
-    // Also, exec may object if it does not have an executable file as the first thing,
-    // so having bash here makes it happy provided bash is installed and in path.
-    String[] commands = {"bash", "-c", command};
+    log.info("Executing command: {}", command);
+    if (command == null || command.trim().isEmpty()) {
+      throw new IOException("Empty command");
+    }
+    List<String> commands = new ArrayList<>();
+    for (String token : command.trim().split("\\s+")) {
+      if (!SAFE_ARGUMENT.matcher(token).matches()) {
+        log.error("Rejected command argument containing disallowed characters");
+        throw new IOException("Invalid command argument");
+      }
+      commands.add(token);
+    }
     try {
-      Process p = r.exec(commands);
+      Process p = new ProcessBuilder(commands).start();
 
       p.waitFor();
       InputStreamReader data = new InputStreamReader(p.getInputStream());
