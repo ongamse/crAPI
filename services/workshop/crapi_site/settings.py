@@ -252,6 +252,9 @@ MECHANIC_API_ALLOWED_HOSTS = [
     for host in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
     if host.strip()
 ]
+# TLS certificate validation for outbound HTTPS calls. Defaults to the system/certifi
+# trust store; set OUTBOUND_CA_BUNDLE to the path of a CA bundle to trust a private CA.
+OUTBOUND_TLS_VERIFY = os.environ.get("OUTBOUND_CA_BUNDLE") or True
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(
