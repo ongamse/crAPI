@@ -63,6 +63,13 @@ if LOG_LEVEL == "DEBUG":
 
 ALLOWED_HOSTS = ["*"]
 
+# Outbound HTTPS requests always verify server certificates. To trust a private
+# CA, set TLS_CA_BUNDLE to the path of a CA bundle file (no cert material is
+# stored in the repository).
+HTTP_CLIENT_VERIFY = os.environ.get("TLS_CA_BUNDLE") or True
+# Timeout (seconds) for outbound HTTP requests
+HTTP_CLIENT_TIMEOUT = 5
+
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
 API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
