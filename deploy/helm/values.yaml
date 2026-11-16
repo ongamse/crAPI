@@ -136,6 +136,8 @@ workshop:
     mongoDbDriver: mongodb
     secretKey: crapi
     filesLimit: 1000
+    # Extra comma separated hostnames allowed in the Host header (added to localhost and the service name)
+    allowedHosts: ""
   deploymentLabels:
     app: crapi-workshop
   podLabels:

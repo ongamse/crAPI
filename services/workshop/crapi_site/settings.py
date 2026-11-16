@@ -61,7 +61,16 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Explicit Host header allowlist (comma separated), no wildcard. The defaults cover
+# local access and the in-cluster service name used by the web proxy. Set
+# ALLOWED_HOSTS to the full list of hostnames the deployment is reached by.
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS", "localhost,127.0.0.1,[::1],crapi-workshop"
+    ).split(",")
+    if host.strip() and host.strip() != "*"
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
