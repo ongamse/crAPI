@@ -88,6 +88,8 @@ services:
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - TLS_CERTIFICATE=certs/server.crt
       - TLS_KEY=certs/server.key
+    volumes:
+      - ${TLS_CERTS_DIR:-./certs}:/app/certs:ro
     depends_on:
       postgresdb:
         condition: service_healthy
@@ -133,6 +135,8 @@ services:
       - TLS_KEY=certs/server.key
       - FILES_LIMIT=1000
       - MECHANIC_API_ALLOWED_HOSTS=${MECHANIC_API_ALLOWED_HOSTS:-}
+    volumes:
+      - ${TLS_CERTS_DIR:-./certs}:/app/certs:ro
     depends_on:
       postgresdb:
         condition: service_healthy
@@ -178,6 +182,8 @@ services:
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
       # - CHATBOT_OPENAI_API_KEY=
+    volumes:
+      - ${TLS_CERTS_DIR:-./certs}:/app/certs:ro
     depends_on:
       mongodb:
         condition: service_healthy
@@ -203,6 +209,8 @@ services:
       - CHATBOT_SERVICE=crapi-chatbot:${CHATBOT_SERVER_PORT:-5002}
       - MAILHOG_WEB_SERVICE=mailhog:8025
       - TLS_ENABLED=${TLS_ENABLED:-false}
+    volumes:
+      - ${TLS_CERTS_DIR:-./certs}:/app/certs:ro
     depends_on:
       crapi-community:
         condition: service_healthy

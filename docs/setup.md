@@ -13,6 +13,8 @@ docker compose version
 
 ```ERROR: Invalid interpolation format for ...```
 
+**TLS:** private keys are not committed. When `TLS_ENABLED=true`, provide a directory containing `server.crt` and `server.key` (for example generated with `services/gencert.sh <hostname>`, which writes to the git-ignored `services/certs`) and point `TLS_CERTS_DIR` at it; `docker compose` mounts it read-only at `/app/certs` in the web, workshop, community and chatbot containers. Without those files TLS-enabled services fail to start. The api-gateway-service image generates its own certificate at build time.
+
 ### Using prebuilt images
 
 **Credentials:** database passwords and application secrets are no longer committed. Before starting crAPI, set `DB_PASSWORD`, `MONGO_DB_PASSWORD`, `SECRET_KEY` and `API_GATEWAY_PASSWORD` in your shell or add them to the **.env** file next to `docker-compose.yml` (for example `DB_PASSWORD=$(openssl rand -hex 16)`). `docker compose` refuses to start if any of them is missing. If you previously ran crAPI with the old default passwords, remove the old volumes (`docker compose down --volumes`) or keep using the same values, because the databases keep the password they were first initialised with.
