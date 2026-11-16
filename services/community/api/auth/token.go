@@ -78,7 +78,7 @@ func ExtractTokenID(r *http.Request, db *gorm.DB) (uint32, error) {
 	}()
 
 	tokenValid := resp.StatusCode == 200
-	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	token, err := parseVerifiedToken(tokenString)
 	if err != nil {
 		log.Println(err)
 		return 0, err
