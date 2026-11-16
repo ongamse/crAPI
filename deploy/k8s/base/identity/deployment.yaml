@@ -36,6 +36,22 @@ spec:
           envFrom:
               - configMapRef:
                   name: crapi-identity-configmap
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-secrets
+                  key: DB_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-secrets
+                  key: JWT_SECRET
+            - name: API_GATEWAY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-secrets
+                  key: API_GATEWAY_PASSWORD
           resources:
             limits:
               cpu: "500m"

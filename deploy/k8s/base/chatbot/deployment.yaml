@@ -24,9 +24,14 @@ spec:
         env:
             - name: MONGO_DB_PASSWORD
               valueFrom:
-                configMapKeyRef:
-                  name: crapi-community-configmap
+                secretKeyRef:
+                  name: crapi-secrets
                   key: MONGO_DB_PASSWORD
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-secrets
+                  key: DB_PASSWORD
         resources:
           limits:
             cpu: "500m"

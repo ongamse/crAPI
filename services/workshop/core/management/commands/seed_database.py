@@ -63,7 +63,7 @@ def create_mechanics():
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": "Admin1@#",  # demo seed account for the lab; not a deployment secret
             "mechanic_code": "TRAC_JHN",
         },
         {
