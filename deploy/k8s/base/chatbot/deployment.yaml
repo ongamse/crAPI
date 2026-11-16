@@ -21,6 +21,12 @@ spec:
         envFrom:
             - configMapRef:
                 name: crapi-chatbot-configmap
+        env:
+            - name: MONGO_DB_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: crapi-community-configmap
+                  key: MONGO_DB_PASSWORD
         resources:
           limits:
             cpu: "500m"
