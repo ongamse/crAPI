@@ -10,6 +10,11 @@ apiGatewayServiceInstall: true
 # Required: supply at install time, e.g. --set apiGatewayPassword=... (never commit values)
 apiGatewayPassword: ""
 tlsEnabled: false
+# Name of a pre-created Kubernetes Secret holding the TLS private key (key: server.key)
+# and, for identity, the PKCS12 keystore (key: server.p12). It is mounted at /app/tls.
+# Create it out of band, e.g.
+#   kubectl create secret generic crapi-tls --from-file=server.key --from-file=server.p12
+tlsSecretName: crapi-tls
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
@@ -73,8 +78,8 @@ identity:
     smtpAuth: true
     smtpStartTLS: true
     keyStoreType: PKCS12
-    keyStore: classpath:certs/server.p12
-    # Password of the demo keystore bundled in the identity image, not a deployment secret
+    keyStore: file:/app/tls/server.p12
+    # Password of the PKCS12 keystore mounted from the TLS secret; override with --set at install time
     keyStorePassword: passw0rd
     keyPassword: passw0rd
     keyAlias: identity

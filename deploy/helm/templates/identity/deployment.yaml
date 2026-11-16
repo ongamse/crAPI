@@ -37,6 +37,12 @@ spec:
         - name: jwt-key-secret
           secret:
             secretName: {{ .Values.identity.jwtKeySecret.name }}
+        {{- if .Values.tlsEnabled }}
+        - name: tls-key
+          secret:
+            secretName: {{ .Values.tlsSecretName }}
+            optional: true
+        {{- end }}
       containers:
         - name: {{ .Values.identity.name }}
           image: {{ .Values.identity.image }}:{{ .Chart.AppVersion }}
@@ -45,6 +51,11 @@ spec:
             - mountPath: "/.keys"
               name: jwt-key-secret
               readOnly: true
+            {{- if .Values.tlsEnabled }}
+            - mountPath: "/app/tls"
+              name: tls-key
+              readOnly: true
+            {{- end }}
           ports:
           - containerPort: {{ .Values.identity.port }}
           envFrom:

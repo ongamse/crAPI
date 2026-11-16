@@ -27,6 +27,10 @@ if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
   if [ "$TLS_KEY" = "" ]; then
     TLS_KEY=$DIR/certs/server.key
   fi
+  if [ ! -r "$TLS_KEY" ]; then
+    echo "TLS is enabled but the private key $TLS_KEY is not readable. Mount it at runtime and/or set TLS_KEY." >&2
+    exit 1
+  fi
   echo "TLS_CERTIFICATE: $TLS_CERTIFICATE"
   echo "TLS_KEY: $TLS_KEY"
   uvicorn chatbot.app:app --timeout-keep-alive 600 --host 0.0.0.0 --port ${SERVER_PORT} --ssl-certfile $TLS_CERTIFICATE --ssl-keyfile $TLS_KEY --log-level=debug

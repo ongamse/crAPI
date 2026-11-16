@@ -1,4 +1,8 @@
-rm -f server.p12
-rm -f server.keystore
-openssl pkcs12 -export -in server.crt -inkey server.key -out server.p12 -name identity -passout pass:passw0rd
-keytool -importkeystore -deststorepass passw0rd -destkeypass passw0rd -destkeystore server.keystore -srckeystore server.p12 -srcstoretype PKCS12 -srcstorepass passw0rd -alias identity
+# Usage: keystore.sh <server.crt> <server.key> <outdir>
+# Builds the identity PKCS12 keystore from a locally generated key. Output must NOT be committed.
+# Password comes from TLS_KEYSTORE_PASSWORD in the environment.
+set -e
+: "${TLS_KEYSTORE_PASSWORD:?Set TLS_KEYSTORE_PASSWORD}"
+CRT="$1"; KEY="$2"; OUT="${3:-.}"
+rm -f "$OUT/server.p12"
+openssl pkcs12 -export -in "$CRT" -inkey "$KEY" -out "$OUT/server.p12" -name identity -passout env:TLS_KEYSTORE_PASSWORD

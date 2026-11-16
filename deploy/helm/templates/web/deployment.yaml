@@ -18,6 +18,13 @@ spec:
         release: {{ .Release.Name }}
         {{- toYaml .Values.web.podLabels | nindent 8 }}
     spec:
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-key
+          secret:
+            secretName: {{ .Values.tlsSecretName }}
+            optional: true
+      {{- end }}
       containers:
         - name: {{ .Values.web.name }}
           image: {{ .Values.web.image }}:{{ .Chart.AppVersion }}
@@ -25,6 +32,12 @@ spec:
           ports:
             - containerPort: 443
             - containerPort: 80
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - mountPath: "/app/tls"
+              name: tls-key
+              readOnly: true
+          {{- end }}
           {{- if .Values.web.resources }}
           resources:
             {{- toYaml .Values.web.resources | nindent 12 }}
