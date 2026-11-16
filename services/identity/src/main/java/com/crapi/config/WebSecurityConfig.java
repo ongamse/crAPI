@@ -15,6 +15,7 @@
 package com.crapi.config;
 
 import com.crapi.service.Impl.UserDetailsServiceImpl;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +32,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -95,8 +98,25 @@ public class WebSecurityConfig {
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .exceptionHandling(handling -> handling.authenticationEntryPoint(jwtUnauthorizedHandler));
     http.authenticationProvider(authenticationProvider());
-    http.csrf().disable();
+    // CSRF protection stays enabled with a stateless cookie-based token repository. Only requests
+    // that carry no ambient browser credential are exempt: those authenticated by an explicit
+    // Authorization header (Bearer JWT / ApiKey), which a cross-site form or request cannot set,
+    // and the unauthenticated credential-in-body endpoints. No cookie or session based
+    // authentication exists in this service.
+    http.csrf(
+        csrf ->
+            csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .ignoringRequestMatchers(
+                    WebSecurityConfig::hasExplicitAuthorizationHeader,
+                    new AntPathRequestMatcher("/identity/api/auth/**"),
+                    new AntPathRequestMatcher("/identity/management/user/**")));
     http.cors(Customizer.withDefaults());
     return http.build();
+  }
+
+  private static boolean hasExplicitAuthorizationHeader(HttpServletRequest request) {
+    String authHeader = request.getHeader("Authorization");
+    return authHeader != null
+        && (authHeader.startsWith("Bearer ") || authHeader.startsWith("ApiKey "));
   }
 }
