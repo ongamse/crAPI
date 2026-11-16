@@ -12,10 +12,21 @@ spec:
       labels:
         app: gateway-service
     spec:
+      # allowPrivilegeEscalation=false sets no_new_privs, so the file capability
+      # (cap_net_bind_service) on /app/server no longer takes effect for the
+      # non-root user. Lower the unprivileged port floor for this pod's network
+      # namespace so the server can still bind port 443. This sysctl is in the
+      # Kubernetes "safe" set (>= v1.22).
+      securityContext:
+        sysctls:
+        - name: net.ipv4.ip_unprivileged_port_start
+          value: "0"
       containers:
       - name: gateway-service
         image: crapi/gateway-service:latest
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
         ports:
         - containerPort: 8087
         resources:
