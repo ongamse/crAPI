@@ -44,4 +44,8 @@ ENV JAVA_TOOL_OPTIONS="-Xmx128m"
 COPY jwks.json /app/default_jwks.json
 COPY entrypoint.sh /entrypoint.sh
 COPY health.sh /app/health.sh
+# Run as a non-root user.
+RUN useradd --system --create-home --uid 10001 app \
+    && chown -R app:app /app
+USER app
 CMD [ "/entrypoint.sh"]
