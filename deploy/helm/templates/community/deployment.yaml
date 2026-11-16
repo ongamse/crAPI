@@ -66,3 +66,17 @@ spec:
           resources:
             {{- toYaml .Values.community.resources | nindent 12 }}
           {{- end }}
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - name: tls-key
+              mountPath: /app/certs/server.key
+              subPath: server.key
+              readOnly: true
+          {{- end }}
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-key
+          secret:
+            secretName: {{ .Values.tlsKeySecretName }}
+            defaultMode: 0440
+      {{- end }}

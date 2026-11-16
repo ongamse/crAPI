@@ -79,3 +79,17 @@ spec:
               port: {{ .Values.workshop.port }}
             initialDelaySeconds: 15
             periodSeconds: 10
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - name: tls-key
+              mountPath: /app/certs/server.key
+              subPath: server.key
+              readOnly: true
+          {{- end }}
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-key
+          secret:
+            secretName: {{ .Values.tlsKeySecretName }}
+            defaultMode: 0440
+      {{- end }}

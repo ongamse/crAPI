@@ -8,6 +8,10 @@ imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
 tlsEnabled: false
+# Name of a pre-created Kubernetes Secret holding the PEM private key under data key "server.key".
+# Required when tlsEnabled=true, e.g.:
+#   kubectl create secret generic crapi-tls-key --from-file=server.key=/path/to/server.key
+tlsKeySecretName: crapi-tls-key
 jwtExpiration: 604800000
 openAIApiKey: ""
 
