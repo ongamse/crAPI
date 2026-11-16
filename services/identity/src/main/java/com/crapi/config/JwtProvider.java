@@ -24,8 +24,6 @@ import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
-import com.nimbusds.jwt.JWTParser;
-import com.nimbusds.jwt.PlainJWT;
 import com.nimbusds.jwt.SignedJWT;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
@@ -119,11 +117,14 @@ public class JwtProvider {
 
   /**
    * @param token
-   * @return username from JWT Token
+   * @return username from JWT Token, only after the token signature has been verified
+   * @throws ParseException if the token is malformed, unsigned or its signature is invalid
    */
   public String getUserNameFromJwtToken(String token) throws ParseException {
-    // Parse without verifying token signature
-    return JWTParser.parse(token).getJWTClaimsSet().getSubject();
+    if (token == null || !validateJwtToken(token)) {
+      throw new ParseException("JWT signature verification failed", 0);
+    }
+    return SignedJWT.parse(token).getJWTClaimsSet().getSubject();
   }
 
   // Load RSA Public Key for JKU header if present
@@ -195,12 +196,8 @@ public class JwtProvider {
       }
 
     } catch (ParseException e) {
-      try {
-        PlainJWT jwt = PlainJWT.parse(authToken);
-        return true;
-      } catch (ParseException parseException) {
-        log.error("Could not parse JWT Token -> Message: %d", parseException);
-      }
+      // Unsigned (alg=none) or malformed tokens are never accepted
+      log.error("Could not parse signed JWT Token -> Message: %d", e);
     } catch (JOSEException e) {
       log.error("RSA JWK Extraction failed -> Message: %d", e);
     }
