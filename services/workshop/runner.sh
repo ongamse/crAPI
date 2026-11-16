@@ -46,6 +46,11 @@ if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
   fi
   echo "TLS_CERTIFICATE: $TLS_CERTIFICATE"
   echo "TLS_KEY: $TLS_KEY"
+  # The private key is not committed; it must be mounted/provided at $TLS_KEY.
+  if [ ! -f "$TLS_KEY" ]; then
+    echo "TLS is ENABLED but private key $TLS_KEY is missing. Mount it as a secret or set TLS_ENABLED=false."
+    exit 1
+  fi
   # python3 manage.py runserver_plus --cert-file $TLS_CERTIFICATE --key-file $TLS_KEY --noreload 0.0.0.0:${SERVER_PORT}
   gunicorn --workers=1 --threads=20  --timeout 60 --bind 0.0.0.0:${SERVER_PORT} --certfile $TLS_CERTIFICATE --keyfile $TLS_KEY --log-level=debug crapi_site.wsgi
 else

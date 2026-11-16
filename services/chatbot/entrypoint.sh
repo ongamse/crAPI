@@ -29,6 +29,11 @@ if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
   fi
   echo "TLS_CERTIFICATE: $TLS_CERTIFICATE"
   echo "TLS_KEY: $TLS_KEY"
+  # The private key is not committed; it must be mounted/provided at $TLS_KEY.
+  if [ ! -f "$TLS_KEY" ]; then
+    echo "TLS is ENABLED but private key $TLS_KEY is missing. Mount it as a secret or set TLS_ENABLED=false."
+    exit 1
+  fi
   uvicorn chatbot.app:app --timeout-keep-alive 600 --host 0.0.0.0 --port ${SERVER_PORT} --ssl-certfile $TLS_CERTIFICATE --ssl-keyfile $TLS_KEY --log-level=debug
 else
   uvicorn chatbot.app:app --timeout-keep-alive 600 --host 0.0.0.0 --port ${SERVER_PORT} --log-level=debug
