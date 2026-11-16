@@ -69,7 +69,19 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Comma separated hostnames (no scheme, no port) this service may be served
+# as, to prevent Host header / DNS rebinding attacks. Defaults cover local
+# access and the crapi-workshop service name that the web gateway sends in the
+# Host header. A leading "." matches a domain and its subdomains. Wildcard "*"
+# entries are ignored.
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,[::1],0.0.0.0,crapi-workshop",
+    ).split(",")
+    if h.strip() and h.strip() != "*"
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
