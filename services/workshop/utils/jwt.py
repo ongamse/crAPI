@@ -25,6 +25,53 @@ import logging
 
 logger = logging.getLogger()
 
+# Only RS256 is accepted; the identity service signs tokens with its RSA key.
+ALLOWED_JWT_ALGORITHMS = ["RS256"]
+
+_jwks_cache = {}
+
+
+def _fetch_jwks():
+    """
+    fetch the public key set published by the identity service
+    :return: dict of kid -> RSA public key
+    """
+    response = requests.get(
+        settings.IDENTITY_JWKS,
+        verify=settings.HTTP_CLIENT_VERIFY,
+        timeout=settings.HTTP_CLIENT_TIMEOUT,
+    )
+    response.raise_for_status()
+    keys = {}
+    for jwk in response.json().get("keys", []):
+        if jwk.get("kty") != "RSA":
+            continue
+        # Only the public part is ever used for verification
+        public_jwk = {k: jwk[k] for k in ("kty", "n", "e", "kid") if k in jwk}
+        keys[jwk.get("kid")] = jwt.PyJWK(public_jwk, algorithm="RS256").key
+    return keys
+
+
+def _get_signing_key(token):
+    """
+    resolve the public key matching the kid header of the token
+    :param token: encoded jwt
+    :return: RSA public key
+    """
+    kid = jwt.get_unverified_header(token).get("kid")
+    if kid not in _jwks_cache:
+        # Refresh once to pick up rotated keys
+        try:
+            _jwks_cache.clear()
+            _jwks_cache.update(_fetch_jwks())
+        except (requests.RequestException, ValueError) as e:
+            raise jwt.exceptions.PyJWKClientError(
+                f"Unable to fetch JWKS: {e}"
+            ) from e
+    if kid not in _jwks_cache:
+        raise jwt.exceptions.PyJWKClientError("Signing key not found in JWKS")
+    return _jwks_cache[kid]
+
 
 def jwt_auth_required(func):
     """
@@ -58,7 +105,12 @@ def jwt_auth_required(func):
                 )
                 response_status_code = token_verify_response.status_code
                 if response_status_code == status.HTTP_200_OK:
-                    decoded = jwt.decode(token, options={"verify_signature": False})
+                    decoded = jwt.decode(
+                        token,
+                        key=_get_signing_key(token),
+                        algorithms=ALLOWED_JWT_ALGORITHMS,
+                        options={"verify_aud": False},
+                    )
                     username = decoded["sub"]
                     user = User.objects.get(email=username)
                     # Add user object to the view function if authorized
@@ -77,7 +129,7 @@ def jwt_auth_required(func):
                 content_type="application/json",
             )
 
-        except (jwt.exceptions.DecodeError, User.DoesNotExist) as e:
+        except (jwt.exceptions.PyJWTError, User.DoesNotExist) as e:
             logger.debug(
                 f"JWT token verification failed with exception: {e}", exc_info=True
             )
