@@ -45,7 +45,9 @@ const ForgotPassword: React.FC = () => {
 
   const handleEmailChange = (newEmail: string): void => setEmail(newEmail);
 
-  const CurrentComponent = steps[currentStep].component;
+  const [firstStep, secondStep] = steps;
+  const CurrentComponent =
+    currentStep === 0 ? firstStep.component : secondStep.component;
 
   return (
     <div className="container">
