@@ -42,11 +42,15 @@ const ChangePhoneNumber: React.FC = () => {
   const [number, setNumber] = useState("");
   const [currentStep, setCurrentStep] = useState(0);
 
-  const handleStepChange = (step: number) => setCurrentStep(step);
+  const handleStepChange = (step: number) => {
+    if (Number.isInteger(step) && step >= 0 && step < steps.length) {
+      setCurrentStep(step);
+    }
+  };
 
   const handlePhoneNumberChange = (newNumber: string) => setNumber(newNumber);
 
-  const CurrentComponent = steps[currentStep].component;
+  const CurrentComponent = (steps.at(currentStep) ?? steps[0]).component;
 
   return (
     <div className="container">
