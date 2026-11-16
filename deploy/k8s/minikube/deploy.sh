@@ -25,6 +25,7 @@ kubectl create -n crapi secret generic crapi-credentials \
 kubectl create -n crapi secret generic crapi-chatbot-secret \
   --from-literal=MONGO_DB_PASSWORD="${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD}"
 
+[ -f ../keys/jwks.json ] || { echo "Missing ../keys/jwks.json: provide your own RS256 JWKS (not stored in the repo)" >&2; exit 1; }
 kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
 kubectl apply -n crapi -f ../base/rbac
 kubectl apply -n crapi -f ../base/mongodb

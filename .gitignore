@@ -6,4 +6,6 @@ deploy/vagrant/.vagrant
 services/chatbot/db
 services/certs/
 services/**/server.key
+deploy/*/keys/jwks.json
+services/identity/jwks.json
 docker-compose.local.yml
