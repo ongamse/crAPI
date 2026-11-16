@@ -37,11 +37,19 @@ public class SMTPMailServer {
    * @param body
    * @param subject send mail to given email with dynamic subject and body
    */
-  public void sendMail(String sendMail, String body, String subject) {
+  public void sendMail(String sendMail, String rawBody, String rawSubject) {
     String mhogDomain = mailhogConfiguration.getDomain();
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
+      // Reject header injection (CR/LF/control characters) in recipient addresses.
+      if (containsControlChars(sendMail, false)) {
+        throw new IllegalArgumentException("Recipient contains illegal control characters");
+      }
+      // Subject is a mail header: strip every control character, including CR/LF.
+      String subject = stripControlChars(rawSubject, false);
+      // Body is content: keep line breaks and tabs, strip other control characters.
+      String body = stripControlChars(rawBody, true);
       log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
       InternetAddress[] emails = InternetAddress.parse(sendMail);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
@@ -69,7 +77,7 @@ public class SMTPMailServer {
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
+      msg.setRecipients(Message.RecipientType.TO, emails);
       msg.setSubject(subject);
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
@@ -81,5 +89,38 @@ public class SMTPMailServer {
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  private static boolean isControlChar(char c, boolean allowLineBreaksAndTab) {
+    if (allowLineBreaksAndTab && (c == '\r' || c == '\n' || c == '\t')) {
+      return false;
+    }
+    return Character.isISOControl(c);
+  }
+
+  static boolean containsControlChars(String value, boolean allowLineBreaksAndTab) {
+    if (value == null) {
+      return false;
+    }
+    for (int i = 0; i < value.length(); i++) {
+      if (isControlChar(value.charAt(i), allowLineBreaksAndTab)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static String stripControlChars(String value, boolean allowLineBreaksAndTab) {
+    if (value == null) {
+      return null;
+    }
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (!isControlChar(c, allowLineBreaksAndTab)) {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
   }
 }
