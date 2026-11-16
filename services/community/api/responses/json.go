@@ -16,19 +16,18 @@ package responses
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 )
 
 // JSON return response in json
 func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	err := json.NewEncoder(w).Encode(data)
-	if err != nil {
-		if _, writeErr := fmt.Fprintf(w, "%s", err.Error()); writeErr != nil {
-			log.Println("Error writing error response:", writeErr)
-		}
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		// Headers are already sent; log server-side and do not echo
+		// internal error details to the client.
+		log.Println("Error encoding JSON response:", err)
 	}
 }
 
