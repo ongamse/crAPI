@@ -15,6 +15,7 @@
 package com.crapi.config;
 
 import com.crapi.service.Impl.UserDetailsServiceImpl;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +32,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -95,8 +98,21 @@ public class WebSecurityConfig {
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .exceptionHandling(handling -> handling.authenticationEntryPoint(jwtUnauthorizedHandler));
     http.authenticationProvider(authenticationProvider());
-    http.csrf().disable();
+    // CSRF stays enabled. Only requests that carry no ambient browser credentials are exempt:
+    // token-authenticated API calls (Authorization header, which a cross-site form or fetch
+    // cannot set without a CORS preflight) and the unauthenticated /identity/api/auth/** endpoints.
+    http.csrf(
+        csrf ->
+            csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .ignoringRequestMatchers(
+                    new AntPathRequestMatcher("/identity/api/auth/**"),
+                    WebSecurityConfig::hasAuthorizationHeader));
     http.cors(Customizer.withDefaults());
     return http.build();
+  }
+
+  private static boolean hasAuthorizationHeader(HttpServletRequest request) {
+    String authHeader = request.getHeader("Authorization");
+    return authHeader != null && !authHeader.isBlank();
   }
 }

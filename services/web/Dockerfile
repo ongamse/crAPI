@@ -26,7 +26,7 @@ RUN ls /app/build
 
 # Main Image
 FROM openresty/openresty:alpine
-RUN apk add gettext curl
+RUN apk add gettext curl libcap
 # React
 RUN rm /etc/nginx/conf.d/default.conf
 COPY --from=build /app/build /usr/share/nginx/html
@@ -36,7 +36,17 @@ COPY ./nginx.ssl.conf.template /etc/nginx/conf.d/default.ssl.conf.template
 RUN mkdir -p /app
 COPY ./certs /app/certs
 RUN echo "daemon off;" >> /usr/local/openresty/nginx/conf/nginx.conf
+
+# Run as a non-root user. The binary is granted only the capability to bind
+# the privileged ports 80/443; the wrapper writes the generated config into
+# /etc/nginx/conf.d and nginx needs write access to its temp/pid/log dirs.
+RUN addgroup -S -g 10001 app && adduser -S -D -H -u 10001 -G app app \
+    && mkdir -p /var/run/openresty \
+    && setcap cap_net_bind_service=+ep "$(readlink -f /usr/local/openresty/bin/openresty)" \
+    && chown -R app:app /etc/nginx/conf.d /usr/local/openresty/nginx /var/run/openresty /app/certs
 EXPOSE 80
 EXPOSE 443
+
+USER app
 
 CMD [ "/etc/nginx/nginx-wrapper.sh" ]

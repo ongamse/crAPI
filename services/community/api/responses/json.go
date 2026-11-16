@@ -16,17 +16,29 @@ package responses
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 )
 
 // JSON return response in json
 func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(statusCode)
 	err := json.NewEncoder(w).Encode(data)
 	if err != nil {
-		if _, writeErr := fmt.Fprintf(w, "%s", err.Error()); writeErr != nil {
+		// Encoding failed; report the failure as a JSON-encoded (escaped) value
+		// rather than writing raw text to the response.
+		body, marshalErr := json.Marshal(struct {
+			Error string `json:"error"`
+		}{
+			Error: err.Error(),
+		})
+		if marshalErr != nil {
+			log.Println("Error encoding error response:", marshalErr)
+			return
+		}
+		if _, writeErr := w.Write(body); writeErr != nil {
 			log.Println("Error writing error response:", writeErr)
 		}
 	}

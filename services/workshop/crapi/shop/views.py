@@ -145,8 +145,8 @@ class OrderControlView(APIView):
                         "Content-Type": "application/json",
                     },
                     json=data,
-                    verify=False,
-                    timeout=5,
+                    verify=settings.HTTP_CLIENT_VERIFY,
+                    timeout=settings.HTTP_CLIENT_TIMEOUT,
                 )
                 if payment_response.status_code == 200:
                     payment = payment_response.json()
@@ -386,11 +386,9 @@ class ApplyCouponView(APIView):
         with connection.cursor() as cursor:
             try:
                 cursor.execute(
-                    "SELECT coupon_code from applied_coupon WHERE user_id = "
-                    + str(user.id)
-                    + " AND coupon_code = '"
-                    + coupon_request_body["coupon_code"]
-                    + "'"
+                    "SELECT coupon_code from applied_coupon "
+                    "WHERE user_id = %s AND coupon_code = %s",
+                    [user.id, coupon_request_body["coupon_code"]],
                 )
                 row = cursor.fetchall()
             except Exception as e:

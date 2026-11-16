@@ -6,3 +6,10 @@ deploy/vagrant/.vagrant
 services/chatbot/db
 services/certs/
 docker-compose.local.yml
+# TLS private keys are generated locally (services/gencert.sh) or mounted at runtime; never commit them
+services/community/certs/server.key
+services/identity/src/main/resources/certs/server.key
+services/gateway-service/server.key
+services/chatbot/certs/server.key
+services/web/certs/server.key
+services/workshop/certs/server.key

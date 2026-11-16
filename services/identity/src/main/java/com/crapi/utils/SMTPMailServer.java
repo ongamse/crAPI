@@ -70,7 +70,7 @@ public class SMTPMailServer {
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
       msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
-      msg.setSubject(subject);
+      msg.setSubject(subject == null ? null : subject.replaceAll("[\\r\\n]+", " "));
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
 

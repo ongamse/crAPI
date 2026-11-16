@@ -33,7 +33,7 @@ async def init():
         logger.error("openai_api_key not provided")
         return jsonify({"message": "openai_api_key not provided"}), 400
     openai_api_key: str = data["openai_api_key"]
-    logger.debug("OpenAI API Key %s", openai_api_key[:5])
+    logger.debug("OpenAI API Key provided for session %s", session_id)
     # Save the api key in session
     await store_api_key(session_id, openai_api_key)
     return jsonify({"message": "Initialized"}), 200
@@ -76,9 +76,7 @@ async def state():
     logger.debug("Checking state for session %s", session_id)
     openai_api_key = await get_api_key(session_id)
     if openai_api_key:
-        logger.debug(
-            "OpenAI API Key for session %s: %s", session_id, openai_api_key[:5]
-        )
+        logger.debug("OpenAI API Key is configured for session %s", session_id)
         chat_history = await get_chat_history(session_id)
         # Limit chat history to last 20 messages
         chat_history = chat_history[-20:]

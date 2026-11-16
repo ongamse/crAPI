@@ -28,7 +28,9 @@ spec:
       containers:
       - name: crapi-workshop
         image: crapi/crapi-workshop:latest
-        imagePullPolicy: Always  
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
         ports:
         - containerPort: 8000
         envFrom:

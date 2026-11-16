@@ -44,4 +44,9 @@ ENV JAVA_TOOL_OPTIONS="-Xmx128m"
 COPY jwks.json /app/default_jwks.json
 COPY entrypoint.sh /entrypoint.sh
 COPY health.sh /app/health.sh
+# Run as a non-root user (explicit uid avoids clashing with the base image's ubuntu user)
+RUN groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app \
+    && chown -R app:app /app
+USER app
 CMD [ "/entrypoint.sh"]

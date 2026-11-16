@@ -16,7 +16,6 @@ package auth
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -53,7 +52,11 @@ func ExtractToken(r *http.Request) string {
 // If token is valid we extract username from token Claims.
 // Then check that username in postgres database.
 func ExtractTokenID(r *http.Request, db *gorm.DB) (uint32, error) {
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	client, err := utils.NewHTTPClient(0)
+	if err != nil {
+		log.Println(err)
+		return 0, err
+	}
 	tokenVerifyURL := fmt.Sprintf("http://%s/identity/api/auth/verify", os.Getenv("IDENTITY_SERVICE"))
 	tls_enabled, is_tls := os.LookupEnv("TLS_ENABLED")
 	if is_tls && utils.IsTrue(tls_enabled) {
@@ -66,7 +69,7 @@ func ExtractTokenID(r *http.Request, db *gorm.DB) (uint32, error) {
 		return 0, err
 	}
 
-	resp, err := http.Post(tokenVerifyURL, "application/json", bytes.NewBuffer(tokenJSON))
+	resp, err := client.Post(tokenVerifyURL, "application/json", bytes.NewBuffer(tokenJSON))
 	if err != nil {
 		log.Println(err)
 		return 0, err
@@ -78,7 +81,7 @@ func ExtractTokenID(r *http.Request, db *gorm.DB) (uint32, error) {
 	}()
 
 	tokenValid := resp.StatusCode == 200
-	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	token, err := parseVerifiedToken(tokenString)
 	if err != nil {
 		log.Println(err)
 		return 0, err

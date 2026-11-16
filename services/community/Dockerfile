@@ -39,8 +39,13 @@ COPY certs /app/certs
 COPY health.sh /app/health.sh
 RUN ls -al /app
 
+# Run as a non-root user
+RUN addgroup -S -g 10001 app && adduser -S -D -H -u 10001 -G app app \
+    && chown -R app:app /app
+
 ARG SERVER_PORT
 EXPOSE ${SERVER_PORT}
 # Expose profiling port
 EXPOSE 6060
+USER app
 CMD /app/main

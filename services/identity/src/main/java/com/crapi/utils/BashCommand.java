@@ -17,47 +17,50 @@ package com.crapi.utils;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class BashCommand {
 
-  /**
-   * Execute a bash command. We can handle complex bash commands including multiple executions (; |
-   * && ||), quotes, expansions ($), escapes (\), e.g.: "cd /abc/def; mv ghi 'older ghi '$(whoami)"
-   *
-   * @param command
-   * @return true if bash got started, but your command may have failed.
-   */
-  public String executeBashCommand(String command) throws IOException {
-    BufferedReader b = null;
-    StringBuilder output;
-    log.info("Executing BASH command:\n   ", command);
-    Runtime r = Runtime.getRuntime();
-    // Use bash -c so we can handle things like multi commands separated by ; and
-    // things like quotes, $, |, and \. My tests show that command comes as
-    // one argument to bash, so we do not need to quote it to make it one thing.
-    // Also, exec may object if it does not have an executable file as the first thing,
-    // so having bash here makes it happy provided bash is installed and in path.
-    String[] commands = {"bash", "-c", command};
-    try {
-      Process p = r.exec(commands);
+  /** Executables this helper is permitted to launch. */
+  private static final Set<String> ALLOWED_EXECUTABLES = Set.of("convertVideo");
 
-      p.waitFor();
-      InputStreamReader data = new InputStreamReader(p.getInputStream());
-      b = new BufferedReader(data);
-      String line = "";
-      output = new StringBuilder();
-      while ((line = b.readLine()) != null) {
-        output.append(line + "\n");
+  /**
+   * Execute an allowlisted executable directly (no shell). Every element of the list after the
+   * executable is passed to the program as one discrete argument, so shell metacharacters (; | &&
+   * $ ` etc.) have no special meaning.
+   *
+   * @param commandAndArgs executable name followed by its arguments
+   * @return the standard output of the process, or null if it could not be run.
+   */
+  public String executeCommand(List<String> commandAndArgs) throws IOException {
+    if (commandAndArgs == null
+        || commandAndArgs.isEmpty()
+        || !ALLOWED_EXECUTABLES.contains(commandAndArgs.get(0))) {
+      log.error("Refusing to execute a command that is not allowlisted");
+      return null;
+    }
+    List<String> argv = new ArrayList<>(commandAndArgs);
+    log.info("Executing command: {}", argv.get(0));
+    try {
+      Process p = new ProcessBuilder(argv).redirectErrorStream(false).start();
+      StringBuilder output = new StringBuilder();
+      try (BufferedReader b = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+        String line;
+        while ((line = b.readLine()) != null) {
+          output.append(line).append("\n");
+        }
       }
-      b.close();
-      return (output != null ? String.valueOf(output) : "command not found");
+      p.waitFor();
+      return output.toString();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      log.error("Interrupted while executing command: {}", argv.get(0));
     } catch (Exception e) {
-      log.error("Failed to execute bash with command: " + command);
-      e.printStackTrace();
-    } finally {
-      b.close();
+      log.error("Failed to execute command: {}", argv.get(0), e);
     }
     return null;
   }

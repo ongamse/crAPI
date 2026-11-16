@@ -20,15 +20,23 @@ SHELL ["/bin/bash", "-c"]
 WORKDIR /app
 
 RUN set -x && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    ca-certificates && \
+    ca-certificates libcap2-bin && \
     rm -rf /var/lib/apt/lists/*
 
+# Non-root runtime user
+RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin app
+
 # Copy the binary to the production image from the builder stage.
-COPY --from=builder /app/server /app/server
-COPY --from=builder /app/public.crt /app/server.crt
-COPY --from=builder /app/private.key /app/server.key
+COPY --from=builder --chown=app:app /app/server /app/server
+COPY --from=builder --chown=app:app /app/public.crt /app/server.crt
+COPY --from=builder --chown=app:app /app/private.key /app/server.key
+
+# Allow the non-root user to bind the privileged port 443
+RUN setcap cap_net_bind_service=+ep /app/server
 
 EXPOSE 443
+
+USER app
 
 CMD ["/app/server"]
 
