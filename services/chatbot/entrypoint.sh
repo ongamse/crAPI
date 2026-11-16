@@ -29,6 +29,10 @@ if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
   fi
   echo "TLS_CERTIFICATE: $TLS_CERTIFICATE"
   echo "TLS_KEY: $TLS_KEY"
+  if [ ! -r "$TLS_CERTIFICATE" ] || [ ! -r "$TLS_KEY" ]; then
+    echo "TLS is enabled but the certificate or private key is not readable. Mount them and set TLS_CERTIFICATE/TLS_KEY (see services/gencert.sh). Exiting."
+    exit 1
+  fi
   uvicorn chatbot.app:app --timeout-keep-alive 600 --host 0.0.0.0 --port ${SERVER_PORT} --ssl-certfile $TLS_CERTIFICATE --ssl-keyfile $TLS_KEY --log-level=debug
 else
   uvicorn chatbot.app:app --timeout-keep-alive 600 --host 0.0.0.0 --port ${SERVER_PORT} --log-level=debug

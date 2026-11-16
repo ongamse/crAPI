@@ -183,7 +183,17 @@ func main() {
 	http.HandleFunc("/v1/payment", GetPayMentInfo)
 	listen_addr := fmt.Sprintf(":%d", *port)
 	log.Printf("Listening on %s", listen_addr)
-	err := http.ListenAndServeTLS(listen_addr, "server.crt", "server.key", nil)
+	// TLS material is supplied at deploy time (or baked by the Dockerfile);
+	// TLS_CERTIFICATE / TLS_KEY override the default file names.
+	certFile := os.Getenv("TLS_CERTIFICATE")
+	if certFile == "" {
+		certFile = "server.crt"
+	}
+	keyFile := os.Getenv("TLS_KEY")
+	if keyFile == "" {
+		keyFile = "server.key"
+	}
+	err := http.ListenAndServeTLS(listen_addr, certFile, keyFile, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
