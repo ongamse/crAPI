@@ -28,6 +28,44 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger()
 
+_jwks_client = None
+
+
+def _get_jwks_client():
+    """
+    lazily build a client that fetches (and caches) the identity service's
+    public signing keys
+    """
+    global _jwks_client  # pylint: disable=global-statement
+    if _jwks_client is None:
+        _jwks_client = jwt.PyJWKClient(settings.IDENTITY_JWKS)
+    return _jwks_client
+
+
+def _decode_verified(token):
+    """
+    decode the token after verifying its signature (RS256 only) against the
+    identity service's published keys. A token's kid header may only select
+    among those trusted keys.
+    :param token: encoded jwt
+    :return: decoded claims
+    """
+    kid = jwt.get_unverified_header(token).get("kid")
+    keys = _get_jwks_client().get_signing_keys()
+    signing_key = None
+    for key in keys:
+        if kid is None or key.key_id == kid:
+            signing_key = key
+            break
+    if signing_key is None:
+        raise jwt.exceptions.InvalidKeyError("No matching signing key found")
+    return jwt.decode(
+        token,
+        signing_key.key,
+        algorithms=["RS256"],
+        options={"verify_aud": False},
+    )
+
 
 def jwt_auth_required(func):
     """
@@ -56,7 +94,7 @@ def jwt_auth_required(func):
                 )
                 response_status_code = token_verify_response.status_code
                 if response_status_code == status.HTTP_200_OK:
-                    decoded = jwt.decode(token, options={"verify_signature": False})
+                    decoded = _decode_verified(token)
                     username = decoded["sub"]
                     user = User.objects.get(email=username)
                     # Add user object to the view function if authorized
@@ -75,7 +113,7 @@ def jwt_auth_required(func):
                 content_type="application/json",
             )
 
-        except (jwt.exceptions.DecodeError, User.DoesNotExist) as e:
+        except (jwt.exceptions.PyJWTError, KeyError, User.DoesNotExist) as e:
             logger.debug(
                 f"JWT token verification failed with exception: {e}", exc_info=True
             )
