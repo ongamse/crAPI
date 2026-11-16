@@ -1942,7 +1942,7 @@
           ],
           "body": {
             "mode": "raw",
-            "raw": "{\"email\":\"jhon@example.com\",\"password\":\"Admin1@#\"}"
+            "raw": "{\"email\":\"jhon@example.com\",\"password\":\"{{mechanic_password}}\"}"
           },
           "url": {
             "raw": "{{url}}/identity/api/auth/login",

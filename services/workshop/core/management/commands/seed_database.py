@@ -16,6 +16,7 @@
 Configuration for crapi application
 """
 import django
+import os
 import sys
 import time
 from django.apps import AppConfig
@@ -58,19 +59,25 @@ def create_mechanics():
     from crapi.user.models import User, UserDetails
     from crapi.mechanic.models import Mechanic
 
+    # Supplied at runtime; no default is committed. The previous literal
+    # remains in git history and must be treated as compromised.
+    mechanic_seed_password = os.environ.get("MECHANIC_SEED_PASSWORD")
+    if not mechanic_seed_password:
+        raise RuntimeError("Set the MECHANIC_SEED_PASSWORD environment variable")
+
     mechanic_details_all = [
         {
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": mechanic_seed_password,
             "mechanic_code": "TRAC_JHN",
         },
         {
             "name": "James",
             "email": "james@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": mechanic_seed_password,
             "mechanic_code": "TRAC_JME",
         },
     ]
