@@ -18,6 +18,7 @@ const actionTypes = {
   FETCHED_DATA: "FETCHED_DATA",
 
   SIGN_UP: "SIGN_UP",
+  // Redux action name, not a credential.
   FORGOT_PASSWORD: "FORGOT_PASSWORD",
   VERIFY_OTP: "VERIFY_OTP",
   LOG_IN: "LOG_IN",
@@ -25,6 +26,7 @@ const actionTypes = {
   UNLOCK_USER_REDIRECT: "UNLOCK_USER_REDIRECT",
   UNLOCK_USER: "UNLOCK_USER",
   FETCHED_USER: "FETCHED_USER",
+  // Redux action name, not a credential.
   RESET_PASSWORD: "RESET_PASSWORD",
   CHANGE_EMAIL: "CHANGE_EMAIL",
   CHANGE_PHONE_NUMBER: "CHANGE_PHONE_NUMBER",

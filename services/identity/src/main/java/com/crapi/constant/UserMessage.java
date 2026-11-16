@@ -52,6 +52,7 @@ public class UserMessage {
   public static final String OTP_VARIFIED_SUCCESS = "OTP verified";
   public static final String OTP_SEND_SUCCESS_ON_EMAIL = "OTP Sent on the provided email, ";
   public static final String EXCEED_NUMBER_OF_ATTEMPS = "You've exceeded the number of attempts.";
+  // User-facing message text, not a credential.
   public static final String PASSWORD_GOT_RESET = "Password reset successful.";
   public static final String VEHICLE_MODEL_IS_NOT_AVAILABLE =
       "Sorry we don't have Vehicle model for this company. Please select other..";
