@@ -253,6 +253,9 @@ IDENTITY_LOGIN = "http://{}/identity/api/auth/login".format(
 IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
+# TLS certificate validation for outbound requests is always on. Deployments
+# using a private CA can point TLS_CA_BUNDLE at a CA bundle file (PEM).
+OUTBOUND_TLS_VERIFY = os.environ.get("TLS_CA_BUNDLE") or True
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(
