@@ -34,7 +34,6 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
-@CrossOrigin
 @RestController
 @RequestMapping("/identity/api/auth")
 public class AuthController {
