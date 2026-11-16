@@ -21,6 +21,13 @@ spec:
         envFrom:
             - configMapRef:
                 name: crapi-chatbot-configmap
+        env:
+        # Secret is created out of band by operators; never commit its value.
+        - name: MONGO_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: crapi-chatbot-secret
+              key: MONGO_DB_PASSWORD
         resources:
           limits:
             cpu: "500m"

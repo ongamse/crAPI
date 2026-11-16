@@ -16,7 +16,9 @@
 contains all the views related to Merchant
 """
 import logging
+import re
 import requests
+from urllib.parse import urlparse
 from requests.exceptions import MissingSchema, InvalidURL
 from rest_framework import status
 from rest_framework.response import Response
@@ -35,6 +37,51 @@ from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
 
 
 logger = logging.getLogger()
+
+# The only endpoint the contact mechanic feature is allowed to call.
+MECHANIC_API_ALLOWED_PATH = "/workshop/api/mechanic/receive_report"
+# Hosts always allowed; more can be added with MECHANIC_API_ALLOWED_HOSTS.
+# An entry is either "hostname" (any port) or "hostname:port".
+DEFAULT_MECHANIC_API_ALLOWED_HOSTS = ("localhost", "127.0.0.1")
+
+
+def is_allowed_mechanic_api(url):
+    """
+    Check that the mechanic api url targets an allowlisted host and the
+    mechanic receive_report endpoint, over http(s) without credentials.
+    :param url: url supplied by the user
+    :returns True if the url is allowed, False otherwise
+    """
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https") or not hostname:
+        return False
+    if parsed.username is not None or parsed.password is not None:
+        return False
+    if parsed.path.rstrip("/") != MECHANIC_API_ALLOWED_PATH:
+        return False
+    allowed_hosts = set(DEFAULT_MECHANIC_API_ALLOWED_HOSTS)
+    allowed_hosts.update(getattr(settings, "MECHANIC_API_ALLOWED_HOSTS", []))
+    hostname = hostname.lower()
+    if hostname in allowed_hosts:
+        return True
+    return port is not None and f"{hostname}:{port}" in allowed_hosts
+
+
+def is_safe_header_value(value):
+    """
+    Check that a request-derived value is safe to place in an outbound HTTP
+    header: printable ASCII only, so no CR/LF or other control characters.
+    :param value: header value (None means the header is not sent)
+    :returns True if the value is safe, False otherwise
+    """
+    if value is None:
+        return True
+    return isinstance(value, str) and re.fullmatch(r"[\x20-\x7e]*", value) is not None
 
 
 class ContactMechanicView(APIView):
@@ -79,16 +126,42 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        request_url = request_data["mechanic_api"]
+        if not is_allowed_mechanic_api(request_url):
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.MECHANIC_API_NOT_ALLOWED,
+            )
+            return Response(
+                {"message": messages.MECHANIC_API_NOT_ALLOWED},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        authorization = request.META.get("HTTP_AUTHORIZATION")
+        if not is_safe_header_value(authorization):
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.INVALID_AUTHORIZATION_HEADER,
+            )
+            return Response(
+                {"message": messages.INVALID_AUTHORIZATION_HEADER},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         repeat_count = 0
         while True:
-            request_url = request_data["mechanic_api"]
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
             try:
                 mechanic_response = requests.get(
                     request_url,
                     params=request_data,
-                    headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
-                    verify=False,
+                    headers={"Authorization": authorization},
+                    verify=settings.OUTBOUND_TLS_VERIFY,
+                    allow_redirects=False,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")

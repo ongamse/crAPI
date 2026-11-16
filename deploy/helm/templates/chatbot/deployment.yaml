@@ -54,6 +54,22 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.chatbot.config.name }}
+          env:
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: DB_PASSWORD
+          - name: MONGO_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: MONGO_DB_PASSWORD
+          - name: API_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: API_PASSWORD
           {{- if .Values.chatbot.resources }}
           resources:
             {{- toYaml .Values.chatbot.resources | nindent 12 }}
@@ -63,3 +79,17 @@ spec:
               port: {{ .Values.chatbot.port }}
             initialDelaySeconds: 15
             periodSeconds: 10
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - name: tls-key
+              mountPath: /app/certs/server.key
+              subPath: server.key
+              readOnly: true
+          {{- end }}
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-key
+          secret:
+            secretName: {{ .Values.tlsKeySecretName }}
+            defaultMode: 0440
+      {{- end }}

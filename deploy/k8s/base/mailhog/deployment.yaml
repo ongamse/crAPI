@@ -44,6 +44,15 @@ spec:
           envFrom:
             - configMapRef:
                 name: mailhog-configmap
+          env:
+            # Secret crapi-credentials is created out of band; never commit its values.
+            - name: MONGO_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: MONGO_DB_PASSWORD
+            - name: MH_MONGO_URI
+              value: "admin:$(MONGO_DB_PASSWORD)@mongodb:27017"
           resources:
             limits:
               cpu: "1"

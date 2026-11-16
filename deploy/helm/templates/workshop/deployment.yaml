@@ -44,6 +44,32 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.workshop.config.name }}
+          env:
+          - name: SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: SECRET_KEY
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: DB_PASSWORD
+          - name: MONGO_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: MONGO_DB_PASSWORD
+          - name: API_GATEWAY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: API_GATEWAY_PASSWORD
+          - name: MECHANIC_SEED_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: MECHANIC_SEED_PASSWORD
           {{- if .Values.workshop.resources }}
           resources:
             {{- toYaml .Values.workshop.resources | nindent 12 }}
@@ -53,3 +79,17 @@ spec:
               port: {{ .Values.workshop.port }}
             initialDelaySeconds: 15
             periodSeconds: 10
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - name: tls-key
+              mountPath: /app/certs/server.key
+              subPath: server.key
+              readOnly: true
+          {{- end }}
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-key
+          secret:
+            secretName: {{ .Values.tlsKeySecretName }}
+            defaultMode: 0440
+      {{- end }}

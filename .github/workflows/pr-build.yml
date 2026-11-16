@@ -164,6 +164,14 @@ jobs:
         continue-on-error: true
         run:  docker compose -f deploy/docker/docker-compose.yml down --volumes --remove-orphans
 
+      - name: Generate ephemeral credentials
+        run: |
+          for v in DB_PASSWORD MONGO_DB_PASSWORD SECRET_KEY API_GATEWAY_PASSWORD MECHANIC_SEED_PASSWORD; do
+            val="$(openssl rand -hex 16)"
+            echo "::add-mask::${val}"
+            echo "${v}=${val}" >> "${GITHUB_ENV}"
+          done
+
       - name: Run crAPI using built images
         run: |
              cd deploy/docker
@@ -178,7 +186,7 @@ jobs:
         run: npm install -g newman
 
       - name: Run Postman Collection
-        run: newman run "./postman_collections/crAPI.postman_collection.json" -e ./postman_collections/crAPI.postman_environment.json --verbose
+        run: newman run "./postman_collections/crAPI.postman_collection.json" -e ./postman_collections/crAPI.postman_environment.json --env-var "mechanic_password=${MECHANIC_SEED_PASSWORD}" --verbose
 
       - name: Dump docker logs on failure
         if: failure()
@@ -215,6 +223,14 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
+
+      - name: Generate ephemeral credentials
+        run: |
+          for v in DB_PASSWORD MONGO_DB_PASSWORD SECRET_KEY API_GATEWAY_PASSWORD MECHANIC_SEED_PASSWORD; do
+            val="$(openssl rand -hex 16)"
+            echo "::add-mask::${val}"
+            echo "${v}=${val}" >> "${GITHUB_ENV}"
+          done
 
       - name: Start the database
         run: docker compose -f services/docker-database.yml up -d

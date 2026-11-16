@@ -2,16 +2,30 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
-apiGatewayPassword:
 tlsEnabled: false
+# Name of a pre-created Kubernetes Secret holding the PEM private key under data key "server.key".
+# Required when tlsEnabled=true, e.g.:
+#   kubectl create secret generic crapi-tls-key --from-file=server.key=/path/to/server.key
+tlsKeySecretName: crapi-tls-key
 jwtExpiration: 604800000
 openAIApiKey: ""
+
+# Credentials are NOT stored in this file. Supply them at install time, e.g.
+#   helm install crapi . --set credentials.dbPassword=... (or via a values file kept out of git).
+credentials:
+  dbPassword: ""
+  mongoDbPassword: ""
+  secretKey: ""
+  apiGatewayPassword: ""
+  mechanicSeedPassword: ""
+  chatbotApiPassword: ""
+  tlsKeystorePassword: ""
+  tlsKeyPassword: ""
 logLevel: INFO
 
 waitForK8sResources:
@@ -74,8 +88,6 @@ identity:
     smtpStartTLS: true
     keyStoreType: PKCS12
     keyStore: classpath:certs/server.p12
-    keyStorePassword: passw0rd
-    keyPassword: passw0rd
     keyAlias: identity
   deploymentLabels:
     app: crapi-identity
@@ -125,7 +137,6 @@ workshop:
       app: crapi-workshop
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     filesLimit: 1000
   deploymentLabels:
     app: crapi-workshop
@@ -151,11 +162,9 @@ chatbot:
       app: crapi-chatbot
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    apiPassword: Admin!123
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"
@@ -233,9 +242,7 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:
@@ -278,7 +285,6 @@ postgresdb:
     labels:
       app: postgresdb
     postgresUser: admin
-    postgresPassword: crapisecretpassword
     postgresDbName: crapi
   storage:
     # type: "manual"

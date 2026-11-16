@@ -23,6 +23,13 @@ spec:
           envFrom:
             - configMapRef:
                 name: postgres-config
+          env:
+            # Secret crapi-credentials is created out of band; never commit its values.
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: DB_PASSWORD
 
           volumeMounts:
             - mountPath: /var/lib/postgresql/data

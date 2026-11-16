@@ -93,7 +93,7 @@ class MerchantTestCase(TestCase):
             vehicle_model=self.vehicle_model,
         )
         self.contact_mechanic_request_body = {
-            "mechanic_api": "https://www.google.com",
+            "mechanic_api": "http://localhost:8000/workshop/api/mechanic/receive_report",
             "repeat_request_if_failed": True,
             "number_of_repeats": 5,
             "mechanic_code": self.mechanic["mechanic_code"],
@@ -134,20 +134,91 @@ class MerchantTestCase(TestCase):
         )
         self.assertNotEqual(res.status_code, 200)
 
+    def test_disallowed_mechanic_api(self):
+        """
+        gives mechanic_api urls that are not allowlisted (SSRF attempts)
+        should get a 400 response and no outbound request should be made
+        :return: None
+        """
+        disallowed_urls = [
+            "https://www.google.com",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://crapi-identity:8080/identity/api/auth/login",
+            "http://localhost:8000/workshop/api/shop/orders",
+            "http://localhost@evil.example.com/workshop/api/mechanic/receive_report",
+            "http://evil.example.com/workshop/api/mechanic/receive_report",
+            "file:///etc/passwd",
+            "ftp://localhost/workshop/api/mechanic/receive_report",
+        ]
+        for url in disallowed_urls:
+            self.contact_mechanic_request_body["mechanic_api"] = url
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+                mock_get.assert_not_called()
+            self.assertEqual(res.status_code, 400, url)
+            self.assertEqual(res.json()["message"], messages.MECHANIC_API_NOT_ALLOWED)
+
+    def test_header_injection_rejected(self):
+        """
+        values with CR/LF or other control characters must not be forwarded
+        as an outbound header
+        :return: None
+        """
+        from crapi.merchant.views import is_safe_header_value
+
+        self.assertTrue(is_safe_header_value(None))
+        self.assertTrue(is_safe_header_value("Bearer abc.def-ghi"))
+        for value in [
+            "Bearer abc\r\nX-Injected: 1",
+            "Bearer abc\nX-Injected: 1",
+            "Bearer abc\rX",
+            "Bearer abc\x00",
+            "Bearer abc\x7f",
+            "Bearer é",
+        ]:
+            self.assertFalse(is_safe_header_value(value), repr(value))
+
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            with patch(
+                "crapi.merchant.views.is_safe_header_value", return_value=False
+            ):
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+            mock_get.assert_not_called()
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["message"], messages.INVALID_AUTHORIZATION_HEADER)
+
     def test_contact_mechanic(self):
         """
         gives all correct field for contact mechanic
         should get a valid response from mechanic_api
         :return: None
         """
-        res = self.client.post(
-            "/workshop/api/merchant/contact_mechanic",
-            self.contact_mechanic_request_body,
-            **self.user_auth_headers,
-            content_type="application/json"
-        )
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"sent": True}
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+            self.assertEqual(
+                mock_get.call_args[0][0],
+                self.contact_mechanic_request_body["mechanic_api"],
+            )
+            self.assertFalse(mock_get.call_args[1]["allow_redirects"])
         self.assertEqual(res.status_code, 200)
-        self.assertIn("<title>Google</title>", res.json()["response_from_mechanic_api"])
+        self.assertEqual(res.json()["response_from_mechanic_api"], {"sent": True})
 
     def test_repeat_missing_request(self):
         """
@@ -156,12 +227,15 @@ class MerchantTestCase(TestCase):
         :return: None
         """
         del self.contact_mechanic_request_body["repeat_request_if_failed"]
-        res = self.client.post(
-            "/workshop/api/merchant/contact_mechanic",
-            self.contact_mechanic_request_body,
-            **self.user_auth_headers,
-            content_type="application/json"
-        )
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"sent": True}
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
         self.assertEqual(res.status_code, 200)
 
     def test_receive_report_and_get_report(self):

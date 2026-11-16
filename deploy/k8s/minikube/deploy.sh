@@ -16,6 +16,16 @@
 cd "$(dirname $0)"
 kubectl create namespace crapi
 
+kubectl create -n crapi secret generic crapi-credentials \
+  --from-literal=DB_PASSWORD="${DB_PASSWORD:?Set DB_PASSWORD}" \
+  --from-literal=MONGO_DB_PASSWORD="${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD}" \
+  --from-literal=SECRET_KEY="${SECRET_KEY:?Set SECRET_KEY}" \
+  --from-literal=API_GATEWAY_PASSWORD="${API_GATEWAY_PASSWORD:?Set API_GATEWAY_PASSWORD}" \
+  --from-literal=MECHANIC_SEED_PASSWORD="${MECHANIC_SEED_PASSWORD:?Set MECHANIC_SEED_PASSWORD}"
+kubectl create -n crapi secret generic crapi-chatbot-secret \
+  --from-literal=MONGO_DB_PASSWORD="${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD}"
+
+[ -f ../keys/jwks.json ] || { echo "Missing ../keys/jwks.json: provide your own RS256 JWKS (not stored in the repo)" >&2; exit 1; }
 kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
 kubectl apply -n crapi -f ../base/rbac
 kubectl apply -n crapi -f ../base/mongodb

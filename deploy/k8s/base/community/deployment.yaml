@@ -40,6 +40,18 @@ spec:
         envFrom:
             - configMapRef:
                 name: crapi-community-configmap
+        env:
+        # Secret crapi-credentials is created out of band; never commit its values.
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: crapi-credentials
+              key: DB_PASSWORD
+        - name: MONGO_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: crapi-credentials
+              key: MONGO_DB_PASSWORD
         resources:
           limits:
             cpu: "500m"

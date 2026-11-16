@@ -61,11 +61,26 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Host header allowlist (protects against DNS rebinding / Host header attacks).
+# The defaults cover local access, the container health check (0.0.0.0) and the
+# in-cluster/compose service name the web proxy uses. Additional hostnames can be
+# supplied as a comma separated list in the ALLOWED_HOSTS environment variable.
+DEFAULT_ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "0.0.0.0",
+    "crapi-workshop",
+]
+ALLOWED_HOSTS = DEFAULT_ALLOWED_HOSTS + [
+    host.strip()
+    for host in os.environ.get("ALLOWED_HOSTS", "").split(",")
+    if host.strip() and host.strip() not in DEFAULT_ALLOWED_HOSTS
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
 
 # Application definition
 
@@ -245,6 +260,16 @@ IDENTITY_LOGIN = "http://{}/identity/api/auth/login".format(
 IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
+# Comma separated list of additional "host" or "host:port" values that the
+# contact mechanic feature is allowed to call (besides the workshop's own origin).
+MECHANIC_API_ALLOWED_HOSTS = [
+    host.strip().lower()
+    for host in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
+# TLS certificate validation for outbound HTTPS calls. Defaults to the system/certifi
+# trust store; set OUTBOUND_CA_BUNDLE to the path of a CA bundle to trust a private CA.
+OUTBOUND_TLS_VERIFY = os.environ.get("OUTBOUND_CA_BUNDLE") or True
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(

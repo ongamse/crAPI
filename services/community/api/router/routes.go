@@ -81,7 +81,11 @@ func (server *Server) Run(addr string) {
 		if !is_key || key == "" {
 			key = "certs/server.key"
 		}
-		log.Println(srv.ListenAndServeTLS(certificate, key))
+		// The TLS private key is not baked into the image; it must be mounted at runtime.
+			if _, err := os.Stat(key); err != nil {
+				log.Fatalf("TLS is enabled but the private key %s is not available: %v", key, err)
+			}
+			log.Println(srv.ListenAndServeTLS(certificate, key))
 	} else {
 		log.Println(srv.ListenAndServe())
 	}

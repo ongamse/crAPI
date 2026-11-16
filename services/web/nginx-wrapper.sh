@@ -17,6 +17,11 @@
 if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
     export HTTP_PROTOCOL=https
     export NGINX_TEMPLATE=/etc/nginx/conf.d/default.ssl.conf.template
+    # The TLS private key is not baked into the image; it must be mounted at runtime.
+    if [ ! -f /app/certs/server.key ]; then
+        echo "TLS is enabled but the private key /app/certs/server.key is not mounted. Exiting." >&2
+        exit 1
+    fi
 else
     export HTTP_PROTOCOL=http
     export NGINX_TEMPLATE=/etc/nginx/conf.d/default.conf.template

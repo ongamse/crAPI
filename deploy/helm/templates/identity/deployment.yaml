@@ -42,7 +42,7 @@ spec:
           image: {{ .Values.identity.image }}:{{ .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           volumeMounts:
-            - mountPath: "/.keys"
+            - mountPath: "/app/keys"
               name: jwt-key-secret
               readOnly: true
           ports:
@@ -50,6 +50,27 @@ spec:
           envFrom:
               - configMapRef:
                   name: {{ .Values.identity.config.name }}
+          env:
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: DB_PASSWORD
+          - name: API_GATEWAY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: API_GATEWAY_PASSWORD
+          - name: TLS_KEYSTORE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: TLS_KEYSTORE_PASSWORD
+          - name: TLS_KEY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: TLS_KEY_PASSWORD
           {{- if .Values.identity.resources }}
           resources:
             {{- toYaml .Values.identity.resources | nindent 12 }}

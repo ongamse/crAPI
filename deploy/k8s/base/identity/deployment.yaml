@@ -27,7 +27,7 @@ spec:
         - name: crapi-identity
           image: crapi/crapi-identity:latest
           volumeMounts:
-            - mountPath: "/.keys"
+            - mountPath: "/app/keys"
               name: jwt-key-secret
               readOnly: true
           imagePullPolicy: Always
@@ -36,6 +36,18 @@ spec:
           envFrom:
               - configMapRef:
                   name: crapi-identity-configmap
+          env:
+          # Secret crapi-credentials is created out of band; never commit its values.
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: DB_PASSWORD
+          - name: API_GATEWAY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: API_GATEWAY_PASSWORD
           resources:
             limits:
               cpu: "500m"
