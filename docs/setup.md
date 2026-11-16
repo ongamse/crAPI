@@ -1,7 +1,7 @@
 Setup | crAPI
 =============
 
-> **Note**: Custom jwks key can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys`
+> **Note**: The private RSA JWKS used to sign JWTs is not shipped in the repository. Generate your own *jwks.json* (RS256, with a `kid`) and supply it at runtime: for docker compose set `JWKS_KEY_DIR` to a directory containing *jwks.json*; for Kubernetes/Helm create the `jwt-key-secret` Secret from it (`kubectl create -n crapi secret generic jwt-key-secret --from-file=jwks.json=/path/to/jwks.json`) or set `JWKS_FILE` when using the deploy scripts.
 
 ## Docker and docker compose
 

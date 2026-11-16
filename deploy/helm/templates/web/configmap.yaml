@@ -12,3 +12,4 @@ data:
   CHATBOT_SERVICE: {{ .Values.chatbot.service.name }}:{{ .Values.chatbot.port }}
   MAILHOG_WEB_SERVICE: {{ .Values.mailhog.webService.name }}:{{ .Values.mailhog.webPort }}
   TLS_ENABLED: {{ .Values.tlsEnabled | quote }}
+  TLS_KEY: "/app/tls/server.key"

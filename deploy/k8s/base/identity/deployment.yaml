@@ -27,7 +27,7 @@ spec:
         - name: crapi-identity
           image: crapi/crapi-identity:latest
           volumeMounts:
-            - mountPath: "/.keys"
+            - mountPath: "/app/keys"
               name: jwt-key-secret
               readOnly: true
           imagePullPolicy: Always
@@ -36,6 +36,17 @@ spec:
           envFrom:
               - configMapRef:
                   name: crapi-identity-configmap
+          env:
+              - name: DB_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: crapi-db-credentials
+                    key: DB_PASSWORD
+              - name: API_GATEWAY_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: crapi-app-secrets
+                    key: API_GATEWAY_PASSWORD
           resources:
             limits:
               cpu: "500m"

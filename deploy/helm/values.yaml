@@ -2,14 +2,22 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
-apiGatewayPassword:
+# Required: supply at install time, e.g. --set apiGatewayPassword=... (never commit values)
+apiGatewayPassword: ""
 tlsEnabled: false
+# Comma separated explicit list of origins allowed to call the identity and workshop APIs (CORS).
+# Wildcards are not allowed. Override with the public URL(s) of the web app.
+corsAllowedOrigins: "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443"
+# Name of a pre-created Kubernetes Secret holding the TLS private key (key: server.key)
+# and, for identity, the PKCS12 keystore (key: server.p12). It is mounted at /app/tls.
+# Create it out of band, e.g.
+#   kubectl create secret generic crapi-tls --from-file=server.key --from-file=server.p12
+tlsSecretName: crapi-tls
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
@@ -53,9 +61,11 @@ identity:
     name: crapi-identity
     labels:
       app: crapi-identity
+  # Pre-created Secret holding the private RSA JWKS (key: jwks.json), mounted at /app/keys.
+  # Create it out of band, never commit it, e.g.
+  #   kubectl create -n crapi secret generic jwt-key-secret --from-file=jwks.json=/path/to/jwks.json
   jwtKeySecret:
     name: jwt-key-secret
-    file: keys/jwks.json
     labels:
       app: crapi-identity
   config:
@@ -73,7 +83,8 @@ identity:
     smtpAuth: true
     smtpStartTLS: true
     keyStoreType: PKCS12
-    keyStore: classpath:certs/server.p12
+    keyStore: file:/app/tls/server.p12
+    # Password of the PKCS12 keystore mounted from the TLS secret; override with --set at install time
     keyStorePassword: passw0rd
     keyPassword: passw0rd
     keyAlias: identity
@@ -127,6 +138,8 @@ workshop:
     mongoDbDriver: mongodb
     secretKey: crapi
     filesLimit: 1000
+    # Extra comma separated hostnames allowed in the Host header (added to localhost and the service name)
+    allowedHosts: ""
   deploymentLabels:
     app: crapi-workshop
   podLabels:
@@ -155,6 +168,7 @@ chatbot:
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
+    # Password of the seeded demo admin account, not a deployment secret
     apiPassword: Admin!123
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
@@ -233,9 +247,9 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
+    # Required: supply at install time, e.g. --set mongodb.config.mongoPassword=...
+    mongoPassword: ""
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:

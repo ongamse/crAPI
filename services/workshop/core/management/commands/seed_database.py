@@ -58,6 +58,7 @@ def create_mechanics():
     from crapi.user.models import User, UserDetails
     from crapi.mechanic.models import Mechanic
 
+    # Demo mechanic accounts seeded for the lab app; documented credentials, not deployment secrets.
     mechanic_details_all = [
         {
             "name": "Jhon",
@@ -217,7 +218,7 @@ def ping_identity_server():
         headers = {
             "Accept": "*/*",
         }
-        request = requests.get(identity_health_url, headers, verify=False)
+        request = requests.get(identity_health_url, headers, verify=settings.TLS_CA_BUNDLE)
         if request.status_code == 200:
             return True
         else:

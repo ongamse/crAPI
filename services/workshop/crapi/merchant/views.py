@@ -16,6 +16,7 @@
 contains all the views related to Merchant
 """
 import logging
+from urllib.parse import urlparse
 import requests
 from requests.exceptions import MissingSchema, InvalidURL
 from rest_framework import status
@@ -35,6 +36,44 @@ from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
 
 
 logger = logging.getLogger()
+
+
+def is_allowed_mechanic_api(url):
+    """
+    checks that the mechanic api url is http(s) and points to an allowlisted host
+    (settings.MECHANIC_API_ALLOWED_HOSTS), without embedded credentials
+    :param url: url supplied by the user
+    :returns True if the url may be requested, False otherwise
+    """
+    if not isinstance(url, str) or any(
+        char == "\\" or char.isspace() or ord(char) < 32 for char in url
+    ):
+        return False
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        parsed.port  # pylint: disable=pointless-statement  # raises on bad port
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https") or not hostname:
+        return False
+    if parsed.username is not None or parsed.password is not None:
+        return False
+    return hostname.lower() in settings.MECHANIC_API_ALLOWED_HOSTS
+
+
+def is_safe_header_value(value):
+    """
+    checks that a value forwarded in an outgoing http header has no CR/LF or
+    other control characters (header injection / response splitting)
+    :param value: header value taken from the incoming request
+    :returns True if value is None or a string free of control characters
+    """
+    if value is None:
+        return True
+    if not isinstance(value, str):
+        return False
+    return not any(ord(char) < 32 or ord(char) == 127 for char in value)
 
 
 class ContactMechanicView(APIView):
@@ -79,16 +118,42 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        request_url = request_data["mechanic_api"]
+        if not is_allowed_mechanic_api(request_url):
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.MECHANIC_API_NOT_ALLOWED,
+            )
+            return Response(
+                {"message": messages.MECHANIC_API_NOT_ALLOWED},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        authorization_header = request.META.get("HTTP_AUTHORIZATION")
+        if not is_safe_header_value(authorization_header):
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.INVALID_AUTHORIZATION_HEADER,
+            )
+            return Response(
+                {"message": messages.INVALID_AUTHORIZATION_HEADER},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         repeat_count = 0
         while True:
-            request_url = request_data["mechanic_api"]
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
             try:
                 mechanic_response = requests.get(
                     request_url,
+                    allow_redirects=False,
                     params=request_data,
-                    headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
-                    verify=False,
+                    headers={"Authorization": authorization_header},
+                    verify=settings.TLS_CA_BUNDLE,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")

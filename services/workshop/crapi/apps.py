@@ -52,6 +52,7 @@ def create_mechanics():
     from crapi.user.models import User, UserDetails
     from crapi.mechanic.models import Mechanic
 
+    # Demo mechanic accounts seeded for the lab app; documented credentials, not deployment secrets.
     mechanic_details_all = [
         {
             "name": "Jhon",

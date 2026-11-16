@@ -44,6 +44,14 @@ spec:
           envFrom:
             - configMapRef:
                 name: mailhog-configmap
+          env:
+            - name: MONGO_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-db-credentials
+                  key: MONGO_DB_PASSWORD
+            - name: MH_MONGO_URI
+              value: "admin:$(MONGO_DB_PASSWORD)@mongodb:27017"
           resources:
             limits:
               cpu: "1"

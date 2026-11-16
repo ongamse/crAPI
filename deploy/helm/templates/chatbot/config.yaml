@@ -10,6 +10,7 @@ data:
     IDENTITY_SERVICE: {{ .Values.identity.service.name }}:{{ .Values.identity.port }}
     WEB_SERVICE: {{ .Values.web.service.name }}
     TLS_ENABLED: {{ .Values.tlsEnabled | quote }}
+    TLS_KEY: "/app/tls/server.key"
     DB_HOST: {{ .Values.postgresdb.service.name }}
     DB_USER: {{ .Values.postgresdb.config.postgresUser }}
     DB_PASSWORD: {{ .Values.postgresdb.config.postgresPassword }}

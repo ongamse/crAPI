@@ -17,12 +17,19 @@
 if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
     export HTTP_PROTOCOL=https
     export NGINX_TEMPLATE=/etc/nginx/conf.d/default.ssl.conf.template
+    # The private key is not baked into the image. Mount it at runtime and point
+    # TLS_KEY at it (default: /app/certs/server.key). Fail closed when missing.
+    export TLS_KEY="${TLS_KEY:-/app/certs/server.key}"
+    if [ ! -r "$TLS_KEY" ]; then
+        echo "TLS is enabled but no private key found at $TLS_KEY. Mount it and/or set TLS_KEY." >&2
+        exit 1
+    fi
 else
     export HTTP_PROTOCOL=http
     export NGINX_TEMPLATE=/etc/nginx/conf.d/default.conf.template
 fi
 ls -al /app/certs
 env
-envsubst '${HTTP_PROTOCOL} ${COMMUNITY_SERVICE} ${IDENTITY_SERVICE} ${WORKSHOP_SERVICE} ${CHATBOT_SERVICE} ${MAILHOG_WEB_SERVICE}' < $NGINX_TEMPLATE > /etc/nginx/conf.d/default.conf
+envsubst '${HTTP_PROTOCOL} ${COMMUNITY_SERVICE} ${IDENTITY_SERVICE} ${WORKSHOP_SERVICE} ${CHATBOT_SERVICE} ${MAILHOG_WEB_SERVICE} ${TLS_KEY}' < $NGINX_TEMPLATE > /etc/nginx/conf.d/default.conf
 openresty
 exec "$@"

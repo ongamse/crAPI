@@ -6,3 +6,13 @@ deploy/vagrant/.vagrant
 services/chatbot/db
 services/certs/
 docker-compose.local.yml
+
+# Private keys / keystores are supplied at runtime and must never be committed
+*.key
+*.p12
+*.keystore
+services/tls/
+deploy/docker/tls/
+
+# Private JWKS (RSA private members) is supplied at runtime and must never be committed
+jwks.json

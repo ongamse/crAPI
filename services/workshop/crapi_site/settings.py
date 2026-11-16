@@ -61,11 +61,22 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Explicit Host header allowlist (comma separated), no wildcard. The defaults cover
+# local access and the in-cluster service name used by the web proxy. Set
+# ALLOWED_HOSTS to the full list of hostnames the deployment is reached by.
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS", "localhost,127.0.0.1,[::1],crapi-workshop"
+    ).split(",")
+    if host.strip() and host.strip() != "*"
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+# Supplied via the environment; the previously hard-coded value remains in git
+# history and must be rotated.
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
 
 # Application definition
 
@@ -99,7 +110,17 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Explicit allowlist of origins (comma separated), no wildcard.
+CORS_ORIGIN_ALLOW_ALL = False
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:8888,https://localhost:8443,"
+        "http://127.0.0.1:8888,https://127.0.0.1:8443",
+    ).split(",")
+    if origin.strip() and origin.strip() != "*"
+]
 
 ROOT_URLCONF = "crapi_site.urls"
 
@@ -245,6 +266,17 @@ IDENTITY_LOGIN = "http://{}/identity/api/auth/login".format(
 IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
+# Hostnames the contact mechanic feature may call back (comma separated).
+# Set MECHANIC_API_ALLOWED_HOSTS to add the public hostname of the deployment.
+MECHANIC_API_ALLOWED_HOSTS = {"localhost", "127.0.0.1"} | {
+    host.strip().lower()
+    for host in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+}
+# Value for the `verify` argument of outbound HTTPS requests (API gateway, identity,
+# mechanic API). Certificates are always verified; set TLS_CA_BUNDLE to the path of a
+# CA bundle when internal services use a private/self-signed CA.
+TLS_CA_BUNDLE = os.environ.get("TLS_CA_BUNDLE", "").strip() or True
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(
