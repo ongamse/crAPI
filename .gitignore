@@ -10,3 +10,6 @@ services/*/certs/server.key
 services/identity/src/main/resources/certs/server.key
 services/gateway-service/server.key
 docker-compose.local.yml
+# JWT signing keys (JWKS with private components) are supplied at deploy time; never commit them
+deploy/*/keys/jwks.json
+services/identity/jwks.json

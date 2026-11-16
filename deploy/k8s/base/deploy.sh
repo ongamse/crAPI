@@ -3,7 +3,8 @@ cd "$(dirname $0)"
 kubectl create namespace crapi
 #kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 
-kubectl create -n secret generic jwt-key-secret --from-file=../keys
+# Optional: export JWKS_FILE=/path/to/jwks.json to use a stable signing key (otherwise an ephemeral one is generated)
+kubectl create -n crapi secret generic jwt-key-secret ${JWKS_FILE:+--from-file=jwks.json="$JWKS_FILE"}
 kubectl create -n crapi secret generic crapi-secrets \
   --from-literal=DB_PASSWORD="${DB_PASSWORD:?Set DB_PASSWORD}" \
   --from-literal=MONGO_DB_PASSWORD="${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD}" \

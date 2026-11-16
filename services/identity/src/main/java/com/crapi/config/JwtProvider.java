@@ -22,7 +22,9 @@ import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.SignedJWT;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
@@ -52,12 +54,27 @@ public class JwtProvider {
 
   private Map<String, Object> publicJwkSet;
 
-  public JwtProvider(@Value("${app.jwksJson}") String jwksJson) {
+  public JwtProvider(@Value("${app.jwksJson:}") String jwksJson) {
     try {
-      Base64.Decoder decoder = Base64.getDecoder();
-      InputStream jwksStream = new ByteArrayInputStream(decoder.decode(jwksJson));
-      JWKSet jwkSet = JWKSet.load(jwksStream);
-      jwksStream.close();
+      JWKSet jwkSet;
+      if (jwksJson == null || jwksJson.isBlank()) {
+        // No signing key supplied: generate an ephemeral one instead of shipping a committed
+        // private key. Tokens issued with it are invalidated on restart; supply a base64 encoded
+        // JWKS (JWKS env var or keys/jwks.json mount) to keep a stable key.
+        log.warn("No JWKS signing key supplied; generating an ephemeral RSA signing key");
+        RSAKey generated =
+            new RSAKeyGenerator(2048)
+                .keyUse(KeyUse.SIGNATURE)
+                .algorithm(JWSAlgorithm.RS256)
+                .keyIDFromThumbprint(true)
+                .generate();
+        jwkSet = new JWKSet(generated);
+      } else {
+        Base64.Decoder decoder = Base64.getDecoder();
+        InputStream jwksStream = new ByteArrayInputStream(decoder.decode(jwksJson));
+        jwkSet = JWKSet.load(jwksStream);
+        jwksStream.close();
+      }
       List<JWK> keys = jwkSet.getKeys();
       if (keys.size() != 1 || !Objects.equals(keys.get(0).getAlgorithm().getName(), "RS256")) {
         throw new RuntimeException("Invalid JWKS key passed!!!");

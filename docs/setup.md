@@ -1,7 +1,7 @@
 Setup | crAPI
 =============
 
-> **Note**: Custom jwks key can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys`
+> **Note**: No JWT signing key is committed to the repository. By default the identity service generates an ephemeral RSA key at startup (issued tokens become invalid after a restart). To use a stable key, add your own *jwks.json* (a single RS256 RSA JWK) in the *keys* folder of the deployment folder such as `/deploy/docker/keys`, or for Kubernetes export `JWKS_FILE=/path/to/jwks.json` before running the deploy script.
 
 ## Docker and docker compose
 
