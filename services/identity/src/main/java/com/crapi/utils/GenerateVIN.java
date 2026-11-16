@@ -14,7 +14,7 @@
 
 package com.crapi.utils;
 
-import java.util.Random;
+import java.security.SecureRandom;
 
 public class GenerateVIN {
 
@@ -22,14 +22,10 @@ public class GenerateVIN {
   static String num = "0123456789";
   String vin = "";
   String pincode = "";
-  Random random;
+  SecureRandom random;
 
   public GenerateVIN() {
-    random = new Random();
-  }
-
-  public GenerateVIN(long seed) {
-    random = new Random(seed);
+    random = new SecureRandom();
   }
 
   /** @return random generate pin code for add vehicle */
