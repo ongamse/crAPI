@@ -71,7 +71,8 @@ public class VehicleOwnershipServiceImpl implements VehicleOwnershipService {
     SSLContext sslContext =
         org.apache.http.ssl.SSLContexts.custom().loadTrustMaterial(null, allTrustStrategy).build();
     SSLConnectionSocketFactory csf =
-        new SSLConnectionSocketFactory(sslContext, NoopHostnameVerifier.INSTANCE);
+        new SSLConnectionSocketFactory(
+            sslContext, new String[] {"TLSv1.3", "TLSv1.2"}, null, NoopHostnameVerifier.INSTANCE);
     CloseableHttpClient httpClient =
         HttpClients.custom().setSSLSocketFactory(csf).setSSLContext(sslContext).build();
     builder =
