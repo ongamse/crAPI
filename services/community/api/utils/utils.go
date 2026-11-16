@@ -15,9 +15,40 @@
 package utils
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"log"
 	"os"
 	"strings"
+	"sync"
 )
+
+var (
+	clientTLSConfig     *tls.Config
+	clientTLSConfigOnce sync.Once
+)
+
+// ClientTLSConfig returns a TLS config for outbound HTTPS calls that always
+// verifies the server certificate. Trust roots are the system trust store,
+// plus an optional operator-supplied PEM CA bundle from SSL_CERT_FILE.
+func ClientTLSConfig() *tls.Config {
+	clientTLSConfigOnce.Do(func() {
+		pool, err := x509.SystemCertPool()
+		if err != nil || pool == nil {
+			pool = x509.NewCertPool()
+		}
+		if caFile := os.Getenv("SSL_CERT_FILE"); caFile != "" {
+			pem, err := os.ReadFile(caFile)
+			if err != nil {
+				log.Printf("Unable to read CA bundle %s: %v", caFile, err)
+			} else if !pool.AppendCertsFromPEM(pem) {
+				log.Printf("No valid certificates found in CA bundle %s", caFile)
+			}
+		}
+		clientTLSConfig = &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: pool}
+	})
+	return clientTLSConfig.Clone()
+}
 
 func IsTrue(a string) bool {
 	a = strings.ToLower(a)
