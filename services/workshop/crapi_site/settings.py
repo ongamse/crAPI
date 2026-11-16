@@ -254,6 +254,10 @@ MECHANIC_API_ALLOWED_HOSTS = {"localhost", "127.0.0.1"} | {
     for host in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
     if host.strip()
 }
+# Value for the `verify` argument of outbound HTTPS requests (API gateway, identity,
+# mechanic API). Certificates are always verified; set TLS_CA_BUNDLE to the path of a
+# CA bundle when internal services use a private/self-signed CA.
+TLS_CA_BUNDLE = os.environ.get("TLS_CA_BUNDLE", "").strip() or True
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(

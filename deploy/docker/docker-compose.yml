@@ -49,6 +49,8 @@ services:
       - TLS_KEYSTORE_PASSWORD=passw0rd
       - TLS_KEY_PASSWORD=passw0rd
       - TLS_KEY_ALIAS=identity
+      - API_GATEWAY_TRUSTSTORE=${API_GATEWAY_TRUSTSTORE:-}
+      - API_GATEWAY_TRUSTSTORE_PASSWORD=${API_GATEWAY_TRUSTSTORE_PASSWORD:-}
     depends_on:
       postgresdb:
         condition: service_healthy
@@ -133,6 +135,7 @@ services:
       - TLS_CERTIFICATE=certs/server.crt
       - TLS_KEY=certs/server.key
       - FILES_LIMIT=1000
+      - TLS_CA_BUNDLE=${TLS_CA_BUNDLE:-}
     depends_on:
       postgresdb:
         condition: service_healthy

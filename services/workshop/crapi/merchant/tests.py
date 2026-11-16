@@ -188,6 +188,7 @@ class MerchantTestCase(TestCase):
             mock_get.call_args[0][0],
             self.contact_mechanic_request_body["mechanic_api"],
         )
+        self.assertIsNot(mock_get.call_args[1]["verify"], False)
 
     def test_repeat_missing_request(self):
         """

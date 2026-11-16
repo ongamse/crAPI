@@ -36,3 +36,5 @@ data:
   TLS_KEYSTORE_PASSWORD: {{ .Values.identity.config.keyStorePassword }}
   TLS_KEY_PASSWORD: {{ .Values.identity.config.keyPassword }}
   TLS_KEY_ALIAS: {{ .Values.identity.config.keyAlias }}
+  API_GATEWAY_TRUSTSTORE: {{ .Values.identity.config.apiGatewayTruststore | default "" | quote }}
+  API_GATEWAY_TRUSTSTORE_PASSWORD: {{ .Values.identity.config.apiGatewayTruststorePassword | default "" | quote }}
