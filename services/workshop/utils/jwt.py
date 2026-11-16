@@ -113,6 +113,7 @@ def jwt_auth_required(func):
                     identity_url,
                     json=tokenJson,
                     verify=settings.OUTBOUND_TLS_VERIFY,
+                    timeout=settings.OUTBOUND_REQUEST_TIMEOUT,
                 )
                 logger.debug(
                     f"Identity url: {identity_url}, token_verify_response: {token_verify_response}"
@@ -138,7 +139,12 @@ def jwt_auth_required(func):
                 content_type="application/json",
             )
 
-        except (jwt.exceptions.PyJWTError, KeyError, User.DoesNotExist) as e:
+        except (
+            jwt.exceptions.PyJWTError,
+            KeyError,
+            User.DoesNotExist,
+            requests.exceptions.Timeout,
+        ) as e:
             logger.debug(
                 f"JWT token verification failed with exception: {e}", exc_info=True
             )

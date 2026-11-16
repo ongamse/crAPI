@@ -218,7 +218,10 @@ def ping_identity_server():
             "Accept": "*/*",
         }
         request = requests.get(
-            identity_health_url, headers, verify=settings.OUTBOUND_TLS_VERIFY
+            identity_health_url,
+            headers,
+            verify=settings.OUTBOUND_TLS_VERIFY,
+            timeout=settings.OUTBOUND_REQUEST_TIMEOUT,
         )
         if request.status_code == 200:
             return True

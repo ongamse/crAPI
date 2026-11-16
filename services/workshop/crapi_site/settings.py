@@ -263,6 +263,9 @@ TLS_ENABLED = os.environ.get("TLS_ENABLED")
 # private or self-signed CA.
 TLS_CA_BUNDLE = os.environ.get("TLS_CA_BUNDLE")
 OUTBOUND_TLS_VERIFY = TLS_CA_BUNDLE if TLS_CA_BUNDLE else True
+# Upper bound (seconds) for outbound HTTP requests so a slow or unresponsive
+# peer cannot hold workers indefinitely.
+OUTBOUND_REQUEST_TIMEOUT = float(os.environ.get("OUTBOUND_REQUEST_TIMEOUT", "10"))
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(
         get_env_value("IDENTITY_SERVICE")
