@@ -245,6 +245,13 @@ IDENTITY_LOGIN = "http://{}/identity/api/auth/login".format(
 IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
+# Hostnames the contact mechanic feature may call back (comma separated).
+# Set MECHANIC_API_ALLOWED_HOSTS to add the public hostname of the deployment.
+MECHANIC_API_ALLOWED_HOSTS = {"localhost", "127.0.0.1"} | {
+    host.strip().lower()
+    for host in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+}
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(

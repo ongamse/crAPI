@@ -13,7 +13,7 @@
 """
 contains all the test cases related to merchant
 """
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from utils.mock_methods import (
     get_sample_mechanic_data,
     mock_jwt_auth_required,
@@ -93,7 +93,7 @@ class MerchantTestCase(TestCase):
             vehicle_model=self.vehicle_model,
         )
         self.contact_mechanic_request_body = {
-            "mechanic_api": "https://www.google.com",
+            "mechanic_api": "http://localhost:8000/workshop/api/mechanic/receive_report",
             "repeat_request_if_failed": True,
             "number_of_repeats": 5,
             "mechanic_code": self.mechanic["mechanic_code"],
@@ -119,20 +119,30 @@ class MerchantTestCase(TestCase):
 
     def test_wrong_mechanic_api(self):
         """
-        changes mechanic_api to an invalid url
-        should get an error message
+        changes mechanic_api to urls that are not allowlisted
+        should get an error message and no outbound request
         :return: None
         """
-        self.contact_mechanic_request_body["mechanic_api"] = (
-            "https://jsonplaceholder.typicode.com/post"
-        )
-        res = self.client.post(
-            "/workshop/api/merchant/contact_mechanic",
-            self.contact_mechanic_request_body,
-            **self.user_auth_headers,
-            content_type="application/json"
-        )
-        self.assertNotEqual(res.status_code, 200)
+        for url in [
+            "https://jsonplaceholder.typicode.com/post",
+            "http://169.254.169.254/latest/meta-data/",
+            "file:///etc/passwd",
+            "http://localhost@evil.example.com/",
+            "http://localhost:99999/",
+        ]:
+            self.contact_mechanic_request_body["mechanic_api"] = url
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(
+                res.json()["message"], messages.MECHANIC_API_NOT_ALLOWED
+            )
+            mock_get.assert_not_called()
 
     def test_contact_mechanic(self):
         """
@@ -140,14 +150,23 @@ class MerchantTestCase(TestCase):
         should get a valid response from mechanic_api
         :return: None
         """
-        res = self.client.post(
-            "/workshop/api/merchant/contact_mechanic",
-            self.contact_mechanic_request_body,
-            **self.user_auth_headers,
-            content_type="application/json"
-        )
+        mock_response = MagicMock(status_code=200, text="ok")
+        mock_response.json.return_value = {"sent": True}
+        with patch(
+            "crapi.merchant.views.requests.get", return_value=mock_response
+        ) as mock_get:
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
         self.assertEqual(res.status_code, 200)
-        self.assertIn("<title>Google</title>", res.json()["response_from_mechanic_api"])
+        self.assertEqual(res.json()["response_from_mechanic_api"], {"sent": True})
+        self.assertEqual(
+            mock_get.call_args[0][0],
+            self.contact_mechanic_request_body["mechanic_api"],
+        )
 
     def test_repeat_missing_request(self):
         """
@@ -156,12 +175,15 @@ class MerchantTestCase(TestCase):
         :return: None
         """
         del self.contact_mechanic_request_body["repeat_request_if_failed"]
-        res = self.client.post(
-            "/workshop/api/merchant/contact_mechanic",
-            self.contact_mechanic_request_body,
-            **self.user_auth_headers,
-            content_type="application/json"
-        )
+        mock_response = MagicMock(status_code=200, text="ok")
+        mock_response.json.return_value = {"sent": True}
+        with patch("crapi.merchant.views.requests.get", return_value=mock_response):
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
         self.assertEqual(res.status_code, 200)
 
     def test_receive_report_and_get_report(self):
