@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -173,7 +174,16 @@ func main() {
 	http.HandleFunc("/v1/payment", GetPayMentInfo)
 	listen_addr := fmt.Sprintf(":%d", *port)
 	log.Printf("Listening on %s", listen_addr)
-	err := http.ListenAndServeTLS(listen_addr, "server.crt", "server.key", nil)
+	// TLS material is supplied at runtime (generated at image build or mounted); no key is committed.
+	tlsCert := os.Getenv("TLS_CERTIFICATE")
+	if tlsCert == "" {
+		tlsCert = "server.crt"
+	}
+	tlsKey := os.Getenv("TLS_KEY")
+	if tlsKey == "" {
+		tlsKey = "server.key"
+	}
+	err := http.ListenAndServeTLS(listen_addr, tlsCert, tlsKey, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
