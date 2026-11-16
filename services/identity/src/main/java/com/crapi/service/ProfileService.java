@@ -29,7 +29,7 @@ public interface ProfileService {
 
   ProfileVideo uploadProfileVideo(MultipartFile file, HttpServletRequest request);
 
-  ProfileVideo updateProfileVideo(VideoForm videoForm, HttpServletRequest request);
+  ProfileVideo updateProfileVideo(Long videoId, VideoForm videoForm, HttpServletRequest request);
 
   CRAPIResponse deleteProfileVideo(Long videoId, HttpServletRequest request);
 
