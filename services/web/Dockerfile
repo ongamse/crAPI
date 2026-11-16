@@ -26,7 +26,7 @@ RUN ls /app/build
 
 # Main Image
 FROM openresty/openresty:alpine
-RUN apk add gettext curl
+RUN apk add gettext curl libcap
 # React
 RUN rm /etc/nginx/conf.d/default.conf
 COPY --from=build /app/build /usr/share/nginx/html
@@ -36,7 +36,15 @@ COPY ./nginx.ssl.conf.template /etc/nginx/conf.d/default.ssl.conf.template
 RUN mkdir -p /app
 COPY ./certs /app/certs
 RUN echo "daemon off;" >> /usr/local/openresty/nginx/conf/nginx.conf
+
+# Run as an unprivileged user. nginx needs to write its logs/temp dirs and the
+# generated conf.d file; the binary gets CAP_NET_BIND_SERVICE to bind 80/443.
+# setcap runs after chown because chown clears file capabilities.
+RUN addgroup -S app && adduser -S -G app app \
+    && chown -R app:app /usr/local/openresty/nginx /etc/nginx/conf.d /app \
+    && setcap cap_net_bind_service=+ep "$(readlink -f /usr/local/openresty/bin/openresty)"
 EXPOSE 80
 EXPOSE 443
 
+USER app
 CMD [ "/etc/nginx/nginx-wrapper.sh" ]
