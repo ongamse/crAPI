@@ -23,5 +23,6 @@ data:
     API_GATEWAY_URL: {{ if .Values.apiGatewayServiceInstall }}"https://{{ .Values.apiGatewayService.service.name }}"{{ else }}{{ .Values.apiGatewayServiceUrl }}{{ end }}
     TLS_ENABLED: {{ .Values.tlsEnabled | quote }}
     TLS_KEY: "/app/tls/server.key"
+    CORS_ALLOWED_ORIGINS: {{ .Values.corsAllowedOrigins | quote }}
     FILES_LIMIT: {{ .Values.workshop.config.filesLimit | quote }}
     TLS_CA_BUNDLE: {{ .Values.workshop.config.tlsCaBundle | default "" | quote }}

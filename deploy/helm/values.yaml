@@ -10,6 +10,9 @@ apiGatewayServiceInstall: true
 # Required: supply at install time, e.g. --set apiGatewayPassword=... (never commit values)
 apiGatewayPassword: ""
 tlsEnabled: false
+# Comma separated explicit list of origins allowed to call the identity and workshop APIs (CORS).
+# Wildcards are not allowed. Override with the public URL(s) of the web app.
+corsAllowedOrigins: "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443"
 # Name of a pre-created Kubernetes Secret holding the TLS private key (key: server.key)
 # and, for identity, the PKCS12 keystore (key: server.p12). It is mounted at /app/tls.
 # Create it out of band, e.g.
