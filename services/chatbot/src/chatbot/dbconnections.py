@@ -1,14 +1,20 @@
 import os
+from urllib.parse import quote_plus
 
 MONGO_USER = os.environ.get("MONGO_DB_USER", "admin")
-MONGO_PASSWORD = os.environ.get("MONGO_DB_PASSWORD", "crapisecretpassword")
+# No hard-coded default: fail closed when the password is not supplied.
+# The previously committed default credential must be rotated because it
+# remains in git history.
+MONGO_PASSWORD = os.environ.get("MONGO_DB_PASSWORD")
+if not MONGO_PASSWORD:
+    raise RuntimeError("MONGO_DB_PASSWORD environment variable must be set")
 MONGO_HOST = os.environ.get("MONGO_DB_HOST", "mongodb")
 MONGO_PORT = os.environ.get("MONGO_DB_PORT", "27017")
 MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "crapi")
 
 MONGO_CONNECTION_URI = "mongodb://%s:%s@%s:%s/?directConnection=true" % (
-    MONGO_USER,
-    MONGO_PASSWORD,
+    quote_plus(MONGO_USER),
+    quote_plus(MONGO_PASSWORD),
     MONGO_HOST,
     MONGO_PORT,
 )
