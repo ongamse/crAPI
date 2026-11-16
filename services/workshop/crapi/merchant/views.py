@@ -16,6 +16,7 @@
 contains all the views related to Merchant
 """
 import logging
+import re
 import requests
 from urllib.parse import urlparse
 from requests.exceptions import MissingSchema, InvalidURL
@@ -69,6 +70,18 @@ def is_allowed_mechanic_api(url):
     if hostname in allowed_hosts:
         return True
     return port is not None and f"{hostname}:{port}" in allowed_hosts
+
+
+def is_safe_header_value(value):
+    """
+    Check that a request-derived value is safe to place in an outbound HTTP
+    header: printable ASCII only, so no CR/LF or other control characters.
+    :param value: header value (None means the header is not sent)
+    :returns True if the value is safe, False otherwise
+    """
+    if value is None:
+        return True
+    return isinstance(value, str) and re.fullmatch(r"[\x20-\x7e]*", value) is not None
 
 
 class ContactMechanicView(APIView):
@@ -126,6 +139,19 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        authorization = request.META.get("HTTP_AUTHORIZATION")
+        if not is_safe_header_value(authorization):
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.INVALID_AUTHORIZATION_HEADER,
+            )
+            return Response(
+                {"message": messages.INVALID_AUTHORIZATION_HEADER},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         repeat_count = 0
         while True:
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
@@ -133,7 +159,7 @@ class ContactMechanicView(APIView):
                 mechanic_response = requests.get(
                     request_url,
                     params=request_data,
-                    headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
+                    headers={"Authorization": authorization},
                     verify=False,
                     allow_redirects=False,
                 )
