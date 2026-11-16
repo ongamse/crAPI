@@ -42,8 +42,19 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
-      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
+      if (containsControlChars(sendMail, false) || containsControlChars(subject, false)) {
+        log.error("sendMail rejected: recipient or subject contains control characters");
+        return;
+      }
+      InternetAddress[] emails = InternetAddress.parse(sendMail, true);
+      if (emails.length == 0) {
+        log.error("sendMail rejected: no valid recipient");
+        return;
+      }
+      for (InternetAddress emailAddress : emails) {
+        emailAddress.validate();
+      }
+      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, emails.length);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -69,7 +80,7 @@ public class SMTPMailServer {
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
+      msg.setRecipients(Message.RecipientType.TO, emails);
       msg.setSubject(subject);
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
@@ -82,4 +93,28 @@ public class SMTPMailServer {
       e.printStackTrace();
     }
   }
+
+  /**
+   * Detects control characters (including CR/LF) that could be used for header injection.
+   *
+   * @param value text to check
+   * @param allowWhitespace when true, tab/CR/LF are tolerated (for message bodies)
+   * @return true if a disallowed control character is present
+   */
+  static boolean containsControlChars(String value, boolean allowWhitespace) {
+    if (value == null) {
+      return false;
+    }
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (Character.isISOControl(c)) {
+        if (allowWhitespace && (c == '\t' || c == '\r' || c == '\n')) {
+          continue;
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+}
 }
