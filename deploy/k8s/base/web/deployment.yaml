@@ -12,10 +12,20 @@ spec:
       labels:
         app: crapi-web
     spec:
+      # The image runs nginx as a non-root user and relies on file capabilities
+      # (setcap cap_net_bind_service) to bind 80/443. allowPrivilegeEscalation:
+      # false sets no_new_privs, which disables file capabilities, so allow
+      # unprivileged binding of low ports for the pod's network namespace instead.
+      securityContext:
+        sysctls:
+        - name: net.ipv4.ip_unprivileged_port_start
+          value: "0"
       containers:
       - name: crapi-web
         image: crapi/crapi-web:latest
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
         ports:
         - containerPort: 80
         resources:
