@@ -86,7 +86,7 @@ func decodeRSAPublicKey(k jwk) (*rsa.PublicKey, error) {
 
 // fetchIdentityJWKS downloads the identity service's public RS256 keys.
 func fetchIdentityJWKS() (map[string]*rsa.PublicKey, error) {
-	client := &http.Client{Timeout: jwksFetchTimeout}
+	client := &http.Client{Timeout: jwksFetchTimeout, Transport: utils.OutboundTransport()}
 	resp, err := client.Get(identityJWKSURL())
 	if err != nil {
 		return nil, err
