@@ -46,7 +46,9 @@ const ChangePhoneNumber: React.FC = () => {
 
   const handlePhoneNumberChange = (newNumber: string) => setNumber(newNumber);
 
-  const CurrentComponent = steps[currentStep].component;
+  const [firstStep, secondStep] = steps;
+  const CurrentComponent =
+    currentStep === 0 ? firstStep.component : secondStep.component;
 
   return (
     <div className="container">

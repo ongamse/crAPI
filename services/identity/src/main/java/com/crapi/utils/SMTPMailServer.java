@@ -70,7 +70,9 @@ public class SMTPMailServer {
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
       msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
-      msg.setSubject(subject);
+      // Strip CR/LF (and other control chars) so the subject cannot inject extra SMTP headers.
+      String safeSubject = subject == null ? null : subject.replaceAll("[\\p{Cntrl}]", " ").trim();
+      msg.setSubject(safeSubject, "UTF-8");
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
 

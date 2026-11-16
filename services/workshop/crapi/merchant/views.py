@@ -88,7 +88,7 @@ class ContactMechanicView(APIView):
                     request_url,
                     params=request_data,
                     headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
-                    verify=False,
+                    timeout=settings.HTTP_REQUEST_TIMEOUT,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")
@@ -101,7 +101,10 @@ class ContactMechanicView(APIView):
             except (MissingSchema, InvalidURL) as e:
                 log_error(request.path, request.data, status.HTTP_400_BAD_REQUEST, e)
                 return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            except requests.exceptions.ConnectionError as e:
+            except (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout,
+            ) as e:
                 if not repeat_request_if_failed:
                     return Response(
                         {"message": messages.COULD_NOT_CONNECT},

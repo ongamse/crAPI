@@ -12,10 +12,18 @@ spec:
       labels:
         app: gateway-service
     spec:
+      securityContext:
+        # allowPrivilegeEscalation=false (no_new_privs) disables the file
+        # capability on the server, so let the non-root user bind port 443.
+        sysctls:
+        - name: net.ipv4.ip_unprivileged_port_start
+          value: "0"
       containers:
       - name: gateway-service
         image: crapi/gateway-service:latest
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
         ports:
         - containerPort: 8087
         resources:

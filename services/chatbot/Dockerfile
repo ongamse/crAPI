@@ -21,5 +21,9 @@ RUN mkdir -p /app/resources
 COPY src/resources/crapi-openapi-spec.json /app/resources/crapi-openapi-spec.json
 ENV PYTHONPATH="/app"
 COPY entrypoint.sh /app/entrypoint.sh
+# Run as a non-root user; /app (vectorstore, resources) must stay writable.
+RUN useradd --system --create-home --uid 10001 app \
+    && chown -R app:app /app
+USER app
 CMD /app/entrypoint.sh
 EXPOSE 5002 5500

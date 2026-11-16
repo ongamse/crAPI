@@ -43,6 +43,9 @@ def get_env_value(env_variable):
 
 FILES_LIMIT = int(os.environ.get("FILES_LIMIT", 1000))
 
+# Timeout (seconds) applied to outbound HTTP requests made with `requests`
+HTTP_REQUEST_TIMEOUT = float(os.environ.get("HTTP_REQUEST_TIMEOUT", 10))
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -133,6 +136,14 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": MAX_LIMIT,
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "UNAUTHENTICATED_USER": None,  # Needed once you disable django.contrib.auth
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": os.environ.get("THROTTLE_RATE_ANON", "1000/minute"),
+        "user": os.environ.get("THROTTLE_RATE_USER", "1000/minute"),
+    },
 }
 LOGGING = {
     "version": 1,
@@ -245,6 +256,9 @@ IDENTITY_LOGIN = "http://{}/identity/api/auth/login".format(
 IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
+IDENTITY_JWKS = "http://{}/identity/api/auth/jwks.json".format(
+    get_env_value("IDENTITY_SERVICE")
+)
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(
@@ -254,5 +268,8 @@ if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
         get_env_value("IDENTITY_SERVICE")
     )
     IDENTITY_HEALTH = "https://{}/identity/health_check".format(
+        get_env_value("IDENTITY_SERVICE")
+    )
+    IDENTITY_JWKS = "https://{}/identity/api/auth/jwks.json".format(
         get_env_value("IDENTITY_SERVICE")
     )

@@ -12,10 +12,18 @@ spec:
       labels:
         app: crapi-web
     spec:
+      securityContext:
+        # allowPrivilegeEscalation=false (no_new_privs) disables the file
+        # capability on nginx, so let the non-root user bind ports 80/443.
+        sysctls:
+        - name: net.ipv4.ip_unprivileged_port_start
+          value: "0"
       containers:
       - name: crapi-web
         image: crapi/crapi-web:latest
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
         ports:
         - containerPort: 80
         resources:

@@ -46,6 +46,10 @@ if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
   fi
   echo "TLS_CERTIFICATE: $TLS_CERTIFICATE"
   echo "TLS_KEY: $TLS_KEY"
+  if ! grep -q "PRIVATE KEY-----" "$TLS_KEY" 2>/dev/null; then
+    echo "TLS key $TLS_KEY is missing or a placeholder. Generate one with services/gencert.sh or mount your own and set TLS_KEY. Exiting."
+    exit 1
+  fi
   # python3 manage.py runserver_plus --cert-file $TLS_CERTIFICATE --key-file $TLS_KEY --noreload 0.0.0.0:${SERVER_PORT}
   gunicorn --workers=1 --threads=20  --timeout 60 --bind 0.0.0.0:${SERVER_PORT} --certfile $TLS_CERTIFICATE --keyfile $TLS_KEY --log-level=debug crapi_site.wsgi
 else

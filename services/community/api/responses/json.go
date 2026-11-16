@@ -15,20 +15,30 @@
 package responses
 
 import (
+	"bytes"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 )
 
 // JSON return response in json
 func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	// Encode first so a failure can be reported as JSON with a proper status.
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(data); err != nil {
+		log.Println("Error encoding response:", err)
+		statusCode = http.StatusInternalServerError
+		buf.Reset()
+		// Static JSON body; never echo error text or untrusted data.
+		buf.WriteString("{\"error\":\"internal server error\"}\n")
+	}
+
 	w.WriteHeader(statusCode)
-	err := json.NewEncoder(w).Encode(data)
-	if err != nil {
-		if _, writeErr := fmt.Fprintf(w, "%s", err.Error()); writeErr != nil {
-			log.Println("Error writing error response:", writeErr)
-		}
+	if _, writeErr := w.Write(buf.Bytes()); writeErr != nil {
+		log.Println("Error writing response:", writeErr)
 	}
 }
 

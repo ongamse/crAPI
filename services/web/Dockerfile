@@ -39,4 +39,16 @@ RUN echo "daemon off;" >> /usr/local/openresty/nginx/conf/nginx.conf
 EXPOSE 80
 EXPOSE 443
 
+# Run as a non-root user. The nginx binary gets the file capability to bind
+# the privileged ports 80/443; writable paths (generated config, pid, temp)
+# are owned by the unprivileged user.
+RUN addgroup -S -g 10001 app && adduser -S -u 10001 -G app app \
+    && apk add --no-cache --virtual .setcap-deps libcap-utils \
+    && setcap cap_net_bind_service=+ep /usr/local/openresty/nginx/sbin/nginx \
+    && apk del .setcap-deps \
+    && rm -f /usr/local/openresty/nginx/logs/access.log /usr/local/openresty/nginx/logs/error.log \
+    && touch /usr/local/openresty/nginx/logs/access.log /usr/local/openresty/nginx/logs/error.log \
+    && chown -R app:app /etc/nginx/conf.d /usr/local/openresty/nginx /app
+USER app
+
 CMD [ "/etc/nginx/nginx-wrapper.sh" ]

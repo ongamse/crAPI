@@ -15,6 +15,7 @@
 package com.crapi.config;
 
 import com.crapi.service.Impl.UserDetailsServiceImpl;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +32,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -95,8 +98,25 @@ public class WebSecurityConfig {
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .exceptionHandling(handling -> handling.authenticationEntryPoint(jwtUnauthorizedHandler));
     http.authenticationProvider(authenticationProvider());
-    http.csrf().disable();
+    http.csrf(
+        csrf ->
+            csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .ignoringRequestMatchers(
+                    new AntPathRequestMatcher("/identity/api/auth/**"),
+                    new AntPathRequestMatcher("/identity/management/user/**"),
+                    WebSecurityConfig::hasStatelessAuthorizationHeader));
     http.cors(Customizer.withDefaults());
     return http.build();
+  }
+
+  /**
+   * Requests authenticated with an explicit Authorization header (Bearer JWT or ApiKey) are not
+   * ambient-credential requests: browsers do not attach this header cross-site automatically, so
+   * CSRF tokens add no protection for them.
+   */
+  private static boolean hasStatelessAuthorizationHeader(HttpServletRequest request) {
+    String authHeader = request.getHeader("Authorization");
+    return authHeader != null
+        && (authHeader.startsWith("Bearer ") || authHeader.startsWith("ApiKey "));
   }
 }
