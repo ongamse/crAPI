@@ -20,6 +20,12 @@ spec:
           envFrom:
             - configMapRef:
                 name: mongodb-config
+          env:
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-secrets
+                  key: MONGO_DB_PASSWORD
           volumeMounts:
             - mountPath: /data/db
               name: mongodb-data

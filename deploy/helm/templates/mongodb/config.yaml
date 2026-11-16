@@ -9,4 +9,3 @@ metadata:
     {{- end }}
 data:
   MONGO_INITDB_ROOT_USERNAME: {{ .Values.mongodb.config.mongoUser }}
-  MONGO_INITDB_ROOT_PASSWORD: {{ .Values.mongodb.config.mongoPassword }}

@@ -63,7 +63,7 @@ def create_mechanics():
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": "Admin1@#",  # demo seed account for the lab; not a deployment secret
             "mechanic_code": "TRAC_JHN",
         },
         {
@@ -217,7 +217,7 @@ def ping_identity_server():
         headers = {
             "Accept": "*/*",
         }
-        request = requests.get(identity_health_url, headers, verify=False)
+        request = requests.get(identity_health_url, headers, verify=settings.TLS_VERIFY)
         if request.status_code == 200:
             return True
         else:

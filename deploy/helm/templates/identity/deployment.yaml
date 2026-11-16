@@ -50,6 +50,22 @@ spec:
           envFrom:
               - configMapRef:
                   name: {{ .Values.identity.config.name }}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-crapi-secrets
+                  key: DB_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-crapi-secrets
+                  key: JWT_SECRET
+            - name: API_GATEWAY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-crapi-secrets
+                  key: API_GATEWAY_PASSWORD
           {{- if .Values.identity.resources }}
           resources:
             {{- toYaml .Values.identity.resources | nindent 12 }}

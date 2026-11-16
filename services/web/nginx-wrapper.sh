@@ -17,6 +17,10 @@
 if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
     export HTTP_PROTOCOL=https
     export NGINX_TEMPLATE=/etc/nginx/conf.d/default.ssl.conf.template
+    if [ ! -r /app/certs/server.crt ] || [ ! -r /app/certs/server.key ]; then
+        echo "TLS is enabled but /app/certs/server.crt or /app/certs/server.key is missing. Mount them or run services/gencert.sh before building. Exiting."
+        exit 1
+    fi
 else
     export HTTP_PROTOCOL=http
     export NGINX_TEMPLATE=/etc/nginx/conf.d/default.conf.template

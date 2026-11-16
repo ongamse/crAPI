@@ -19,22 +19,18 @@ import com.crapi.repository.UserRepository;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
-import com.nimbusds.jwt.JWTParser;
-import com.nimbusds.jwt.PlainJWT;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.SignedJWT;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
-import java.net.URI;
-import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.text.ParseException;
 import java.util.*;
@@ -58,12 +54,27 @@ public class JwtProvider {
 
   private Map<String, Object> publicJwkSet;
 
-  public JwtProvider(@Value("${app.jwksJson}") String jwksJson) {
+  public JwtProvider(@Value("${app.jwksJson:}") String jwksJson) {
     try {
-      Base64.Decoder decoder = Base64.getDecoder();
-      InputStream jwksStream = new ByteArrayInputStream(decoder.decode(jwksJson));
-      JWKSet jwkSet = JWKSet.load(jwksStream);
-      jwksStream.close();
+      JWKSet jwkSet;
+      if (jwksJson == null || jwksJson.isBlank()) {
+        // No signing key supplied: generate an ephemeral one instead of shipping a committed
+        // private key. Tokens issued with it are invalidated on restart; supply a base64 encoded
+        // JWKS (JWKS env var or keys/jwks.json mount) to keep a stable key.
+        log.warn("No JWKS signing key supplied; generating an ephemeral RSA signing key");
+        RSAKey generated =
+            new RSAKeyGenerator(2048)
+                .keyUse(KeyUse.SIGNATURE)
+                .algorithm(JWSAlgorithm.RS256)
+                .keyIDFromThumbprint(true)
+                .generate();
+        jwkSet = new JWKSet(generated);
+      } else {
+        Base64.Decoder decoder = Base64.getDecoder();
+        InputStream jwksStream = new ByteArrayInputStream(decoder.decode(jwksJson));
+        jwkSet = JWKSet.load(jwksStream);
+        jwksStream.close();
+      }
       List<JWK> keys = jwkSet.getKeys();
       if (keys.size() != 1 || !Objects.equals(keys.get(0).getAlgorithm().getName(), "RS256")) {
         throw new RuntimeException("Invalid JWKS key passed!!!");
@@ -122,87 +133,48 @@ public class JwtProvider {
    * @return username from JWT Token
    */
   public String getUserNameFromJwtToken(String token) throws ParseException {
-    // Parse without verifying token signature
-    return JWTParser.parse(token).getJWTClaimsSet().getSubject();
+    SignedJWT signedJWT = SignedJWT.parse(token);
+    if (!verifySignature(signedJWT)) {
+      throw new ParseException("JWT signature verification failed", 0);
+    }
+    return signedJWT.getJWTClaimsSet().getSubject();
   }
 
-  // Load RSA Public Key for JKU header if present
-  private RSAKey getKeyFromJkuHeader(JWSHeader header) {
+  /**
+   * Verify the token signature using only the server's own RSA public key. The algorithm is
+   * restricted to the RSA family and no key material is taken from attacker-controlled header
+   * fields (jku, jwk, kid).
+   *
+   * @param signedJWT parsed token
+   * @return true only when the signature is valid for the server key
+   */
+  private boolean verifySignature(SignedJWT signedJWT) {
     try {
-      URI jku = header.getJWKURL();
-      if (jku != null) {
-        URLConnection connection = jku.toURL().openConnection();
-        JWKSet jwkSet = JWKSet.load(connection.getInputStream());
-        connection.getInputStream().close();
-        log.info("JWKSet from URL : " + jwkSet.toString(false));
-        JWK key = jwkSet.getKeyByKeyId(header.getKeyID());
-        if (key != null && Objects.equals(key.getAlgorithm().getName(), "RS256")) {
-          return key.toRSAKey().toPublicJWK();
-        }
+      JWSAlgorithm alg = signedJWT.getHeader().getAlgorithm();
+      if (alg == null || !JWSAlgorithm.Family.RSA.contains(alg)) {
+        log.error("Unsupported JWT algorithm");
+        return false;
       }
-    } catch (IOException | ParseException e) {
-      return null;
+      JWSVerifier verifier = new RSASSAVerifier(this.publicRSAKey);
+      boolean valid = signedJWT.verify(verifier);
+      log.debug("JWT valid?: " + valid);
+      return valid;
+    } catch (JOSEException e) {
+      log.error("JWT signature verification failed -> Message: %d", e);
+      return false;
     }
-
-    return null;
-  }
-
-  // Construct secret for JWT Verification through HS256 (vulnerability)
-  private String getJwtSecret(JWSHeader header) throws JOSEException {
-    // defaultSecret is RSA Public Key as String
-    // Algorithm Confusion Attack
-    Base64.Encoder encoder = Base64.getEncoder();
-    String defaultSecret = encoder.encodeToString(this.publicRSAKey.toPublicKey().getEncoded());
-
-    // Check if KID header is pointing to /dev/null file
-    String kid = header.getKeyID();
-    if (kid != null && kid.contains("/dev/null")) {
-      return "AA==";
-    }
-
-    return defaultSecret;
   }
 
   /**
    * @param authToken
-   * @return validate token expire and true boolean
+   * @return true only if the token signature is valid
    */
   public boolean validateJwtToken(String authToken) {
     try {
       SignedJWT signedJWT = SignedJWT.parse(authToken);
-      JWSHeader header = signedJWT.getHeader();
-      Algorithm alg = header.getAlgorithm();
-      boolean valid = false;
-      // JWT Algorithm confusion vulnerability
-      log.debug("Algorithm: " + alg.getName());
-      JWSVerifier verifier;
-      if (Objects.equals(alg.getName(), "HS256")) {
-        String secret = getJwtSecret(header);
-        log.debug("JWT Secret: " + secret);
-        verifier = new MACVerifier(secret.getBytes(StandardCharsets.UTF_8));
-      } else {
-        RSAKey verificationKey = getKeyFromJkuHeader(header);
-        if (verificationKey == null) {
-          log.debug("Key from JWKS: " + this.publicRSAKey.toJSONString());
-          verifier = new RSASSAVerifier(this.publicRSAKey);
-        } else {
-          log.debug("Key from JKU: " + verificationKey.toJSONString());
-          verifier = new RSASSAVerifier(verificationKey);
-        }
-        valid = signedJWT.verify(verifier);
-        log.debug("JWT valid?: " + valid);
-        return valid;
-      }
-
+      return verifySignature(signedJWT);
     } catch (ParseException e) {
-      try {
-        PlainJWT jwt = PlainJWT.parse(authToken);
-        return true;
-      } catch (ParseException parseException) {
-        log.error("Could not parse JWT Token -> Message: %d", parseException);
-      }
-    } catch (JOSEException e) {
-      log.error("RSA JWK Extraction failed -> Message: %d", e);
+      log.error("Could not parse JWT Token -> Message: %d", e);
     }
 
     return false;

@@ -29,6 +29,12 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.postgresdb.config.name }}
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-crapi-secrets
+                  key: DB_PASSWORD
 
           volumeMounts:
             - mountPath: /var/lib/postgresql/data

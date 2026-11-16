@@ -41,6 +41,14 @@ def get_env_value(env_variable):
         raise ImproperlyConfigured(error_msg)
 
 
+# Comma separated hosts (host or host:port) that contact_mechanic may call
+# even if they resolve to a private/loopback address.
+MECHANIC_API_ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+]
+
 FILES_LIMIT = int(os.environ.get("FILES_LIMIT", 1000))
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -61,11 +69,23 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Comma separated hostnames (no scheme, no port) this service may be served
+# as, to prevent Host header / DNS rebinding attacks. Defaults cover local
+# access and the crapi-workshop service name that the web gateway sends in the
+# Host header. A leading "." matches a domain and its subdomains. Wildcard "*"
+# entries are ignored.
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,[::1],0.0.0.0,crapi-workshop",
+    ).split(",")
+    if h.strip() and h.strip() != "*"
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
 
 # Application definition
 
@@ -99,7 +119,18 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Comma separated allowlist of origins (with scheme) permitted for CORS.
+# Defaults to the crAPI web frontend ports; never allow all origins.
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:8888,https://localhost:8443,"
+        "http://127.0.0.1:8888,https://127.0.0.1:8443",
+    ).split(",")
+    if o.strip() and o.strip() != "*"
+]
 
 ROOT_URLCONF = "crapi_site.urls"
 
@@ -245,6 +276,11 @@ IDENTITY_LOGIN = "http://{}/identity/api/auth/login".format(
 IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
+# Certificate validation for outbound HTTPS calls (identity, API gateway,
+# mechanic API). Optionally set TLS_CA_BUNDLE to the path of a CA bundle (or
+# a self-signed server certificate) to trust an internal CA. Defaults to the
+# system trust store.
+TLS_VERIFY = os.environ.get("TLS_CA_BUNDLE") or True
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(
