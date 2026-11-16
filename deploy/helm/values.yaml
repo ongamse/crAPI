@@ -2,13 +2,13 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
-apiGatewayPassword:
+# Required: supply at install time, e.g. --set apiGatewayPassword=... (never commit values)
+apiGatewayPassword: ""
 tlsEnabled: false
 jwtExpiration: 604800000
 openAIApiKey: ""
@@ -74,6 +74,7 @@ identity:
     smtpStartTLS: true
     keyStoreType: PKCS12
     keyStore: classpath:certs/server.p12
+    # Password of the demo keystore bundled in the identity image, not a deployment secret
     keyStorePassword: passw0rd
     keyPassword: passw0rd
     keyAlias: identity
@@ -155,6 +156,7 @@ chatbot:
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
+    # Password of the seeded demo admin account, not a deployment secret
     apiPassword: Admin!123
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
@@ -233,9 +235,9 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
+    # Required: supply at install time, e.g. --set mongodb.config.mongoPassword=...
+    mongoPassword: ""
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:

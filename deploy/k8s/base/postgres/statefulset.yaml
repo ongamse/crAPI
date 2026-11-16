@@ -23,7 +23,12 @@ spec:
           envFrom:
             - configMapRef:
                 name: postgres-config
-
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-db-credentials
+                  key: DB_PASSWORD
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
               name: postgres-data

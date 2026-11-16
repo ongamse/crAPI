@@ -44,6 +44,12 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.workshop.config.name }}
+          env:
+            - name: API_GATEWAY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-app-secrets
+                  key: API_GATEWAY_PASSWORD
           {{- if .Values.workshop.resources }}
           resources:
             {{- toYaml .Values.workshop.resources | nindent 12 }}
