@@ -6,3 +6,6 @@ deploy/vagrant/.vagrant
 services/chatbot/db
 services/certs/
 docker-compose.local.yml
+
+# Private keys are generated locally by services/gencert.sh and must never be committed
+services/**/server.key
