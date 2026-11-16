@@ -98,7 +98,10 @@ func parseJWKS(data []byte) (map[string]*rsa.PublicKey, error) {
 }
 
 func fetchJWKS() (map[string]*rsa.PublicKey, error) {
-	client := &http.Client{Timeout: jwksFetchTimeout}
+	client, err := utils.NewHTTPClient(jwksFetchTimeout)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := client.Get(jwksURL())
 	if err != nil {
 		return nil, err
