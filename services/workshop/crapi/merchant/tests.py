@@ -144,6 +144,27 @@ class MerchantTestCase(TestCase):
             )
             mock_get.assert_not_called()
 
+    def test_header_injection_rejected(self):
+        """
+        sends an Authorization header containing CR/LF
+        should get an error message and no outbound request
+        :return: None
+        """
+        headers = dict(self.user_auth_headers)
+        headers["HTTP_AUTHORIZATION"] = "Bearer abc\r\nX-Injected: 1"
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **headers,
+                content_type="application/json"
+            )
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(
+            res.json()["message"], messages.INVALID_AUTHORIZATION_HEADER
+        )
+        mock_get.assert_not_called()
+
     def test_contact_mechanic(self):
         """
         gives all correct field for contact mechanic
