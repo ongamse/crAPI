@@ -29,6 +29,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Generate ephemeral test credentials
+        run: |
+          for v in DB_PASSWORD MONGO_DB_PASSWORD SECRET_KEY API_GATEWAY_PASSWORD; do
+            val="$(openssl rand -hex 16)"
+            echo "::add-mask::${val}"
+            echo "${v}=${val}" >> "${GITHUB_ENV}"
+          done
+
       - name: Env seen prerun
         run: env
 
@@ -199,6 +207,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Generate ephemeral test credentials
+        run: |
+          for v in DB_PASSWORD MONGO_DB_PASSWORD SECRET_KEY API_GATEWAY_PASSWORD; do
+            val="$(openssl rand -hex 16)"
+            echo "::add-mask::${val}"
+            echo "${v}=${val}" >> "${GITHUB_ENV}"
+          done
 
       - name: Setup Python
         uses: actions/setup-python@v5

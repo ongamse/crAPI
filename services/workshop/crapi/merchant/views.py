@@ -15,7 +15,11 @@
 """
 contains all the views related to Merchant
 """
+import ipaddress
 import logging
+import socket
+from urllib.parse import urlparse
+
 import requests
 from requests.exceptions import MissingSchema, InvalidURL
 from rest_framework import status
@@ -35,6 +39,81 @@ from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
 
 
 logger = logging.getLogger()
+
+
+MECHANIC_RECEIVE_REPORT_PATHS = (
+    "/workshop/api/mechanic/receive_report",
+    "/api/mechanic/receive_report",
+)
+
+
+def is_allowed_mechanic_api_url(url, request_host=None):
+    """
+    Check that the user supplied mechanic api url is safe to request (SSRF guard).
+    Only http/https urls are accepted. The host must either be listed in
+    settings.MECHANIC_API_ALLOWED_HOSTS, resolve exclusively to publicly
+    routable addresses, or (for non-public hosts) be the host this request was
+    addressed to with the app's own mechanic receive_report path (the default
+    web client flow). Link-local/metadata/unspecified/multicast addresses are
+    always rejected unless explicitly listed in the settings allowlist.
+    :param url: url supplied by the user
+    :param request_host: host (optionally with port) of the incoming request
+    :returns True if the url may be requested, False otherwise
+    """
+    if not isinstance(url, str):
+        return False
+    try:
+        parsed = urlparse(url.strip())
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https") or not hostname:
+        return False
+    if hostname.lower() in settings.MECHANIC_API_ALLOWED_HOSTS:
+        return True
+    try:
+        addresses = socket.getaddrinfo(hostname, port or None, proto=socket.IPPROTO_TCP)
+    except (socket.gaierror, UnicodeError):
+        return False
+    if not addresses:
+        return False
+    ip_addresses = []
+    for address in addresses:
+        ip_address = ipaddress.ip_address(address[4][0].split("%")[0])
+        if getattr(ip_address, "ipv4_mapped", None):
+            ip_address = ip_address.ipv4_mapped
+        ip_addresses.append(ip_address)
+    # Never allow link-local (cloud metadata), unspecified, multicast or reserved
+    # addresses, regardless of any other exemption below.
+    if any(
+        ip.is_link_local or ip.is_unspecified or ip.is_multicast or ip.is_reserved
+        for ip in ip_addresses
+    ):
+        return False
+    if all(ip.is_global for ip in ip_addresses):
+        return True
+    # Non-public host: only the app's own mechanic receive_report endpoint on
+    # the host the request was addressed to (default web client flow).
+    if request_host and parsed.path.rstrip("/") in MECHANIC_RECEIVE_REPORT_PATHS:
+        try:
+            own_hostname = urlparse("//" + request_host).hostname
+        except ValueError:
+            own_hostname = None
+        return bool(own_hostname) and own_hostname.lower() == hostname.lower()
+    return False
+
+
+def is_safe_header_value(value):
+    """
+    Check that a value is safe to forward as an outbound HTTP header value
+    (header injection guard). Rejects CR/LF and any other control characters.
+    :param value: header value taken from the incoming request (or None)
+    :returns True if the value is a str without control characters, False otherwise
+    """
+    if not isinstance(value, str):
+        return False
+    return not any(ord(char) < 0x20 or ord(char) == 0x7F for char in value)
 
 
 class ContactMechanicView(APIView):
@@ -79,6 +158,36 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        if not is_allowed_mechanic_api_url(
+            request_data["mechanic_api"], request.get_host()
+        ):
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.MECHANIC_API_NOT_ALLOWED,
+            )
+            return Response(
+                {"message": messages.MECHANIC_API_NOT_ALLOWED},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        authorization = request.META.get("HTTP_AUTHORIZATION")
+        outbound_headers = {}
+        if authorization is not None:
+            if not is_safe_header_value(authorization):
+                log_error(
+                    request.path,
+                    request.data,
+                    status.HTTP_400_BAD_REQUEST,
+                    messages.INVALID_AUTHORIZATION_HEADER,
+                )
+                return Response(
+                    {"message": messages.INVALID_AUTHORIZATION_HEADER},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            outbound_headers["Authorization"] = authorization
+
         repeat_count = 0
         while True:
             request_url = request_data["mechanic_api"]
@@ -87,8 +196,9 @@ class ContactMechanicView(APIView):
                 mechanic_response = requests.get(
                     request_url,
                     params=request_data,
-                    headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
-                    verify=False,
+                    headers=outbound_headers,
+                    verify=settings.OUTBOUND_TLS_VERIFY,
+                    allow_redirects=False,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")

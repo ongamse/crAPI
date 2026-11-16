@@ -63,6 +63,7 @@ def create_mechanics():
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
+            # Documented demo mechanic account (used by the Postman collection); not a deployment secret.
             "password": "Admin1@#",
             "mechanic_code": "TRAC_JHN",
         },
@@ -217,7 +218,12 @@ def ping_identity_server():
         headers = {
             "Accept": "*/*",
         }
-        request = requests.get(identity_health_url, headers, verify=False)
+        request = requests.get(
+            identity_health_url,
+            headers=headers,
+            verify=settings.OUTBOUND_TLS_VERIFY,
+            timeout=10,
+        )
         if request.status_code == 200:
             return True
         else:

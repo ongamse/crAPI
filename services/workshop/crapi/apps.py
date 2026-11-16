@@ -57,6 +57,7 @@ def create_mechanics():
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
+            # Documented demo mechanic account (used by the Postman collection); not a deployment secret.
             "password": "Admin1@#",
             "mechanic_code": "TRAC_JHN",
         },

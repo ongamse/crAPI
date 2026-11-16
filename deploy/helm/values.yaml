@@ -2,13 +2,19 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
-apiGatewayPassword:
+# Secrets are rendered into the "credentials.name" Secret and never committed.
+# Leave empty to auto-generate (kept across upgrades), or supply via --set.
+credentials:
+  name: crapi-credentials
+  dbPassword: ""
+  mongoPassword: ""
+  secretKey: ""
+  apiGatewayPassword: ""
 tlsEnabled: false
 jwtExpiration: 604800000
 openAIApiKey: ""
@@ -74,6 +80,7 @@ identity:
     smtpStartTLS: true
     keyStoreType: PKCS12
     keyStore: classpath:certs/server.p12
+    # Password of the bundled demo keystore certs/server.p12 (see certs/keystore.sh); not a deployment secret.
     keyStorePassword: passw0rd
     keyPassword: passw0rd
     keyAlias: identity
@@ -125,8 +132,10 @@ workshop:
       app: crapi-workshop
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     filesLimit: 1000
+    # Extra hostnames accepted in the Host header (service name, localhost and
+    # 127.0.0.1 are always allowed).
+    allowedHosts: []
   deploymentLabels:
     app: crapi-workshop
   podLabels:
@@ -155,6 +164,7 @@ chatbot:
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
+    # Seeded demo admin account (see TestUsers.java); not a deployment secret.
     apiPassword: Admin!123
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
@@ -233,9 +243,7 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:
@@ -278,7 +286,6 @@ postgresdb:
     labels:
       app: postgresdb
     postgresUser: admin
-    postgresPassword: crapisecretpassword
     postgresDbName: crapi
   storage:
     # type: "manual"

@@ -61,11 +61,28 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Host header allowlist (protects against DNS rebinding / Host header attacks).
+# Defaults cover local/dev use and the in-cluster service name that the web
+# gateway (nginx) sends as the Host header. Extra comma separated hostnames can
+# be added through the ALLOWED_HOSTS environment variable. Wildcards are
+# ignored so the list always fails closed.
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]", "crapi-workshop"]
+for _host in os.environ.get("ALLOWED_HOSTS", "").split(","):
+    _host = _host.strip()
+    if _host and "*" not in _host and _host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_host)
+
+# Comma separated hostnames that the contact mechanic feature may call, in
+# addition to the host the request itself was addressed to.
+MECHANIC_API_ALLOWED_HOSTS = [
+    host.strip().lower()
+    for host in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
 
 # Application definition
 
@@ -99,7 +116,13 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Comma separated list of origins allowed for CORS. Empty means same-origin only.
+CORS_ORIGIN_ALLOW_ALL = False
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip() and origin.strip() != "*"
+]
 
 ROOT_URLCONF = "crapi_site.urls"
 
@@ -245,6 +268,9 @@ IDENTITY_LOGIN = "http://{}/identity/api/auth/login".format(
 IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
+# TLS certificate validation for outbound requests is always on. Deployments
+# using a private CA can point TLS_CA_BUNDLE at a CA bundle file (PEM).
+OUTBOUND_TLS_VERIFY = os.environ.get("TLS_CA_BUNDLE") or True
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(

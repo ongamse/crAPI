@@ -22,6 +22,7 @@ spec:
       volumes:
         - name: jwt-key-secret
           secret:
+            # Name of the Kubernetes Secret holding the JWKS signing keys (a reference, not a secret value).
             secretName: jwt-key-secret
       containers:
         - name: crapi-identity
@@ -36,6 +37,8 @@ spec:
           envFrom:
               - configMapRef:
                   name: crapi-identity-configmap
+              - secretRef:
+                  name: crapi-credentials
           resources:
             limits:
               cpu: "500m"

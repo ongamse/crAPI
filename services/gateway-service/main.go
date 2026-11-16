@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -150,11 +152,17 @@ func GetPayMentInfo(w http.ResponseWriter, r *http.Request) {
 	w.Write(response_body)
 }
 
+// gatewayPassword is the vendor Basic-auth password, loaded from the
+// API_GATEWAY_PASSWORD environment variable at startup (never committed).
+var gatewayPassword string
+
 func checkCreds(user string, pass string) bool {
-	if user == "vendorcrapi" && pass == "Pa$$4Vendor_1" {
-		return true
+	if gatewayPassword == "" {
+		return false
 	}
-	return false
+	userOK := subtle.ConstantTimeCompare([]byte(user), []byte("vendorcrapi")) == 1
+	passOK := subtle.ConstantTimeCompare([]byte(pass), []byte(gatewayPassword)) == 1
+	return userOK && passOK
 }
 
 func maskLeft(s string) string {
@@ -168,6 +176,10 @@ func maskLeft(s string) string {
 func main() {
 	port := flag.Int("port", 443, "port number")
 	flag.Parse()
+	gatewayPassword = os.Getenv("API_GATEWAY_PASSWORD")
+	if gatewayPassword == "" {
+		log.Fatal("API_GATEWAY_PASSWORD environment variable must be set")
+	}
 	http.HandleFunc("/", HelloServer)
 	http.HandleFunc("/v1/vin/ownership", GetOwners)
 	http.HandleFunc("/v1/payment", GetPayMentInfo)

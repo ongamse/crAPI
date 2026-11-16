@@ -38,7 +38,9 @@ export const requestURLS: RequestURLSType = {
   UNLOCK: "api/auth/unlock",
   GET_USER: "api/v2/user/dashboard",
   SIGNUP: "api/auth/signup",
+  // API route path, not a credential.
   RESET_PASSWORD: "api/v2/user/reset-password",
+  // API route path, not a credential.
   FORGOT_PASSWORD: "api/auth/forget-password",
   VERIFY_OTP: "api/auth/v3/check-otp",
   LOGIN_TOKEN: "api/auth/v4.0/user/login-with-token",

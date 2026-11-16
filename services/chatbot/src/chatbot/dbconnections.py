@@ -1,14 +1,20 @@
 import os
+from urllib.parse import quote_plus
 
 MONGO_USER = os.environ.get("MONGO_DB_USER", "admin")
-MONGO_PASSWORD = os.environ.get("MONGO_DB_PASSWORD", "crapisecretpassword")
+# No hard-coded default: fail closed when the password is not supplied.
+# The previously committed default credential must be rotated because it
+# remains in git history.
+MONGO_PASSWORD = os.environ.get("MONGO_DB_PASSWORD")
+if not MONGO_PASSWORD:
+    raise RuntimeError("MONGO_DB_PASSWORD environment variable must be set")
 MONGO_HOST = os.environ.get("MONGO_DB_HOST", "mongodb")
 MONGO_PORT = os.environ.get("MONGO_DB_PORT", "27017")
 MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "crapi")
 
 MONGO_CONNECTION_URI = "mongodb://%s:%s@%s:%s/?directConnection=true" % (
-    MONGO_USER,
-    MONGO_PASSWORD,
+    quote_plus(MONGO_USER),
+    quote_plus(MONGO_PASSWORD),
     MONGO_HOST,
     MONGO_PORT,
 )
@@ -22,12 +28,15 @@ MONGO_CONNECTION_URI_ATLAS = "mongodb+srv://%s:%s@%s?retryWrites=true&w=majority
 POSTGRES_HOST = os.environ.get("DB_HOST", "postgresdb")
 POSTGRES_PORT = os.environ.get("DB_PORT", "5432")
 POSTGRES_USER = os.environ.get("DB_USER", "admin")
-POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD", "crapisecretpassword")
+# No hard-coded default: fail closed when the password is not supplied.
+POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD")
+if not POSTGRES_PASSWORD:
+    raise RuntimeError("DB_PASSWORD environment variable must be set")
 POSTGRES_DB = os.environ.get("DB_NAME", "crapi")
 
 POSTGRES_URI = "postgresql://%s:%s@%s:%s/%s?sslmode=disable" % (
-    POSTGRES_USER,
-    POSTGRES_PASSWORD,
+    quote_plus(POSTGRES_USER),
+    quote_plus(POSTGRES_PASSWORD),
     POSTGRES_HOST,
     POSTGRES_PORT,
     POSTGRES_DB,

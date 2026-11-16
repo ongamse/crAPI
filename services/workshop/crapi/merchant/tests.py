@@ -134,6 +134,51 @@ class MerchantTestCase(TestCase):
         )
         self.assertNotEqual(res.status_code, 200)
 
+    def test_mechanic_api_internal_urls_blocked(self):
+        """
+        points mechanic_api at loopback / metadata / non http urls
+        should get a bad request and no outbound request
+        :return: None
+        """
+        for url in [
+            "http://127.0.0.1:8000/",
+            "http://localhost/",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://10.0.0.1/",
+            "http://[::1]/",
+            "file:///etc/passwd",
+            "ftp://example.com/",
+        ]:
+            self.contact_mechanic_request_body["mechanic_api"] = url
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+                mock_get.assert_not_called()
+            self.assertEqual(res.status_code, 400, url)
+            self.assertEqual(res.json()["message"], messages.MECHANIC_API_NOT_ALLOWED)
+
+    def test_is_safe_header_value(self):
+        """
+        header values with CR/LF/control characters must be rejected
+        :return: None
+        """
+        from crapi.merchant.views import is_safe_header_value
+
+        self.assertTrue(is_safe_header_value("Bearer abc.def-ghi"))
+        for value in [
+            "Bearer abc\r\nX-Injected: 1",
+            "Bearer abc\nX-Injected: 1",
+            "Bearer abc\rX",
+            "Bearer abc\x00",
+            "Bearer abc\x7f",
+            None,
+        ]:
+            self.assertFalse(is_safe_header_value(value), repr(value))
+
     def test_contact_mechanic(self):
         """
         gives all correct field for contact mechanic
