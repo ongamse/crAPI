@@ -16,6 +16,8 @@ spec:
       - name: crapi-chatbot
         image: crapi/crapi-chatbot:latest
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
         ports:
         - containerPort: 5002
         envFrom:
