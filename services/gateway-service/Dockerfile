@@ -20,15 +20,21 @@ SHELL ["/bin/bash", "-c"]
 WORKDIR /app
 
 RUN set -x && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    ca-certificates && \
+    ca-certificates libcap2-bin && \
     rm -rf /var/lib/apt/lists/*
 
+RUN groupadd --system app && useradd --system --gid app --no-create-home app
+
 # Copy the binary to the production image from the builder stage.
-COPY --from=builder /app/server /app/server
-COPY --from=builder /app/public.crt /app/server.crt
-COPY --from=builder /app/private.key /app/server.key
+COPY --from=builder --chown=app:app /app/server /app/server
+COPY --from=builder --chown=app:app /app/public.crt /app/server.crt
+COPY --from=builder --chown=app:app /app/private.key /app/server.key
+
+# Allow the unprivileged user to bind port 443.
+RUN setcap cap_net_bind_service=+ep /app/server
 
 EXPOSE 443
 
+USER app
 CMD ["/app/server"]
 

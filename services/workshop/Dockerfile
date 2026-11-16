@@ -40,6 +40,11 @@ RUN apk update && apk add --no-cache postgresql-libs curl
 RUN pip install --no-index --find-links=/app/wheels -r requirements.txt
 COPY ./certs /app/certs
 COPY health.sh /app/health.sh
+# Run as an unprivileged user that owns /app (reports/, debug.log).
+RUN addgroup -S app && adduser -S -G app app \
+    && chown -R app:app /app
+
 ARG SERVER_PORT
 EXPOSE ${SERVER_PORT}
+USER app
 CMD ["/app/runner.sh"]

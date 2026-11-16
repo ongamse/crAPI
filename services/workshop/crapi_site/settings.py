@@ -133,6 +133,15 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": MAX_LIMIT,
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "UNAUTHENTICATED_USER": None,  # Needed once you disable django.contrib.auth
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    # Generous defaults so normal use is unaffected; override via environment.
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": os.environ.get("THROTTLE_RATE_ANON", "6000/minute"),
+        "user": os.environ.get("THROTTLE_RATE_USER", "6000/minute"),
+    },
 }
 LOGGING = {
     "version": 1,
@@ -245,7 +254,18 @@ IDENTITY_LOGIN = "http://{}/identity/api/auth/login".format(
 IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
+IDENTITY_JWKS = "http://{}/identity/api/auth/jwks.json".format(
+    get_env_value("IDENTITY_SERVICE")
+)
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
+# Certificate verification for outbound HTTPS requests. Defaults to the system
+# CA bundle; set TLS_CA_BUNDLE to a CA bundle/certificate path to trust a
+# private or self-signed CA.
+TLS_CA_BUNDLE = os.environ.get("TLS_CA_BUNDLE")
+OUTBOUND_TLS_VERIFY = TLS_CA_BUNDLE if TLS_CA_BUNDLE else True
+# Upper bound (seconds) for outbound HTTP requests so a slow or unresponsive
+# peer cannot hold workers indefinitely.
+OUTBOUND_REQUEST_TIMEOUT = float(os.environ.get("OUTBOUND_REQUEST_TIMEOUT", "10"))
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(
         get_env_value("IDENTITY_SERVICE")
@@ -254,5 +274,8 @@ if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
         get_env_value("IDENTITY_SERVICE")
     )
     IDENTITY_HEALTH = "https://{}/identity/health_check".format(
+        get_env_value("IDENTITY_SERVICE")
+    )
+    IDENTITY_JWKS = "https://{}/identity/api/auth/jwks.json".format(
         get_env_value("IDENTITY_SERVICE")
     )

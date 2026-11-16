@@ -12,10 +12,20 @@ spec:
       labels:
         app: gateway-service
     spec:
+      # The image runs as a non-root user and relies on a file capability
+      # (setcap cap_net_bind_service) to bind 443. allowPrivilegeEscalation:
+      # false sets no_new_privs, which disables file capabilities, so allow
+      # unprivileged binding of low ports for the pod's network namespace instead.
+      securityContext:
+        sysctls:
+        - name: net.ipv4.ip_unprivileged_port_start
+          value: "0"
       containers:
       - name: gateway-service
         image: crapi/gateway-service:latest
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
         ports:
         - containerPort: 8087
         resources:

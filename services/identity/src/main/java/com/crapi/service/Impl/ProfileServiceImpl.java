@@ -31,6 +31,9 @@ import com.crapi.utils.ProfileValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -237,11 +240,20 @@ public class ProfileServiceImpl implements ProfileService {
               && enable_shell_injection
               && optionalProfileVideo.get().getConversion_params() != null) {
             profileVideo = optionalProfileVideo.get();
-            String conversionCommand =
-                String.format(
-                    "convertVideo -i %s %s",
-                    profileVideo.getVideo_name(), profileVideo.getConversion_params());
-            return new CRAPIResponse(conversionShell.executeBashCommand(conversionCommand), 200);
+            List<String> conversionArgs = new ArrayList<>();
+            conversionArgs.add("-i");
+            conversionArgs.add(String.valueOf(profileVideo.getVideo_name()));
+            String conversionParams = profileVideo.getConversion_params().trim();
+            if (!conversionParams.isEmpty()) {
+              conversionArgs.addAll(Arrays.asList(conversionParams.split("\\s+")));
+            }
+            try {
+              return new CRAPIResponse(
+                  conversionShell.executeCommand("convertVideo", conversionArgs), 200);
+            } catch (IllegalArgumentException e) {
+              log.warn("Rejected video conversion request for video {}", videoId);
+              return new CRAPIResponse(UserMessage.CONVERT_VIDEO_INTERNAL_ERROR, 500);
+            }
           }
           return new CRAPIResponse(UserMessage.CONVERT_VIDEO_INTERNAL_ERROR, 500);
         }

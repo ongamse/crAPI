@@ -17,47 +17,64 @@ package com.crapi.utils;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class BashCommand {
 
-  /**
-   * Execute a bash command. We can handle complex bash commands including multiple executions (; |
-   * && ||), quotes, expansions ($), escapes (\), e.g.: "cd /abc/def; mv ghi 'older ghi '$(whoami)"
-   *
-   * @param command
-   * @return true if bash got started, but your command may have failed.
-   */
-  public String executeBashCommand(String command) throws IOException {
-    BufferedReader b = null;
-    StringBuilder output;
-    log.info("Executing BASH command:\n   ", command);
-    Runtime r = Runtime.getRuntime();
-    // Use bash -c so we can handle things like multi commands separated by ; and
-    // things like quotes, $, |, and \. My tests show that command comes as
-    // one argument to bash, so we do not need to quote it to make it one thing.
-    // Also, exec may object if it does not have an executable file as the first thing,
-    // so having bash here makes it happy provided bash is installed and in path.
-    String[] commands = {"bash", "-c", command};
-    try {
-      Process p = r.exec(commands);
+  /** Executables that may be launched through this helper. */
+  private static final Set<String> ALLOWED_EXECUTABLES = Set.of("convertVideo");
 
-      p.waitFor();
-      InputStreamReader data = new InputStreamReader(p.getInputStream());
-      b = new BufferedReader(data);
-      String line = "";
-      output = new StringBuilder();
-      while ((line = b.readLine()) != null) {
-        output.append(line + "\n");
+  /**
+   * Characters permitted in an argument. Shell metacharacters (; | & $ ` < > quotes, backslash,
+   * newlines) are rejected.
+   */
+  private static final Pattern SAFE_ARGUMENT = Pattern.compile("[A-Za-z0-9_@%+=:,./()\\[\\] -]+");
+
+  /**
+   * Execute an allowlisted executable directly (no shell), passing each argument as a separate
+   * argv element so that no shell interpretation of the input takes place.
+   *
+   * @param executable name of an allowlisted executable
+   * @param arguments arguments for the executable
+   * @return standard output of the process
+   * @throws IOException if the process could not be started or read
+   * @throws IllegalArgumentException if the executable is not allowlisted or an argument contains
+   *     disallowed characters
+   */
+  public String executeCommand(String executable, List<String> arguments) throws IOException {
+    if (executable == null || !ALLOWED_EXECUTABLES.contains(executable)) {
+      throw new IllegalArgumentException("Executable is not allowed");
+    }
+    List<String> commands = new ArrayList<>();
+    commands.add(executable);
+    if (arguments != null) {
+      for (String argument : arguments) {
+        if (argument == null || !SAFE_ARGUMENT.matcher(argument).matches()) {
+          throw new IllegalArgumentException("Command argument contains disallowed characters");
+        }
+        commands.add(argument);
       }
-      b.close();
-      return (output != null ? String.valueOf(output) : "command not found");
-    } catch (Exception e) {
-      log.error("Failed to execute bash with command: " + command);
-      e.printStackTrace();
-    } finally {
-      b.close();
+    }
+    log.info("Executing command {}", executable);
+    try {
+      Process p = new ProcessBuilder(commands).start();
+      StringBuilder output = new StringBuilder();
+      try (BufferedReader b = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+        String line;
+        while ((line = b.readLine()) != null) {
+          output.append(line).append("\n");
+        }
+      }
+      p.waitFor();
+      return output.toString();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      log.error("Interrupted while executing command {}", executable);
     }
     return null;
   }

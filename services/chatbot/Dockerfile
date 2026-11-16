@@ -21,5 +21,9 @@ RUN mkdir -p /app/resources
 COPY src/resources/crapi-openapi-spec.json /app/resources/crapi-openapi-spec.json
 ENV PYTHONPATH="/app"
 COPY entrypoint.sh /app/entrypoint.sh
+# Run as an unprivileged user that owns the app dir (vectorstore, resources).
+RUN groupadd --system app && useradd --system --gid app --create-home app \
+    && chown -R app:app /app
+USER app
 CMD /app/entrypoint.sh
 EXPOSE 5002 5500
