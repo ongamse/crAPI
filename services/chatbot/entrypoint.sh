@@ -29,6 +29,10 @@ if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
   fi
   echo "TLS_CERTIFICATE: $TLS_CERTIFICATE"
   echo "TLS_KEY: $TLS_KEY"
+  if ! grep -q "PRIVATE KEY-----" "$TLS_KEY" 2>/dev/null; then
+    echo "TLS key $TLS_KEY is missing or a placeholder. Generate one with services/gencert.sh or mount your own and set TLS_KEY. Exiting."
+    exit 1
+  fi
   uvicorn chatbot.app:app --timeout-keep-alive 600 --host 0.0.0.0 --port ${SERVER_PORT} --ssl-certfile $TLS_CERTIFICATE --ssl-keyfile $TLS_KEY --log-level=debug
 else
   uvicorn chatbot.app:app --timeout-keep-alive 600 --host 0.0.0.0 --port ${SERVER_PORT} --log-level=debug
