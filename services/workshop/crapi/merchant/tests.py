@@ -161,6 +161,24 @@ class MerchantTestCase(TestCase):
             self.assertEqual(res.status_code, 400, url)
             self.assertEqual(res.json()["message"], messages.MECHANIC_API_NOT_ALLOWED)
 
+    def test_is_safe_header_value(self):
+        """
+        header values with CR/LF/control characters must be rejected
+        :return: None
+        """
+        from crapi.merchant.views import is_safe_header_value
+
+        self.assertTrue(is_safe_header_value("Bearer abc.def-ghi"))
+        for value in [
+            "Bearer abc\r\nX-Injected: 1",
+            "Bearer abc\nX-Injected: 1",
+            "Bearer abc\rX",
+            "Bearer abc\x00",
+            "Bearer abc\x7f",
+            None,
+        ]:
+            self.assertFalse(is_safe_header_value(value), repr(value))
+
     def test_contact_mechanic(self):
         """
         gives all correct field for contact mechanic
