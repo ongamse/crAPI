@@ -42,8 +42,14 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
+      // Reject header injection (CR/LF or other control chars) in recipients and subject.
+      rejectHeaderInjection(sendMail, "recipient");
+      rejectHeaderInjection(subject, "subject");
+      InternetAddress[] emails = InternetAddress.parse(sendMail, true);
+      for (InternetAddress emailAddress : emails) {
+        emailAddress.validate();
+      }
       log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -69,7 +75,7 @@ public class SMTPMailServer {
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
+      msg.setRecipients(Message.RecipientType.TO, emails);
       msg.setSubject(subject);
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
@@ -80,6 +86,21 @@ public class SMTPMailServer {
       Transport.send(msg);
     } catch (Exception e) {
       e.printStackTrace();
+    }
+  }
+
+  /**
+   * Reject values containing CR, LF or other ISO control characters, which could be used to inject
+   * additional mail headers or recipients.
+   */
+  static void rejectHeaderInjection(String value, String field) {
+    if (value == null) {
+      throw new IllegalArgumentException("Missing mail " + field);
+    }
+    for (int i = 0; i < value.length(); i++) {
+      if (Character.isISOControl(value.charAt(i))) {
+        throw new IllegalArgumentException("Illegal control character in mail " + field);
+      }
     }
   }
 }
