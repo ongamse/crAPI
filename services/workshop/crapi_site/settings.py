@@ -133,6 +133,15 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": MAX_LIMIT,
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "UNAUTHENTICATED_USER": None,  # Needed once you disable django.contrib.auth
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    # Generous defaults so normal use is unaffected; override via environment.
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": os.environ.get("THROTTLE_RATE_ANON", "6000/minute"),
+        "user": os.environ.get("THROTTLE_RATE_USER", "6000/minute"),
+    },
 }
 LOGGING = {
     "version": 1,
