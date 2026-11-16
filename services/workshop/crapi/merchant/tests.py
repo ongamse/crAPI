@@ -134,6 +134,30 @@ class MerchantTestCase(TestCase):
         )
         self.assertNotEqual(res.status_code, 200)
 
+    def test_contact_mechanic_blocks_internal_urls(self):
+        """
+        mechanic_api pointing at metadata / loopback / non http(s) targets
+        should be rejected before any request is made
+        :return: None
+        """
+        for url in [
+            "http://169.254.169.254/latest/meta-data/",
+            "http://127.0.0.1:8000/",
+            "http://localhost/",
+            "http://[::1]/",
+            "file:///etc/passwd",
+            "http://user:pass@example.com/",
+        ]:
+            self.contact_mechanic_request_body["mechanic_api"] = url
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+            self.assertEqual(res.status_code, 400, url)
+            self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
+
     def test_contact_mechanic(self):
         """
         gives all correct field for contact mechanic

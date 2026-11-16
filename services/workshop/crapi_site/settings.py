@@ -41,6 +41,14 @@ def get_env_value(env_variable):
         raise ImproperlyConfigured(error_msg)
 
 
+# Comma separated hosts (host or host:port) that contact_mechanic may call
+# even if they resolve to a private/loopback address.
+MECHANIC_API_ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+]
+
 FILES_LIMIT = int(os.environ.get("FILES_LIMIT", 1000))
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
