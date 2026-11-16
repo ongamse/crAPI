@@ -13,3 +13,6 @@ docker-compose.local.yml
 *.keystore
 services/tls/
 deploy/docker/tls/
+
+# Private JWKS (RSA private members) is supplied at runtime and must never be committed
+jwks.json

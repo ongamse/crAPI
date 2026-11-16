@@ -18,7 +18,8 @@ services:
     # ports:
     #  - "${LISTEN_IP:-127.0.0.1}:8080:8080"
     volumes:
-      - ./keys:/app/keys
+      # Directory holding your private jwks.json (never committed); see docs/setup.md
+      - ${JWKS_KEY_DIR:?Set JWKS_KEY_DIR to a directory containing jwks.json}:/app/keys:ro
       - ${TLS_KEY_DIR:-./tls}:/app/tls:ro
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}

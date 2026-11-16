@@ -16,7 +16,8 @@
 cd "$(dirname $0)"
 kubectl create namespace crapi
 
-kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
+: "${JWKS_FILE:?Set JWKS_FILE to the path of your private jwks.json}"
+kubectl create -n crapi secret generic jwt-key-secret --from-file=jwks.json="$JWKS_FILE"
 # Credentials must be exported by the operator; nothing is committed to git.
 : "${DB_PASSWORD:?Set DB_PASSWORD}" "${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD}"
 : "${SECRET_KEY:?Set SECRET_KEY}" "${API_GATEWAY_PASSWORD:?Set API_GATEWAY_PASSWORD}"

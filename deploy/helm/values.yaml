@@ -61,9 +61,11 @@ identity:
     name: crapi-identity
     labels:
       app: crapi-identity
+  # Pre-created Secret holding the private RSA JWKS (key: jwks.json), mounted at /app/keys.
+  # Create it out of band, never commit it, e.g.
+  #   kubectl create -n crapi secret generic jwt-key-secret --from-file=jwks.json=/path/to/jwks.json
   jwtKeySecret:
     name: jwt-key-secret
-    file: keys/jwks.json
     labels:
       app: crapi-identity
   config:
