@@ -133,6 +133,9 @@ workshop:
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
     filesLimit: 1000
+    # Extra hostnames accepted in the Host header (service name, localhost and
+    # 127.0.0.1 are always allowed).
+    allowedHosts: []
   deploymentLabels:
     app: crapi-workshop
   podLabels:

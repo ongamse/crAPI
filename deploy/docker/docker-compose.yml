@@ -135,6 +135,7 @@ services:
       - TLS_KEY=certs/server.key
       - FILES_LIMIT=1000
       - MECHANIC_API_ALLOWED_HOSTS=${MECHANIC_API_ALLOWED_HOSTS:-}
+      - ALLOWED_HOSTS=${WORKSHOP_ALLOWED_HOSTS:-crapi-workshop,localhost,127.0.0.1}
     volumes:
       - ${TLS_CERTS_DIR:-./certs}:/app/certs:ro
     depends_on:

@@ -61,7 +61,16 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Host header allowlist (protects against DNS rebinding / Host header attacks).
+# Defaults cover local/dev use and the in-cluster service name that the web
+# gateway (nginx) sends as the Host header. Extra comma separated hostnames can
+# be added through the ALLOWED_HOSTS environment variable. Wildcards are
+# ignored so the list always fails closed.
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]", "crapi-workshop"]
+for _host in os.environ.get("ALLOWED_HOSTS", "").split(","):
+    _host = _host.strip()
+    if _host and "*" not in _host and _host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_host)
 
 # Comma separated hostnames that the contact mechanic feature may call, in
 # addition to the host the request itself was addressed to.
