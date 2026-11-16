@@ -217,7 +217,9 @@ def ping_identity_server():
         headers = {
             "Accept": "*/*",
         }
-        request = requests.get(identity_health_url, headers)
+        request = requests.get(
+            identity_health_url, headers, timeout=settings.HTTP_REQUEST_TIMEOUT
+        )
         if request.status_code == 200:
             return True
         else:

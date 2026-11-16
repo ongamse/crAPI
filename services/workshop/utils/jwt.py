@@ -88,7 +88,11 @@ def jwt_auth_required(func):
                 tokenJson = {"token": token}
                 identity_url = settings.IDENTITY_VERIFY
                 logger.debug(f"Identity url: {identity_url}, tokenJson: {tokenJson}")
-                token_verify_response = requests.post(identity_url, json=tokenJson)
+                token_verify_response = requests.post(
+                    identity_url,
+                    json=tokenJson,
+                    timeout=settings.HTTP_REQUEST_TIMEOUT,
+                )
                 logger.debug(
                     f"Identity url: {identity_url}, token_verify_response: {token_verify_response}"
                 )

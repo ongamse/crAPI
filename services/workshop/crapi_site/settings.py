@@ -43,6 +43,9 @@ def get_env_value(env_variable):
 
 FILES_LIMIT = int(os.environ.get("FILES_LIMIT", 1000))
 
+# Timeout (seconds) applied to outbound HTTP requests made with `requests`
+HTTP_REQUEST_TIMEOUT = float(os.environ.get("HTTP_REQUEST_TIMEOUT", 10))
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
