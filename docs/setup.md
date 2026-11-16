@@ -1,7 +1,7 @@
 Setup | crAPI
 =============
 
-> **Note**: Custom jwks key can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys`
+> **Note**: The JWKS signing key is no longer committed. Before starting crAPI, generate an RS256 key (for example with `jose`/`nimbus` or `step crypto jwk create`) with `"alg": "RS256"`, `"use": "sig"` and a `kid`, and save the JWKS (a `{"keys": [ ... ]}` document with exactly one key) as a *jwks.json* file in the *keys* folder of your deployment folder such as `/deploy/docker/keys` (git-ignored). The identity service refuses to start without it.
 
 ## Docker and docker compose
 
