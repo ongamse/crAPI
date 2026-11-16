@@ -253,6 +253,11 @@ IDENTITY_LOGIN = "http://{}/identity/api/auth/login".format(
 IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
+# Certificate validation for outbound HTTPS calls (identity, API gateway,
+# mechanic API). Optionally set TLS_CA_BUNDLE to the path of a CA bundle (or
+# a self-signed server certificate) to trust an internal CA. Defaults to the
+# system trust store.
+TLS_VERIFY = os.environ.get("TLS_CA_BUNDLE") or True
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(

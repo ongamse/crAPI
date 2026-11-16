@@ -122,7 +122,7 @@ class ContactMechanicView(APIView):
                     request_url,
                     params=request_data,
                     headers=outbound_headers,
-                    verify=False,
+                    verify=settings.TLS_VERIFY,
                     allow_redirects=False,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
