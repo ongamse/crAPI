@@ -49,4 +49,35 @@ public class SMTPMailServerTest {
     Assertions.assertEquals(
         "<p>a\n\tb\r</p>", SMTPMailServer.stripUnsafeBodyChars("<p>a\u0000\n\tb\r\u0007</p>"));
   }
+
+  @Test
+  public void parseRecipientsRebuildsValidAddresses() throws Exception {
+    jakarta.mail.internet.InternetAddress[] out =
+        SMTPMailServer.parseRecipients("user@example.com, other@example.org");
+    Assertions.assertEquals(2, out.length);
+    Assertions.assertEquals("user@example.com", out[0].getAddress());
+    Assertions.assertEquals("other@example.org", out[1].getAddress());
+  }
+
+  @Test
+  public void parseRecipientsRejectsInjectionAndInvalid() {
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> SMTPMailServer.parseRecipients("a@example.com\r\nBcc: evil@example.com"));
+    Assertions.assertThrows(Exception.class, () -> SMTPMailServer.parseRecipients("not-an-address"));
+    Assertions.assertThrows(
+        Exception.class, () -> SMTPMailServer.parseRecipients("\"a b\"@example.com"));
+  }
+
+  @Test
+  public void buildSubjectAcceptsFixedSubjectsAndRejectsOthers() {
+    Assertions.assertEquals(
+        "crAPI: Change Email Token", SMTPMailServer.buildSubject("crAPI: Change Email Token"));
+    Assertions.assertEquals(
+        "Unlock your account", SMTPMailServer.buildSubject("Unlock your account"));
+    Assertions.assertThrows(
+        IllegalArgumentException.class, () -> SMTPMailServer.buildSubject("hi\r\nBcc: x@y.z"));
+    Assertions.assertThrows(
+        IllegalArgumentException.class, () -> SMTPMailServer.buildSubject("<script>"));
+  }
 }
