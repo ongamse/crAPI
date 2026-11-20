@@ -3,7 +3,10 @@ cd "$(dirname $0)"
 kubectl create namespace crapi
 #kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 
-kubectl create -n secret generic jwt-key-secret --from-file=../keys
+# Optional custom signing key: place a private jwks.json in ../keys (not stored in git).
+# Without it the identity service generates a key at startup.
+mkdir -p ../keys
+kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
 
 # Generate random service credentials (override by exporting the variables
 # before running this script).

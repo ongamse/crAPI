@@ -8,3 +8,5 @@ services/certs/
 docker-compose.local.yml
 # TLS private keys are never committed; see docs/setup.md (TLS)
 **/server.key
+# JWKS signing keys contain private RSA members and are never committed
+**/jwks.json

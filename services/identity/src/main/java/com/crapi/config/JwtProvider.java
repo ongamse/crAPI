@@ -22,7 +22,9 @@ import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.SignedJWT;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
@@ -54,16 +56,31 @@ public class JwtProvider {
 
   public JwtProvider(@Value("${app.jwksJson}") String jwksJson) {
     try {
-      Base64.Decoder decoder = Base64.getDecoder();
-      InputStream jwksStream = new ByteArrayInputStream(decoder.decode(jwksJson));
-      JWKSet jwkSet = JWKSet.load(jwksStream);
-      jwksStream.close();
-      List<JWK> keys = jwkSet.getKeys();
-      if (keys.size() != 1 || !Objects.equals(keys.get(0).getAlgorithm().getName(), "RS256")) {
-        throw new RuntimeException("Invalid JWKS key passed!!!");
+      JWKSet jwkSet;
+      RSAKey rsaKey;
+      if (jwksJson == null || jwksJson.isBlank()) {
+        // No signing key supplied (JWKS env / keys/jwks.json): generate one for this run instead
+        // of shipping a private key in the repository.
+        log.warn("No JWKS signing key supplied; generating an ephemeral RSA key.");
+        rsaKey =
+            new RSAKeyGenerator(2048)
+                .keyUse(KeyUse.SIGNATURE)
+                .algorithm(JWSAlgorithm.RS256)
+                .keyIDFromThumbprint(true)
+                .generate();
+        jwkSet = new JWKSet(rsaKey);
+      } else {
+        Base64.Decoder decoder = Base64.getDecoder();
+        InputStream jwksStream = new ByteArrayInputStream(decoder.decode(jwksJson));
+        jwkSet = JWKSet.load(jwksStream);
+        jwksStream.close();
+        List<JWK> keys = jwkSet.getKeys();
+        if (keys.size() != 1 || !Objects.equals(keys.get(0).getAlgorithm().getName(), "RS256")) {
+          throw new RuntimeException("Invalid JWKS key passed!!!");
+        }
+        rsaKey = keys.get(0).toRSAKey();
       }
 
-      RSAKey rsaKey = keys.get(0).toRSAKey();
       this.publicRSAKey = rsaKey.toPublicJWK();
       this.keyPair = rsaKey.toKeyPair();
       this.publicJwkSet = jwkSet.toJSONObject();
