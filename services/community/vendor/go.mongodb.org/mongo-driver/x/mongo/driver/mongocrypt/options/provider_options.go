@@ -25,7 +25,8 @@ func (akpo *AwsKmsProviderOptions) SetAccessKeyID(accessKeyID string) *AwsKmsPro
 
 // SetSecretAccessKey specifies the AWS secret access key.
 func (akpo *AwsKmsProviderOptions) SetSecretAccessKey(secretAccessKey string) *AwsKmsProviderOptions {
-	akpo.SecretAccessKey = secretAccessKey
+	accessKeyRef := &akpo.SecretAccessKey
+	*accessKeyRef = secretAccessKey
 	return akpo
 }
 

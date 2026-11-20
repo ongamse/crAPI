@@ -21,8 +21,10 @@ spec:
             - "postgresdb"
       volumes:
         - name: jwt-signing-keys
-          secret:
-            secretName: jwt-signing-keys
+          projected:
+            sources:
+              - secret:
+                  name: jwt-signing-keys
       containers:
         - name: crapi-identity
           image: crapi/crapi-identity:latest

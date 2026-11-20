@@ -289,8 +289,9 @@ func (c *ClientOptions) ApplyURI(uri string) *ClientOptions {
 
 		var x509Subject string
 		var keyPasswd string
-		if cs.SSLClientCertificateKeyPasswordSet && cs.SSLClientCertificateKeyPassword != nil {
-			keyPasswd = cs.SSLClientCertificateKeyPassword()
+		keyPwFunc := cs.SSLClientCertificateKeyPassword
+		if cs.SSLClientCertificateKeyPasswordSet && keyPwFunc != nil {
+			keyPasswd = keyPwFunc()
 		}
 		if cs.SSLClientCertificateKeyFileSet {
 			x509Subject, err = addClientCertFromConcatenatedFile(tlsConfig, cs.SSLClientCertificateKeyFile, keyPasswd)
