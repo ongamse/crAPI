@@ -14,13 +14,19 @@
 
 package com.crapi.model;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
 public class VideoForm {
 
   private long id;
+
+  @NotBlank
+  @Size(max = 255)
   private String videoName;
+
   private String video_url;
   private String conversion_params;
 }

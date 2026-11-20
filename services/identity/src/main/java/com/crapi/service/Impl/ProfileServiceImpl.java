@@ -22,7 +22,6 @@ import com.crapi.enums.ERole;
 import com.crapi.exception.CRAPIExceptionHandler;
 import com.crapi.exception.IOExceptionHandler;
 import com.crapi.model.CRAPIResponse;
-import com.crapi.model.VideoForm;
 import com.crapi.repository.ProfileVideoRepository;
 import com.crapi.repository.UserDetailsRepository;
 import com.crapi.service.ProfileService;
@@ -131,14 +130,15 @@ public class ProfileServiceImpl implements ProfileService {
 
   /**
    * @param videoId id of the video that is being updated, must belong to the token user
-   * @param videoForm
+   * @param videoName validated new video name
+   * @param conversionParams new conversion params, the current ones are kept when null
    * @param request getting jwt token for user from request header
    * @return its change user profile object and return success message.
    */
   @Transactional
   @Override
   public ProfileVideo updateProfileVideo(
-      Long videoId, VideoForm videoForm, HttpServletRequest request) {
+      Long videoId, String videoName, String conversionParams, HttpServletRequest request) {
     User user;
     ProfileVideo profileVideo;
     user = userService.getUserFromToken(request);
@@ -146,11 +146,9 @@ public class ProfileServiceImpl implements ProfileService {
     // requested id is only compared in memory against that user's own video
     profileVideo = findOwnedProfileVideo(videoId, user, false).orElse(null);
     if (profileVideo != null) {
-      profileVideo.setVideo_name(videoForm.getVideoName());
+      profileVideo.setVideo_name(videoName);
       profileVideo.setConversion_params(
-          (videoForm.getConversion_params() != null
-              ? videoForm.getConversion_params()
-              : profileVideo.getConversion_params()));
+          (conversionParams != null ? conversionParams : profileVideo.getConversion_params()));
       profileVideoRepository.save(profileVideo);
       return profileVideo;
     }
