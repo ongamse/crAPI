@@ -44,6 +44,49 @@ ALLOWED_MECHANIC_API_PATHS = (
 )
 
 
+ALLOWED_MECHANIC_API_SCHEMES = {"http": "http", "https": "https"}
+
+
+def build_mechanic_api_url(url):
+    """
+    validates the user supplied url against the allowlist and rebuilds the
+    outbound url from server-side values only: the scheme, host and path are
+    taken from the allowlist entries, never from the user supplied string
+    :param url: url supplied by the user
+    :returns the server-built url if the destination is allowed, None otherwise
+    """
+    if not isinstance(url, str):
+        return None
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return None
+    scheme = ALLOWED_MECHANIC_API_SCHEMES.get(parsed.scheme)
+    if scheme is None or not hostname:
+        return None
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        return None
+    allowed_host = next(
+        (
+            host
+            for host in settings.MECHANIC_API_ALLOWED_HOSTS
+            if host == hostname.lower()
+        ),
+        None,
+    )
+    allowed_path = next(
+        (path for path in ALLOWED_MECHANIC_API_PATHS if path == parsed.path), None
+    )
+    if allowed_host is None or allowed_path is None:
+        return None
+    netloc = f"[{allowed_host}]" if ":" in allowed_host else allowed_host
+    if port is not None:
+        netloc = f"{netloc}:{int(port)}"
+    return f"{scheme}://{netloc}{allowed_path}"
+
+
 def is_allowed_mechanic_api(url):
     """
     checks that the url is an http(s) url to an allowlisted host
@@ -51,21 +94,7 @@ def is_allowed_mechanic_api(url):
     :param url: url supplied by the user
     :returns True if the url is an allowed destination, False otherwise
     """
-    if not isinstance(url, str):
-        return False
-    try:
-        parsed = urlparse(url)
-        hostname = parsed.hostname
-        parsed.port  # pylint: disable=pointless-statement
-    except ValueError:
-        return False
-    if parsed.scheme not in ("http", "https") or not hostname:
-        return False
-    if parsed.username or parsed.password or parsed.query or parsed.fragment:
-        return False
-    if hostname.lower() not in settings.MECHANIC_API_ALLOWED_HOSTS:
-        return False
-    return parsed.path in ALLOWED_MECHANIC_API_PATHS
+    return build_mechanic_api_url(url) is not None
 
 
 def is_safe_header_value(value):
@@ -124,8 +153,8 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        request_url = request_data["mechanic_api"]
-        if not is_allowed_mechanic_api(request_url):
+        request_url = build_mechanic_api_url(request_data["mechanic_api"])
+        if request_url is None:
             log_error(
                 request.path,
                 request.data,
