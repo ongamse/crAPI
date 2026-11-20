@@ -151,10 +151,18 @@ public class VehicleServiceImpl implements VehicleService {
     Random random = new Random();
     User user = userService.getUserFromToken(request);
     try {
-      // Object level authorization: the vehicle uuid is only resolved together with the
-      // authenticated user's id, so only a vehicle owned by that user can be returned
-      if (user != null && user.getId() != null) {
-        vehicleDetails = vehicleDetailsRepository.findByUuidAndOwner_id(carId, user.getId());
+      // Object level authorization: walk from the authenticated user's own vehicles and compare
+      // the requested uuid in memory, the request value is never passed to a repository
+      if (user != null && user.getId() != null && carId != null) {
+        List<VehicleDetails> ownedVehicles =
+            vehicleDetailsRepository.findAllByOwner_id(user.getId());
+        if (ownedVehicles != null) {
+          vehicleDetails =
+              ownedVehicles.stream()
+                  .filter(owned -> carId.equals(owned.getUuid()))
+                  .findFirst()
+                  .orElse(null);
+        }
       }
       if (vehicleDetails != null) {
         userDetails = userDetailsRepository.findByUser_id(user.getId());

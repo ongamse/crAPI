@@ -137,8 +137,8 @@ public class VehicleServiceImplTest {
     VehicleDetails vehicleDetails = getDummyVehicleDetails();
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     UserDetails userDetails = getDummyUserDetails();
-    Mockito.when(vehicleDetailsRepository.findByUuidAndOwner_id(vehicleDetails.getUuid(), 1L))
-        .thenReturn(vehicleDetails);
+    Mockito.when(vehicleDetailsRepository.findAllByOwner_id(1L))
+        .thenReturn(Collections.singletonList(vehicleDetails));
     Mockito.when(userDetailsRepository.findByUser_id(Mockito.anyLong())).thenReturn(userDetails);
     VehicleLocationResponse vehicleLocationResponse =
         vehicleService.getVehicleLocation(vehicleDetails.getUuid(), getDummyHttpRequest());
@@ -153,8 +153,8 @@ public class VehicleServiceImplTest {
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     UserDetails userDetails = getDummyUserDetails();
     userDetails.setName(null);
-    Mockito.when(vehicleDetailsRepository.findByUuidAndOwner_id(vehicleDetails.getUuid(), 1L))
-        .thenReturn(vehicleDetails);
+    Mockito.when(vehicleDetailsRepository.findAllByOwner_id(1L))
+        .thenReturn(Collections.singletonList(vehicleDetails));
     Mockito.when(userDetailsRepository.findByUser_id(Mockito.anyLong())).thenReturn(userDetails);
     VehicleLocationResponse vehicleLocationResponse =
         vehicleService.getVehicleLocation(vehicleDetails.getUuid(), getDummyHttpRequest());
@@ -166,8 +166,8 @@ public class VehicleServiceImplTest {
   public void getVehicleLocationNotFoundWhenVehicleDetailsAreNull() {
     VehicleDetails vehicleDetails = getDummyVehicleDetails();
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
-    Mockito.when(vehicleDetailsRepository.findByUuidAndOwner_id(vehicleDetails.getUuid(), 1L))
-        .thenReturn(null);
+    Mockito.when(vehicleDetailsRepository.findAllByOwner_id(1L))
+        .thenReturn(Collections.emptyList());
     VehicleLocationResponse vehicleLocationResponse =
         vehicleService.getVehicleLocation(vehicleDetails.getUuid(), getDummyHttpRequest());
     Assertions.assertNull(vehicleLocationResponse);
@@ -178,8 +178,8 @@ public class VehicleServiceImplTest {
     VehicleDetails vehicleDetails = getDummyVehicleDetails();
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     vehicleDetails.setOwner(null);
-    Mockito.when(vehicleDetailsRepository.findByUuidAndOwner_id(vehicleDetails.getUuid(), 1L))
-        .thenReturn(null);
+    Mockito.when(vehicleDetailsRepository.findAllByOwner_id(1L))
+        .thenReturn(Collections.emptyList());
     VehicleLocationResponse vehicleLocationResponse =
         vehicleService.getVehicleLocation(vehicleDetails.getUuid(), getDummyHttpRequest());
     Assertions.assertNull(vehicleLocationResponse);
@@ -191,9 +191,9 @@ public class VehicleServiceImplTest {
     User otherUser = getDummyUser();
     otherUser.setId(2l);
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(otherUser);
-    // owner scoped lookup finds nothing for a vehicle that belongs to another user
-    Mockito.when(vehicleDetailsRepository.findByUuidAndOwner_id(vehicleDetails.getUuid(), 2L))
-        .thenReturn(null);
+    // the other user owns no vehicle with the requested uuid
+    Mockito.when(vehicleDetailsRepository.findAllByOwner_id(2L))
+        .thenReturn(Collections.singletonList(getDummyVehicleDetails()));
     VehicleLocationResponse vehicleLocationResponse =
         vehicleService.getVehicleLocation(vehicleDetails.getUuid(), getDummyHttpRequest());
     Assertions.assertNull(vehicleLocationResponse);

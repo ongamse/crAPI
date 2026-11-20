@@ -32,6 +32,7 @@ import com.crapi.utils.ProfileValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -141,12 +142,9 @@ public class ProfileServiceImpl implements ProfileService {
     User user;
     ProfileVideo profileVideo;
     user = userService.getUserFromToken(request);
-    // Object level authorization: the requested video id is only resolved together with the
-    // token user's id, so only the token user's own video can be returned
-    profileVideo =
-        (videoId != null && user != null && user.getId() != null)
-            ? profileVideoRepository.findByIdAndUser_id(videoId, user.getId()).orElse(null)
-            : null;
+    // Object level authorization: the video is resolved from the authenticated user and the
+    // requested id is only compared in memory against that user's own video
+    profileVideo = findOwnedProfileVideo(videoId, user, false).orElse(null);
     if (profileVideo != null) {
       profileVideo.setVideo_name(videoForm.getVideoName());
       profileVideo.setConversion_params(
@@ -181,15 +179,31 @@ public class ProfileServiceImpl implements ProfileService {
   private Optional<ProfileVideo> findOwnedProfileVideo(
       Long videoId, HttpServletRequest request, boolean allowAdmin) {
     User user = userService.getUserFromToken(request);
+    return findOwnedProfileVideo(videoId, user, allowAdmin);
+  }
+
+  /**
+   * Resolution walks from the authenticated principal: the request supplied id is never passed to a
+   * repository, it is only compared in memory with the user's own video, or (admin role only) with
+   * the server side list of known video ids.
+   */
+  private Optional<ProfileVideo> findOwnedProfileVideo(
+      Long videoId, User user, boolean allowAdmin) {
     if (videoId == null || user == null || user.getId() == null) {
       return Optional.empty();
     }
-    // The requested id is never looked up on its own: every query is also constrained by the
-    // authenticated user (owner) or by that user holding the admin role.
     if (allowAdmin && ERole.ROLE_ADMIN.equals(user.getRole())) {
-      return profileVideoRepository.findByIdIfUserHasRole(videoId, user.getId(), ERole.ROLE_ADMIN);
+      Optional<Long> knownId =
+          profileVideoRepository.findAllIds().stream()
+              .filter(id -> Objects.equals(id, videoId))
+              .findFirst();
+      return knownId.flatMap(profileVideoRepository::findById);
     }
-    return profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
+    ProfileVideo ownVideo = profileVideoRepository.findByUser_id(user.getId());
+    if (ownVideo != null && Objects.equals(ownVideo.getId(), videoId)) {
+      return Optional.of(ownVideo);
+    }
+    return Optional.empty();
   }
 
   /**
