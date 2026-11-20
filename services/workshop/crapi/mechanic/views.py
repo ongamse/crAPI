@@ -227,7 +227,7 @@ class GetReportView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if not report_id.isnumeric():
+        if not re.fullmatch(r"[0-9]+", report_id):
             return Response(
                 {"message": messages.INVALID_REPORT_ID},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -393,7 +393,19 @@ class DownloadReportView(APIView):
             )
 
         filename_from_user = unquote(filename_from_user)
-        full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
+        # The decoded name must be a plain file name (no path separators or
+        # dot segments) and must resolve inside the reports directory.
+        if not SAFE_REPORT_NAME_PATTERN.fullmatch(filename_from_user):
+            return Response(
+                {"message": "Invalid input."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        full_path = resolve_report_path(filename_from_user)
+        if full_path is None:
+            return Response(
+                {"message": "Invalid input."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         if os.path.exists(full_path) and os.path.isfile(full_path):
             return FileResponse(open(full_path, 'rb'))
         elif not os.path.exists(full_path):
@@ -406,6 +418,23 @@ class DownloadReportView(APIView):
                 {"message": f"'{full_path}' is not a file."},
                 status=status.HTTP_403_FORBIDDEN
             )
+
+SAFE_REPORT_NAME_PATTERN = re.compile(r'[A-Za-z0-9_:]+')
+
+
+def resolve_report_path(filename: str):
+    """
+    Resolves a report file name to an absolute path that is guaranteed to be
+    inside the reports directory. Returns None if the name is unsafe.
+    """
+    if not SAFE_REPORT_NAME_PATTERN.fullmatch(filename):
+        return None
+    reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, 'reports'))
+    candidate = os.path.realpath(os.path.join(reports_dir, filename))
+    if os.path.commonpath([reports_dir, candidate]) != reports_dir:
+        return None
+    return candidate
+
 
 def validate_filename(input: str) -> bool:
     """
@@ -421,7 +450,12 @@ def service_report_pdf(response_data, report_id):
     """
     reports_dir = os.path.join(settings.BASE_DIR, 'reports')
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = os.path.join(reports_dir, f"report_{report_id}")
+    # report_id must be a plain ASCII number; never build a path from anything else.
+    if not re.fullmatch(r'[0-9]+', str(report_id)):
+        raise ValueError("Invalid report id")
+    report_filepath = resolve_report_path(f"report_{report_id}")
+    if report_filepath is None:
+        raise ValueError("Invalid report path")
 
     template = get_template('service_report.html')
     html_string = template.render({'service': response_data})
