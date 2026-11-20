@@ -11,14 +11,14 @@ import (
 // ParseURL no longer needs to be used by clients of this library since supplying a URL as a
 // connection string to sql.Open() is now supported:
 //
-//	sql.Open("postgres", "postgres://bob:<pw>@1.2.3.4:5432/mydb?sslmode=verify-full")
+//	sql.Open("postgres", "postgres://[credentials@]1.2.3.4:5432/mydb?sslmode=verify-full")
 //
 // It remains exported here for backwards-compatibility.
 //
 // ParseURL converts a url to a connection string for driver.Open.
 // Example:
 //
-//	"postgres://bob:<pw>@1.2.3.4:5432/mydb?sslmode=verify-full"
+//	"postgres://[credentials@]1.2.3.4:5432/mydb?sslmode=verify-full"
 //
 // converts to:
 //

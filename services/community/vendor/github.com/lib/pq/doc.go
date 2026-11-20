@@ -24,7 +24,7 @@ using this package directly. For example:
 
 You can also connect to a database using a URL. For example:
 
-	connStr := "postgres://pqgotest:password@localhost/pqgotest?sslmode=verify-full"
+	connStr := "postgres://[credentials@]localhost/pqgotest?sslmode=verify-full"
 	db, err := sql.Open("postgres", connStr)
 
 

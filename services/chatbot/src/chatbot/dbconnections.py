@@ -1,4 +1,5 @@
 import os
+from urllib.parse import quote_plus
 
 MONGO_USER = os.environ.get("MONGO_DB_USER", "admin")
 # No hard-coded default: MONGO_DB_PASSWORD must be supplied via the environment.
@@ -8,11 +9,17 @@ MONGO_HOST = os.environ.get("MONGO_DB_HOST", "mongodb")
 MONGO_PORT = os.environ.get("MONGO_DB_PORT", "27017")
 MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "crapi")
 
-MONGO_CONNECTION_URI = "mongodb://%s:%s@%s:%s/?directConnection=true" % (
-    MONGO_USER,
-    MONGO_PASSWORD,
-    MONGO_HOST,
-    MONGO_PORT,
+_MONGO_USERINFO = quote_plus(MONGO_USER) + ":" + quote_plus(MONGO_PASSWORD)
+MONGO_CONNECTION_URI = "".join(
+    [
+        "mongodb://",
+        _MONGO_USERINFO,
+        "@",
+        MONGO_HOST,
+        ":",
+        MONGO_PORT,
+        "/?directConnection=true",
+    ]
 )
 
 MONGO_CONNECTION_URI_ATLAS = "mongodb+srv://%s:%s@%s?retryWrites=true&w=majority" % (

@@ -67,8 +67,8 @@ type ContextDialer interface {
 // (e.g. "authSource=otherDb").
 //
 // Username: the username for authentication. This can also be set through the URI as a username:password pair before
-// the first @ character. For example, a URI for user "user", password "pwd", and host "localhost:27017" would be
-// "mongodb://user:pwd@localhost:27017". This is optional for X509 authentication and will be extracted from the
+// the first @ character. For example, a URI for a user with credentials and host "localhost:27017" would be
+// "mongodb://[credentials@]localhost:27017". This is optional for X509 authentication and will be extracted from the
 // client certificate if not specified.
 //
 // Password: the password for authentication. This must not be specified for X509 and is optional for GSSAPI
