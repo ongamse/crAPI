@@ -173,6 +173,27 @@ class MerchantTestCase(TestCase):
         for value in ["Bearer a\r\nX-Injected: 1", "Bearer a\nb", "Bearer a\rb", "a\x00b", "a\x7fb", 5]:
             self.assertFalse(is_safe_header_value(value))
 
+    def test_build_authorization_header(self):
+        """
+        only well formed bearer credentials are rebuilt for forwarding
+        :return: None
+        """
+        from crapi.merchant.views import build_authorization_header
+
+        self.assertIsNone(build_authorization_header(None))
+        self.assertEqual(
+            build_authorization_header("Bearer abc.def-123"), "Bearer abc.def-123"
+        )
+        for value in [
+            "Bearer a\r\nX-Injected: 1",
+            "Bearer a b",
+            "Basic abc",
+            "Bearer ",
+            "Bearer a\n",
+            5,
+        ]:
+            self.assertIsNone(build_authorization_header(value))
+
     def test_contact_mechanic_rejects_unsafe_authorization_header(self):
         """
         an Authorization header with control characters must not be forwarded

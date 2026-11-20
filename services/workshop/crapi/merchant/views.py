@@ -16,6 +16,7 @@
 contains all the views related to Merchant
 """
 import logging
+import re
 import requests
 from urllib.parse import urlparse
 from requests.exceptions import MissingSchema, InvalidURL
@@ -111,6 +112,35 @@ def is_safe_header_value(value):
     return all(ord(char) >= 32 and ord(char) != 127 for char in value)
 
 
+BEARER_TOKEN_CHARS = (
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._~+/=@-"
+)
+BEARER_HEADER_PATTERN = re.compile(r"Bearer ([A-Za-z0-9._~+/=@-]+)")
+
+
+def build_authorization_header(value):
+    """
+    validates the Authorization header of the incoming request and rebuilds
+    the outgoing value from allowlisted characters only, so that no
+    request-derived string is placed in the outgoing header unchanged
+    :param value: Authorization header value taken from the incoming request
+    :returns a freshly built 'Bearer <token>' string, or None if the value
+        is not a well formed bearer credential
+    """
+    if not isinstance(value, str):
+        return None
+    match = BEARER_HEADER_PATTERN.fullmatch(value)
+    if match is None:
+        return None
+    token = "".join(
+        allowed
+        for char in match.group(1)
+        for allowed in BEARER_TOKEN_CHARS
+        if allowed == char
+    )
+    return "Bearer " + token
+
+
 class ContactMechanicView(APIView):
     """
     View for contact mechanic feature
@@ -167,7 +197,10 @@ class ContactMechanicView(APIView):
             )
 
         authorization_header = request.META.get("HTTP_AUTHORIZATION")
-        if not is_safe_header_value(authorization_header):
+        safe_authorization = build_authorization_header(authorization_header)
+        if not is_safe_header_value(authorization_header) or (
+            authorization_header is not None and safe_authorization is None
+        ):
             log_error(
                 request.path,
                 request.data,
@@ -179,6 +212,10 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        outbound_headers = {}
+        if safe_authorization is not None:
+            outbound_headers["Authorization"] = safe_authorization
+
         repeat_count = 0
         while True:
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
@@ -187,7 +224,7 @@ class ContactMechanicView(APIView):
                     request_url,
                     params=request_data,
                     allow_redirects=False,
-                    headers={"Authorization": authorization_header},
+                    headers=outbound_headers,
                     verify=settings.OUTBOUND_TLS_VERIFY,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
