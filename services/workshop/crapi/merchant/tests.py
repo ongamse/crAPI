@@ -161,6 +161,38 @@ class MerchantTestCase(TestCase):
             self.assertEqual(res.status_code, 400)
             self.assertEqual(res.json()["message"], messages.MECHANIC_API_NOT_ALLOWED)
 
+    def test_is_safe_header_value(self):
+        """
+        header values with CR, LF or other control characters are rejected
+        :return: None
+        """
+        from crapi.merchant.views import is_safe_header_value
+
+        self.assertTrue(is_safe_header_value(None))
+        self.assertTrue(is_safe_header_value("Bearer abc.def-123"))
+        for value in ["Bearer a\r\nX-Injected: 1", "Bearer a\nb", "Bearer a\rb", "a\x00b", "a\x7fb", 5]:
+            self.assertFalse(is_safe_header_value(value))
+
+    def test_contact_mechanic_rejects_unsafe_authorization_header(self):
+        """
+        an Authorization header with control characters must not be forwarded
+        :return: None
+        """
+        with patch("crapi.merchant.views.requests.get") as mock_get, patch(
+            "crapi.merchant.views.is_safe_header_value", return_value=False
+        ):
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+            mock_get.assert_not_called()
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(
+            res.json()["message"], messages.INVALID_AUTHORIZATION_HEADER
+        )
+
     def test_contact_mechanic(self):
         """
         gives all correct field for contact mechanic
