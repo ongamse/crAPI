@@ -9,13 +9,11 @@ metadata:
     {{- end }}
 data:
   LOG_LEVEL: {{ .Values.logLevel | upper }}
-  JWT_SECRET: {{ .Values.jwtSecret }} #Used for creating a JWT. Can be anything
   APP_NAME: {{ .Values.identity.config.appName }}
   ENABLE_SHELL_INJECTION: {{ .Values.enableShellInjection | quote }}
   ENABLE_LOG4J: {{ .Values.enableLog4j | quote }}
   DB_HOST: {{ .Values.postgresdb.service.name }}
   DB_USER: {{ .Values.postgresdb.config.postgresUser }}
-  DB_PASSWORD: {{ .Values.postgresdb.config.postgresPassword }}
   DB_NAME: {{ .Values.postgresdb.config.postgresDbName }}
   DB_PORT: {{ .Values.postgresdb.port | quote }}
   MAILHOG_HOST: {{ .Values.mailhog.smtpService.name }}

@@ -2,7 +2,6 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
@@ -10,6 +9,12 @@ apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
 apiGatewayPassword:
 tlsEnabled: false
+
+# Credentials are kept in a Kubernetes Secret, never in values or ConfigMaps.
+# Any password left empty below is generated randomly on first install and
+# reused on upgrade. Override with --set / a private values file if needed.
+credentials:
+  secretName: crapi-credentials
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
@@ -125,7 +130,8 @@ workshop:
       app: crapi-workshop
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
+    # Django SECRET_KEY; leave empty to generate one (see credentials above).
+    secretKey: ""
     filesLimit: 1000
   deploymentLabels:
     app: crapi-workshop
@@ -155,6 +161,7 @@ chatbot:
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
+    # Publicly documented crAPI demo admin account (seeded by the identity service); not a private secret.
     apiPassword: Admin!123
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
@@ -233,9 +240,9 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
+    # Leave empty to generate on install (see credentials above).
+    mongoPassword: ""
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:
@@ -278,7 +285,8 @@ postgresdb:
     labels:
       app: postgresdb
     postgresUser: admin
-    postgresPassword: crapisecretpassword
+    # Leave empty to generate on install (see credentials above).
+    postgresPassword: ""
     postgresDbName: crapi
   storage:
     # type: "manual"

@@ -24,7 +24,8 @@ MONGO_CONNECTION_URI_ATLAS = "mongodb+srv://%s:%s@%s?retryWrites=true&w=majority
 POSTGRES_HOST = os.environ.get("DB_HOST", "postgresdb")
 POSTGRES_PORT = os.environ.get("DB_PORT", "5432")
 POSTGRES_USER = os.environ.get("DB_USER", "admin")
-POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD", "crapisecretpassword")
+# No hard-coded default: DB_PASSWORD must be supplied via the environment.
+POSTGRES_PASSWORD = os.environ["DB_PASSWORD"]
 POSTGRES_DB = os.environ.get("DB_NAME", "crapi")
 
 POSTGRES_URI = "postgresql://%s:%s@%s:%s/%s?sslmode=disable" % (

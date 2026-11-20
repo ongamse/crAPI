@@ -44,6 +44,27 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.workshop.config.name }}
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentials.secretName }}
+                  key: SECRET_KEY
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentials.secretName }}
+                  key: DB_PASSWORD
+            - name: MONGO_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentials.secretName }}
+                  key: MONGO_DB_PASSWORD
+            - name: API_GATEWAY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentials.secretName }}
+                  key: API_GATEWAY_PASSWORD
           {{- if .Values.workshop.resources }}
           resources:
             {{- toYaml .Values.workshop.resources | nindent 12 }}
