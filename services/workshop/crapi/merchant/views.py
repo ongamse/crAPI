@@ -17,6 +17,7 @@ contains all the views related to Merchant
 """
 import logging
 import requests
+from urllib.parse import urlparse
 from requests.exceptions import MissingSchema, InvalidURL
 from rest_framework import status
 from rest_framework.response import Response
@@ -35,6 +36,36 @@ from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
 
 
 logger = logging.getLogger()
+
+# Only the mechanic report endpoint of this application may be called back.
+ALLOWED_MECHANIC_API_PATHS = (
+    "/workshop/api/mechanic/receive_report",
+    "/api/mechanic/receive_report",
+)
+
+
+def is_allowed_mechanic_api(url):
+    """
+    checks that the url is an http(s) url to an allowlisted host
+    and the mechanic receive_report path
+    :param url: url supplied by the user
+    :returns True if the url is an allowed destination, False otherwise
+    """
+    if not isinstance(url, str):
+        return False
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        parsed.port  # pylint: disable=pointless-statement
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https") or not hostname:
+        return False
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        return False
+    if hostname.lower() not in settings.MECHANIC_API_ALLOWED_HOSTS:
+        return False
+    return parsed.path in ALLOWED_MECHANIC_API_PATHS
 
 
 class ContactMechanicView(APIView):
@@ -79,14 +110,27 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        request_url = request_data["mechanic_api"]
+        if not is_allowed_mechanic_api(request_url):
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.MECHANIC_API_NOT_ALLOWED,
+            )
+            return Response(
+                {"message": messages.MECHANIC_API_NOT_ALLOWED},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         repeat_count = 0
         while True:
-            request_url = request_data["mechanic_api"]
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
             try:
                 mechanic_response = requests.get(
                     request_url,
                     params=request_data,
+                    allow_redirects=False,
                     headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
                     verify=False,
                 )
