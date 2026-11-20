@@ -32,7 +32,7 @@ spec:
             - name: MONGO_INITDB_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentials.secretName }}
+                  name: {{ .Values.credentials.name }}
                   key: MONGO_DB_PASSWORD
           volumeMounts:
             - mountPath: /data/db

@@ -5,7 +5,7 @@ cluster Secret (stable across upgrades), then a newly generated random value.
 Usage: include "crapi.credential" (dict "ctx" . "key" "DB_PASSWORD" "value" .Values.x)
 */}}
 {{- define "crapi.credential" -}}
-{{- $existing := lookup "v1" "Secret" .ctx.Release.Namespace .ctx.Values.credentials.secretName -}}
+{{- $existing := lookup "v1" "Secret" .ctx.Release.Namespace .ctx.Values.credentials.name -}}
 {{- if .value -}}
 {{- .value | toString | b64enc -}}
 {{- else if and $existing $existing.data (hasKey $existing.data .key) -}}

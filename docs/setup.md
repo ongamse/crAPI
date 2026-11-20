@@ -27,6 +27,8 @@ export SECRET_KEY="$(openssl rand -hex 32)"
 export API_GATEWAY_PASSWORD="<password for the vendor API gateway>"
 ```
 
+Optional: set `MECHANIC_DEMO_PASSWORD` to choose the login of the seeded demo mechanic accounts (a random value is used when unset). Set `TLS_KEYSTORE_PASSWORD` / `TLS_KEY_PASSWORD` for the identity service only if you enable TLS with your own keystore.
+
 For Kubernetes, `deploy/k8s/*/deploy.sh` generates a `crapi-credentials` Secret (override by exporting the same variables first) and the Helm chart generates one on install (override with `--set postgresdb.config.postgresPassword=...` etc.).
 
 #### TLS (optional)

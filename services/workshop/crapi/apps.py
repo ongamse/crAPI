@@ -15,6 +15,8 @@
 """
 Configuration for crapi application
 """
+import os
+import secrets
 import django
 import sys
 from django.apps import AppConfig
@@ -48,6 +50,11 @@ def create_products():
         logger.info("Created Product: " + str(product.__dict__))
 
 
+# Demo mechanic accounts are shared with the Postman suite, so the login value is
+# supplied at deploy time (MECHANIC_DEMO_PASSWORD) rather than stored in source.
+MECHANIC_DEMO_PASSWORD = os.environ.get("MECHANIC_DEMO_PASSWORD") or secrets.token_urlsafe(16)
+
+
 def create_mechanics():
     from crapi.user.models import User, UserDetails
     from crapi.mechanic.models import Mechanic
@@ -57,16 +64,14 @@ def create_mechanics():
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
-            # Publicly documented crAPI demo mechanic account (used by the Postman suite); not a private secret.
-            "password": "Admin1@#",
+            "password": MECHANIC_DEMO_PASSWORD,
             "mechanic_code": "TRAC_JHN",
         },
         {
             "name": "James",
             "email": "james@example.com",
             "number": "",
-            # Publicly documented crAPI demo mechanic account (used by the Postman suite); not a private secret.
-            "password": "Admin1@#",
+            "password": MECHANIC_DEMO_PASSWORD,
             "mechanic_code": "TRAC_JME",
         },
     ]

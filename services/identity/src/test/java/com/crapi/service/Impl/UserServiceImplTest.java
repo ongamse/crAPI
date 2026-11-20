@@ -44,6 +44,7 @@ import com.crapi.service.VehicleService;
 import com.crapi.utils.SMTPMailServer;
 import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
+import java.util.UUID;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.LogEvent;
@@ -92,7 +93,7 @@ public class UserServiceImplTest {
     LoginForm loginForm = getDummyLoginForm();
     User user = new User("email@example.com", "9798789212", "Pass", ERole.ROLE_USER);
     CRAPIResponse crapiAPIResponse = new CRAPIResponse();
-    crapiAPIResponse.setMessage(UserMessage.PASSWORD_GOT_RESET);
+    crapiAPIResponse.setMessage(UserMessage.ACCOUNT_ACCESS_RESET_DONE);
     crapiAPIResponse.setStatus(200);
     Mockito.doReturn(user).when(userService).getUserFromToken(Mockito.any());
     Mockito.when(encoder.encode(Mockito.anyString())).thenReturn("newPassword");
@@ -106,7 +107,7 @@ public class UserServiceImplTest {
     LoginForm loginForm = getDummyLoginForm();
     User user = getDummyUser();
     CRAPIResponse crapiAPIResponse = new CRAPIResponse();
-    crapiAPIResponse.setMessage(UserMessage.PASSWORD_GOT_RESET);
+    crapiAPIResponse.setMessage(UserMessage.ACCOUNT_ACCESS_RESET_DONE);
     crapiAPIResponse.setStatus(200);
     Mockito.doReturn(null).when(userService).getUserFromToken(Mockito.any());
     userService.resetPassword(loginForm, getMockHttpRequest());
@@ -242,8 +243,7 @@ public class UserServiceImplTest {
   @Test
   public void testUpdateUserPassword() {
     User user = getDummyUser();
-    // Unit-test fixture only; not a real credential.
-    String samplePassword = "samplePassword";
+    String samplePassword = UUID.randomUUID().toString();
     Mockito.when(userRepository.findByEmail(user.getEmail())).thenReturn(user);
     Mockito.when(userRepository.saveAndFlush(Mockito.any())).thenReturn(user);
     userService.updateUserPassword(samplePassword, getDummyUser().getEmail());

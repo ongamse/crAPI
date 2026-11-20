@@ -75,11 +75,11 @@ for more information about connection string parameters.
 
 Use single quotes for values that contain whitespace:
 
-    "user=pqgotest password='with spaces'"
+    "user=pqgotest password='<value with spaces>'"
 
 A backslash will escape the next character in values:
 
-    "user=space\ man password='it\'s valid'"
+    "user=space\ man password='<value with \' quote>'"
 
 Note that the connection parameter client_encoding (which sets the
 text encoding for the connection) may be set but must be "UTF8",

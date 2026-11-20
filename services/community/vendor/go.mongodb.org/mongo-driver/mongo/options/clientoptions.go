@@ -581,7 +581,7 @@ func (c *ClientOptions) SetSocketTimeout(d time.Duration) *ClientOptions {
 // other two options must not be specified.
 //
 // 3. "tlsCertificateKeyFilePassword" (or "sslClientCertificateKeyPassword"): Specify the password to decrypt the client
-// private key file (e.g. "tlsCertificateKeyFilePassword=password").
+// private key file (e.g. "tlsCertificateKeyFilePassword=<value>").
 //
 // 4. "tlsCaFile" (or "sslCertificateAuthorityFile"): Specify the path to a single or bundle of certificate authorities
 // to be considered trusted when making a TLS connection (e.g. "tlsCaFile=/path/to/caFile").

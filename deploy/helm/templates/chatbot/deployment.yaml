@@ -58,13 +58,19 @@ spec:
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentials.secretName }}
+                  name: {{ .Values.credentials.name }}
                   key: DB_PASSWORD
             - name: MONGO_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentials.secretName }}
+                  name: {{ .Values.credentials.name }}
                   key: MONGO_DB_PASSWORD
+            - name: API_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentials.name }}
+                  key: API_PASSWORD
+                  optional: true
           {{- if and .Values.tlsEnabled .Values.tlsSecretName }}
             - name: TLS_CERTIFICATE
               value: /app/tls/server.crt

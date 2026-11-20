@@ -126,6 +126,7 @@ services:
       - MONGO_DB_PASSWORD=${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD in the environment or in .env}
       - MONGO_DB_NAME=crapi
       - SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY in the environment or in .env}
+      - MECHANIC_DEMO_PASSWORD=${MECHANIC_DEMO_PASSWORD:-}
       - API_GATEWAY_URL=https://api.mypremiumdealership.com
       - API_GATEWAY_PASSWORD=${API_GATEWAY_PASSWORD:?Set API_GATEWAY_PASSWORD in the environment or in .env}
       - TLS_ENABLED=${TLS_ENABLED:-false}

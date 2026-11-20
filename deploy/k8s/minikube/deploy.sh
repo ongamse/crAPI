@@ -19,7 +19,7 @@ kubectl create namespace crapi
 # Optional custom signing key: place a private jwks.json in ../keys (not stored in git).
 # Without it the identity service generates a key at startup.
 mkdir -p ../keys
-kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
+kubectl create -n crapi secret generic jwt-signing-keys --from-file=../keys
 
 # Generate random service credentials (override by exporting the variables
 # before running this script).

@@ -56,7 +56,7 @@ spec:
             - name: MONGO_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentials.secretName }}
+                  name: {{ .Values.credentials.name }}
                   key: MONGO_DB_PASSWORD
             - name: MH_MONGO_URI
               value: "{{ .Values.mongodb.config.mongoUser }}:$(MONGO_DB_PASSWORD)@{{ .Values.mongodb.service.name }}:{{ .Values.mongodb.port }}"
