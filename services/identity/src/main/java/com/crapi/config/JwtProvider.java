@@ -19,13 +19,17 @@ import com.crapi.repository.UserRepository;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
-import com.nimbusds.jwt.SignedJWT;
+import com.nimbusds.jose.proc.BadJOSEException;
+import com.nimbusds.jose.proc.SecurityContext;
+import com.nimbusds.jose.proc.SingleKeyJWSKeySelector;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
+import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -51,6 +55,8 @@ public class JwtProvider {
   private KeyPair keyPair;
 
   private RSAKey publicRSAKey;
+
+  private ConfigurableJWTProcessor<SecurityContext> jwtProcessor;
 
   private Map<String, Object> publicJwkSet;
 
@@ -82,6 +88,10 @@ public class JwtProvider {
       }
 
       this.publicRSAKey = rsaKey.toPublicJWK();
+      DefaultJWTProcessor<SecurityContext> processor = new DefaultJWTProcessor<>();
+      processor.setJWSKeySelector(
+          new SingleKeyJWSKeySelector<>(JWSAlgorithm.RS256, this.publicRSAKey.toRSAPublicKey()));
+      this.jwtProcessor = processor;
       this.keyPair = rsaKey.toKeyPair();
       this.publicJwkSet = jwkSet.toJSONObject();
     } catch (IOException | ParseException | JOSEException e) {
@@ -133,28 +143,23 @@ public class JwtProvider {
    * @return username from JWT Token
    */
   public String getUserNameFromJwtToken(String token) throws ParseException {
-    SignedJWT signedJWT = SignedJWT.parse(token);
     try {
-      if (!hasValidSignature(signedJWT)) {
-        throw new ParseException("Invalid JWT signature", 0);
-      }
-    } catch (JOSEException e) {
-      throw new ParseException("JWT signature verification failed", 0);
+      return verifiedClaims(token).getSubject();
+    } catch (BadJOSEException | JOSEException e) {
+      throw new ParseException("JWT verification failed: " + e.getMessage(), 0);
     }
-    return signedJWT.getJWTClaimsSet().getSubject();
   }
 
   /**
-   * Verify the token signature against the server's own RSA public key only. The algorithm is
-   * pinned to RS256; token-supplied header values (alg, kid, jku) never select the key or the
-   * verification method.
+   * Single entry point for reading claims. The Nimbus processor parses the token, selects only the
+   * server's own RSA public key (algorithm pinned to RS256; token-supplied alg, kid, jku never
+   * select the key or the verification method), verifies the signature, runs the standard
+   * time-claim checks (exp/nbf when present), and only then returns the claims set. Unverified
+   * claims are never exposed to callers.
    */
-  private boolean hasValidSignature(SignedJWT signedJWT) throws JOSEException {
-    if (!JWSAlgorithm.RS256.equals(signedJWT.getHeader().getAlgorithm())) {
-      log.debug("Rejected JWT with unexpected algorithm");
-      return false;
-    }
-    return signedJWT.verify(new RSASSAVerifier(this.publicRSAKey));
+  private JWTClaimsSet verifiedClaims(String token)
+      throws ParseException, BadJOSEException, JOSEException {
+    return this.jwtProcessor.process(token, null);
   }
 
   /**
@@ -163,14 +168,13 @@ public class JwtProvider {
    */
   public boolean validateJwtToken(String authToken) {
     try {
-      SignedJWT signedJWT = SignedJWT.parse(authToken);
-      boolean valid = hasValidSignature(signedJWT);
-      log.debug("JWT valid?: " + valid);
-      return valid;
+      verifiedClaims(authToken);
+      log.debug("JWT valid?: true");
+      return true;
     } catch (ParseException e) {
       log.error("Could not parse JWT Token", e);
-    } catch (JOSEException e) {
-      log.error("JWT signature verification failed", e);
+    } catch (BadJOSEException | JOSEException e) {
+      log.error("JWT verification failed", e);
     }
 
     return false;
