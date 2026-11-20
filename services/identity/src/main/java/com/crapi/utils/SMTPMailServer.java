@@ -97,17 +97,16 @@ public class SMTPMailServer {
    */
   static InternetAddress[] parseRecipients(String recipients) throws AddressException {
     String checked = requireNoControlChars(recipients, "recipient");
-    InternetAddress[] parsed = InternetAddress.parse(checked, true);
-    if (parsed.length == 0) {
-      throw new IllegalArgumentException("Mail recipient must not be empty");
-    }
-    InternetAddress[] rebuilt = new InternetAddress[parsed.length];
-    for (int i = 0; i < parsed.length; i++) {
-      String address = parsed[i].getAddress();
-      Matcher m = address == null ? null : EMAIL_PATTERN.matcher(address);
-      if (m == null || !m.matches()) {
+    // Split on commas ourselves; every element must fully match the strict address pattern, so
+    // display names, quoted strings, comments, angle brackets and group syntax are all rejected.
+    String[] parts = checked.split(",", -1);
+    InternetAddress[] rebuilt = new InternetAddress[parts.length];
+    for (int i = 0; i < parts.length; i++) {
+      Matcher m = EMAIL_PATTERN.matcher(parts[i].trim());
+      if (!m.matches()) {
         throw new IllegalArgumentException("Mail recipient is not a valid address");
       }
+      // strict=true runs JavaMail's RFC 822 address check on the matched value.
       rebuilt[i] = new InternetAddress(m.group(1) + "@" + m.group(2), true);
     }
     return rebuilt;
