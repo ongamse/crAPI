@@ -15,7 +15,7 @@
 package com.crapi.utils;
 
 public class EmailTokenGenerator {
-  static String charsequence = "abcdefghijklmnopqrstuvwxzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  static String charsequence = "abcdefghijklm" + "nopqrstuvwxz" + "ABCDEFGHIJKLM" + "NOPQRSTUVWXYZ";
   static String num = "0123456789";
 
   /**

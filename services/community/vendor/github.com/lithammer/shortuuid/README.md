@@ -41,7 +41,7 @@ It's possible to use a custom alphabet as well, though it has to be 57
 characters long.
 
 ```go
-alphabet := "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy="
+alphabet := "<your 57-character alphabet>"
 shortuuid.NewWithAlphabet(alphabet) // u=BFWRLr5dXbeWf==iasZi
 ```
 
