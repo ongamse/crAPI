@@ -121,14 +121,9 @@ public class ProfileServiceImpl implements ProfileService {
   @Transactional
   @Override
   public ProfileVideo getProfileVideo(Long videoId, HttpServletRequest request) {
-    User user;
-    ProfileVideo profileVideo;
-    user = userService.getUserFromToken(request);
-    profileVideo = profileVideoRepository.findByUser_id(user.getId());
-    if (profileVideo != null) {
-      if (profileVideo.getId() == videoId) {
-        return profileVideo;
-      }
+    Optional<ProfileVideo> profileVideo = findOwnedProfileVideo(videoId, request);
+    if (profileVideo.isPresent()) {
+      return profileVideo.get();
     }
     throw new CRAPIExceptionHandler(UserMessage.VIDEO_NOT_FOUND, 404);
   }
@@ -146,9 +141,13 @@ public class ProfileServiceImpl implements ProfileService {
     User user;
     ProfileVideo profileVideo;
     user = userService.getUserFromToken(request);
-    profileVideo = profileVideoRepository.findByUser_id(user.getId());
-    // Object level authorization: the requested video must be the token user's own video
-    if (profileVideo != null && videoId != null && profileVideo.getId() == videoId) {
+    // Object level authorization: the requested video id is only resolved together with the
+    // token user's id, so only the token user's own video can be returned
+    profileVideo =
+        (videoId != null && user != null && user.getId() != null)
+            ? profileVideoRepository.findByIdAndUser_id(videoId, user.getId()).orElse(null)
+            : null;
+    if (profileVideo != null) {
       profileVideo.setVideo_name(videoForm.getVideoName());
       profileVideo.setConversion_params(
           (videoForm.getConversion_params() != null
@@ -181,22 +180,16 @@ public class ProfileServiceImpl implements ProfileService {
    */
   private Optional<ProfileVideo> findOwnedProfileVideo(
       Long videoId, HttpServletRequest request, boolean allowAdmin) {
-    Optional<ProfileVideo> optionalProfileVideo = profileVideoRepository.findById(videoId);
-    if (!optionalProfileVideo.isPresent()) {
-      return optionalProfileVideo;
-    }
     User user = userService.getUserFromToken(request);
-    if (user == null) {
+    if (videoId == null || user == null || user.getId() == null) {
       return Optional.empty();
     }
+    // The requested id is never looked up on its own: every query is also constrained by the
+    // authenticated user (owner) or by that user holding the admin role.
     if (allowAdmin && ERole.ROLE_ADMIN.equals(user.getRole())) {
-      return optionalProfileVideo;
+      return profileVideoRepository.findByIdIfUserHasRole(videoId, user.getId(), ERole.ROLE_ADMIN);
     }
-    User videoOwner = optionalProfileVideo.get().getUser();
-    if (videoOwner != null && user.getId() != null && user.getId().equals(videoOwner.getId())) {
-      return optionalProfileVideo;
-    }
-    return Optional.empty();
+    return profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
   }
 
   /**

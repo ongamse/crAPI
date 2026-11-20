@@ -151,24 +151,20 @@ public class VehicleServiceImpl implements VehicleService {
     Random random = new Random();
     User user = userService.getUserFromToken(request);
     try {
-      vehicleDetails = vehicleDetailsRepository.findByUuid(carId);
+      // Object level authorization: the vehicle uuid is only resolved together with the
+      // authenticated user's id, so only a vehicle owned by that user can be returned
+      if (user != null && user.getId() != null) {
+        vehicleDetails = vehicleDetailsRepository.findByUuidAndOwner_id(carId, user.getId());
+      }
       if (vehicleDetails != null) {
-        // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);
-        // vehicleDetails.setVehicleLocation(getVehicleLocationList().get(random.nextInt(getVehicleLocationList().size())));
-        // Object level authorization: the vehicle must belong to the authenticated user
-        if (user != null
-            && vehicleDetails.getOwner() != null
-            && user.getId() != null
-            && user.getId().equals(vehicleDetails.getOwner().getId())) {
-          userDetails = userDetailsRepository.findByUser_id(vehicleDetails.getOwner().getId());
-          vehicleLocationForm =
-              new VehicleLocationResponse(
-                  carId,
-                  (userDetails != null ? userDetails.getName() : null),
-                  (userDetails != null ? userDetails.getUser().getEmail() : null),
-                  vehicleDetails.getVehicleLocation());
-          return vehicleLocationForm;
-        }
+        userDetails = userDetailsRepository.findByUser_id(user.getId());
+        vehicleLocationForm =
+            new VehicleLocationResponse(
+                carId,
+                (userDetails != null ? userDetails.getName() : null),
+                (userDetails != null ? userDetails.getUser().getEmail() : null),
+                vehicleDetails.getVehicleLocation());
+        return vehicleLocationForm;
       }
     } catch (Exception exception) {
       log.error("Fail to get vehicle location-> Message: {}", exception);
