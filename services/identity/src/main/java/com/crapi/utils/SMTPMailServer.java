@@ -42,8 +42,12 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
-      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
+      // Reject CR/LF and other control characters before they reach any mail header.
+      String safeRecipients = requireNoControlChars(sendMail, "recipient");
+      String safeSubject = requireNoControlChars(subject, "subject");
+      String safeBody = stripUnsafeBodyChars(body);
+      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, safeRecipients);
+      InternetAddress[] emails = InternetAddress.parse(safeRecipients);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -62,24 +66,55 @@ public class SMTPMailServer {
       }
       if (!useMailHog) {
         session = mailConfiguration.sendmail();
-        log.info("Using Mail Configuration for sending email: " + sendMail);
+        log.info("Using Mail Configuration for sending email: " + safeRecipients);
       }
 
       Message msg = new MimeMessage(session);
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
-      msg.setSubject(subject);
-      msg.setContent(body, "text/html");
+      msg.setRecipients(Message.RecipientType.TO, emails);
+      msg.setSubject(safeSubject);
+      msg.setContent(safeBody, "text/html");
       msg.setSentDate(new Date());
 
       MimeBodyPart messageBodyPart = new MimeBodyPart();
-      messageBodyPart.setContent(body, "text/html");
+      messageBodyPart.setContent(safeBody, "text/html");
 
       Transport.send(msg);
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  /**
+   * Fails closed when a value destined for a mail header contains CR, LF or any other ISO control
+   * character (prevents header / SMTP command injection).
+   */
+  static String requireNoControlChars(String value, String field) {
+    if (value == null) {
+      throw new IllegalArgumentException("Mail " + field + " must not be null");
+    }
+    for (int i = 0; i < value.length(); i++) {
+      if (Character.isISOControl(value.charAt(i))) {
+        throw new IllegalArgumentException("Mail " + field + " contains control characters");
+      }
+    }
+    return value;
+  }
+
+  /** Removes control characters from the body, keeping tab, CR and LF which are valid in HTML. */
+  static String stripUnsafeBodyChars(String value) {
+    if (value == null) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (!Character.isISOControl(c) || c == '\t' || c == '\n' || c == '\r') {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
   }
 }
