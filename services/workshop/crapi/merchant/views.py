@@ -159,7 +159,7 @@ class ContactMechanicView(APIView):
                     params=request_data,
                     allow_redirects=False,
                     headers={"Authorization": authorization_header},
-                    verify=False,
+                    verify=settings.OUTBOUND_TLS_VERIFY,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")

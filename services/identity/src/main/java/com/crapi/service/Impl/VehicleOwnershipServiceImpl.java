@@ -23,13 +23,8 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import javax.net.ssl.SSLContext;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.HttpClient;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.TrustAllStrategy;
-import org.apache.http.conn.ssl.TrustStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,13 +62,10 @@ public class VehicleOwnershipServiceImpl implements VehicleOwnershipService {
   public RestTemplate restTemplate()
       throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
     RestTemplateBuilder builder = new RestTemplateBuilder();
-    TrustStrategy allTrustStrategy = new TrustAllStrategy();
-    SSLContext sslContext =
-        org.apache.http.ssl.SSLContexts.custom().loadTrustMaterial(null, allTrustStrategy).build();
-    SSLConnectionSocketFactory csf =
-        new SSLConnectionSocketFactory(sslContext, NoopHostnameVerifier.INSTANCE);
-    CloseableHttpClient httpClient =
-        HttpClients.custom().setSSLSocketFactory(csf).setSSLContext(sslContext).build();
+    // Certificate and hostname validation stay enabled. useSystemProperties() makes the client
+    // honour -Djavax.net.ssl.trustStore (an env/config supplied CA bundle) on top of the JVM
+    // default trust store.
+    CloseableHttpClient httpClient = HttpClients.custom().useSystemProperties().build();
     builder =
         builder.requestFactory(
             () -> new HttpComponentsClientHttpRequestFactory((HttpClient) httpClient));
