@@ -89,6 +89,7 @@ class ContactMechanicView(APIView):
                     params=request_data,
                     headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
                     verify=False,
+                    timeout=5,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")

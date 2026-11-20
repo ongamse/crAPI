@@ -134,7 +134,7 @@ def create_mechanics():
 
 
 def create_reports():
-    import random
+    import secrets
     import sys
     import textwrap
     from crapi.user.models import User, UserDetails, Vehicle
@@ -149,9 +149,9 @@ def create_reports():
     vehicles = Vehicle.objects.all()
     for i in range(5):
         try:
-            mechanic = random.choice(mechanics)
-            vehicle = random.choice(vehicles)
-            status = random.choice(ServiceRequest.STATUS_CHOICES)[0]
+            mechanic = secrets.choice(mechanics)
+            vehicle = secrets.choice(vehicles)
+            status = secrets.choice(ServiceRequest.STATUS_CHOICES)[0]
             vehicle_model = vehicle.vehicle_model
             vehicle_company = vehicle_model.vehiclecompany
             user = vehicle.owner
@@ -217,7 +217,7 @@ def ping_identity_server():
         headers = {
             "Accept": "*/*",
         }
-        request = requests.get(identity_health_url, headers, verify=False)
+        request = requests.get(identity_health_url, headers, verify=False, timeout=5)
         if request.status_code == 200:
             return True
         else:
