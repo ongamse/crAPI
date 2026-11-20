@@ -1,0 +1,43 @@
+# Optional override that supplies TLS key material from the host.
+# The private key is not stored in the repository. Provide your own pair:
+#
+#   mkdir -p tls && openssl req -x509 -newkey rsa:4096 -nodes -sha256 -days 365 \
+#     -keyout tls/server.key -out tls/server.crt -subj "/CN=localhost"
+#   TLS_ENABLED=true docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+#
+# TLS_DIR can point to any directory containing server.crt and server.key.
+# The identity service uses a separate PKCS12 keystore (TLS_KEYSTORE) and is not affected.
+
+services:
+  crapi-community:
+    volumes:
+      - ${TLS_DIR:-./tls}:/app/tls:ro
+    environment:
+      - TLS_CERTIFICATE=/app/tls/server.crt
+      - TLS_KEY=/app/tls/server.key
+
+  crapi-workshop:
+    volumes:
+      - ${TLS_DIR:-./tls}:/app/tls:ro
+    environment:
+      - TLS_CERTIFICATE=/app/tls/server.crt
+      - TLS_KEY=/app/tls/server.key
+
+  crapi-chatbot:
+    volumes:
+      - ${TLS_DIR:-./tls}:/app/tls:ro
+    environment:
+      - TLS_CERTIFICATE=/app/tls/server.crt
+      - TLS_KEY=/app/tls/server.key
+
+  crapi-web:
+    volumes:
+      - ${TLS_DIR:-./tls}/server.crt:/app/certs/server.crt:ro
+      - ${TLS_DIR:-./tls}/server.key:/app/certs/server.key:ro
+
+  api.mypremiumdealership.com:
+    volumes:
+      - ${TLS_DIR:-./tls}:/app/tls:ro
+    environment:
+      - TLS_CERTIFICATE=/app/tls/server.crt
+      - TLS_KEY=/app/tls/server.key

@@ -29,6 +29,18 @@ export API_GATEWAY_PASSWORD="<password for the vendor API gateway>"
 
 For Kubernetes, `deploy/k8s/*/deploy.sh` generates a `crapi-credentials` Secret (override by exporting the same variables first) and the Helm chart generates one on install (override with `--set postgresdb.config.postgresPassword=...` etc.).
 
+#### TLS (optional)
+
+TLS is disabled by default (`TLS_ENABLED=false`). The TLS private key (`server.key`) is not stored in the repository. To enable TLS, supply your own key and certificate, for example:
+
+```
+mkdir -p tls && openssl req -x509 -newkey rsa:4096 -nodes -sha256 -days 365 \
+  -keyout tls/server.key -out tls/server.crt -subj "/CN=localhost"
+TLS_ENABLED=true docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+```
+
+`TLS_DIR` selects a different directory holding `server.crt` and `server.key`. The services read the key from `TLS_KEY` (and the certificate from `TLS_CERTIFICATE`). The identity service uses its own PKCS12 keystore and the gateway service generates a certificate when its image is built; the gateway also honours `TLS_CERTIFICATE` / `TLS_KEY`. When building images yourself, `services/gencert.sh` generates a pair and copies it into the service folders (the key files are git-ignored). On Kubernetes, create a Secret (`kubectl create secret generic crapi-tls --from-file=server.crt --from-file=server.key`) and install the chart with `--set tlsEnabled=true --set tlsSecretName=crapi-tls`.
+
 #### Start crAPI
 
  - To use the latest stable version.

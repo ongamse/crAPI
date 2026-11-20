@@ -65,6 +65,12 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.credentials.secretName }}
                   key: MONGO_DB_PASSWORD
+          {{- if and .Values.tlsEnabled .Values.tlsSecretName }}
+            - name: TLS_CERTIFICATE
+              value: /app/tls/server.crt
+            - name: TLS_KEY
+              value: /app/tls/server.key
+          {{- end }}
           {{- if .Values.chatbot.resources }}
           resources:
             {{- toYaml .Values.chatbot.resources | nindent 12 }}
@@ -74,3 +80,15 @@ spec:
               port: {{ .Values.chatbot.port }}
             initialDelaySeconds: 15
             periodSeconds: 10
+          {{- if and .Values.tlsEnabled .Values.tlsSecretName }}
+          volumeMounts:
+            - name: tls
+              mountPath: /app/tls
+              readOnly: true
+          {{- end }}
+      {{- if and .Values.tlsEnabled .Values.tlsSecretName }}
+      volumes:
+        - name: tls
+          secret:
+            secretName: {{ .Values.tlsSecretName }}
+      {{- end }}
