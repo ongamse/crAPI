@@ -16,7 +16,9 @@
 contains all the views related to Merchant
 """
 import logging
+import re
 import requests
+from urllib.parse import urlparse
 from requests.exceptions import MissingSchema, InvalidURL
 from rest_framework import status
 from rest_framework.response import Response
@@ -35,6 +37,108 @@ from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
 
 
 logger = logging.getLogger()
+
+# Only the mechanic report endpoint of this application may be called back.
+ALLOWED_MECHANIC_API_PATHS = (
+    "/workshop/api/mechanic/receive_report",
+    "/api/mechanic/receive_report",
+)
+
+
+ALLOWED_MECHANIC_API_SCHEMES = {"http": "http", "https": "https"}
+
+
+def build_mechanic_api_url(url):
+    """
+    validates the user supplied url against the allowlist and rebuilds the
+    outbound url from server-side values only: the scheme, host and path are
+    taken from the allowlist entries, never from the user supplied string
+    :param url: url supplied by the user
+    :returns the server-built url if the destination is allowed, None otherwise
+    """
+    if not isinstance(url, str):
+        return None
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return None
+    scheme = ALLOWED_MECHANIC_API_SCHEMES.get(parsed.scheme)
+    if scheme is None or not hostname:
+        return None
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        return None
+    allowed_host = next(
+        (
+            host
+            for host in settings.MECHANIC_API_ALLOWED_HOSTS
+            if host == hostname.lower()
+        ),
+        None,
+    )
+    allowed_path = next(
+        (path for path in ALLOWED_MECHANIC_API_PATHS if path == parsed.path), None
+    )
+    if allowed_host is None or allowed_path is None:
+        return None
+    netloc = f"[{allowed_host}]" if ":" in allowed_host else allowed_host
+    if port is not None:
+        netloc = f"{netloc}:{int(port)}"
+    return f"{scheme}://{netloc}{allowed_path}"
+
+
+def is_allowed_mechanic_api(url):
+    """
+    checks that the url is an http(s) url to an allowlisted host
+    and the mechanic receive_report path
+    :param url: url supplied by the user
+    :returns True if the url is an allowed destination, False otherwise
+    """
+    return build_mechanic_api_url(url) is not None
+
+
+def is_safe_header_value(value):
+    """
+    checks that a request-derived value can be placed in an outgoing
+    http header, i.e. it has no CR, LF or other control characters
+    :param value: header value taken from the incoming request
+    :returns True if the value is None or a string without control characters
+    """
+    if value is None:
+        return True
+    if not isinstance(value, str):
+        return False
+    return all(ord(char) >= 32 and ord(char) != 127 for char in value)
+
+
+BEARER_TOKEN_CHARS = (
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._~+/=@-"
+)
+BEARER_HEADER_PATTERN = re.compile(r"Bearer ([A-Za-z0-9._~+/=@-]+)")
+
+
+def build_authorization_header(value):
+    """
+    validates the Authorization header of the incoming request and rebuilds
+    the outgoing value from allowlisted characters only, so that no
+    request-derived string is placed in the outgoing header unchanged
+    :param value: Authorization header value taken from the incoming request
+    :returns a freshly built 'Bearer <token>' string, or None if the value
+        is not a well formed bearer credential
+    """
+    if not isinstance(value, str):
+        return None
+    match = BEARER_HEADER_PATTERN.fullmatch(value)
+    if match is None:
+        return None
+    token = "".join(
+        allowed
+        for char in match.group(1)
+        for allowed in BEARER_TOKEN_CHARS
+        if allowed == char
+    )
+    return "Bearer " + token
 
 
 class ContactMechanicView(APIView):
@@ -79,16 +183,49 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        request_url = build_mechanic_api_url(request_data["mechanic_api"])
+        if request_url is None:
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.MECHANIC_API_NOT_ALLOWED,
+            )
+            return Response(
+                {"message": messages.MECHANIC_API_NOT_ALLOWED},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        authorization_header = request.META.get("HTTP_AUTHORIZATION")
+        safe_authorization = build_authorization_header(authorization_header)
+        if not is_safe_header_value(authorization_header) or (
+            authorization_header is not None and safe_authorization is None
+        ):
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.INVALID_AUTHORIZATION_HEADER,
+            )
+            return Response(
+                {"message": messages.INVALID_AUTHORIZATION_HEADER},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        outbound_headers = {}
+        if safe_authorization is not None:
+            outbound_headers["Authorization"] = safe_authorization
+
         repeat_count = 0
         while True:
-            request_url = request_data["mechanic_api"]
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
             try:
                 mechanic_response = requests.get(
                     request_url,
                     params=request_data,
-                    headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
-                    verify=False,
+                    allow_redirects=False,
+                    headers=outbound_headers,
+                    verify=settings.OUTBOUND_TLS_VERIFY,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")

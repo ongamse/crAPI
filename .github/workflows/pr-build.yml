@@ -164,6 +164,14 @@ jobs:
         continue-on-error: true
         run:  docker compose -f deploy/docker/docker-compose.yml down --volumes --remove-orphans
 
+      - name: Generate ephemeral service credentials
+        run: |
+             for name in DB_PASSWORD MONGO_DB_PASSWORD SECRET_KEY API_GATEWAY_PASSWORD; do
+               value="$(openssl rand -hex 16)"
+               echo "::add-mask::${value}"
+               echo "${name}=${value}" >> "${GITHUB_ENV}"
+             done
+
       - name: Run crAPI using built images
         run: |
              cd deploy/docker
@@ -215,6 +223,14 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
+
+      - name: Generate ephemeral service credentials
+        run: |
+          for name in DB_PASSWORD MONGO_DB_PASSWORD SECRET_KEY API_GATEWAY_PASSWORD; do
+            value="$(openssl rand -hex 16)"
+            echo "::add-mask::${value}"
+            echo "${name}=${value}" >> "${GITHUB_ENV}"
+          done
 
       - name: Start the database
         run: docker compose -f services/docker-database.yml up -d

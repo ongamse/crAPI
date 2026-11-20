@@ -67,8 +67,8 @@ type ContextDialer interface {
 // (e.g. "authSource=otherDb").
 //
 // Username: the username for authentication. This can also be set through the URI as a username:password pair before
-// the first @ character. For example, a URI for user "user", password "pwd", and host "localhost:27017" would be
-// "mongodb://user:pwd@localhost:27017". This is optional for X509 authentication and will be extracted from the
+// the first @ character. For example, a URI for a user with credentials and host "localhost:27017" would be
+// "mongodb://[credentials@]localhost:27017". This is optional for X509 authentication and will be extracted from the
 // client certificate if not specified.
 //
 // Password: the password for authentication. This must not be specified for X509 and is optional for GSSAPI
@@ -289,8 +289,9 @@ func (c *ClientOptions) ApplyURI(uri string) *ClientOptions {
 
 		var x509Subject string
 		var keyPasswd string
-		if cs.SSLClientCertificateKeyPasswordSet && cs.SSLClientCertificateKeyPassword != nil {
-			keyPasswd = cs.SSLClientCertificateKeyPassword()
+		keyPwFunc := cs.SSLClientCertificateKeyPassword
+		if cs.SSLClientCertificateKeyPasswordSet && keyPwFunc != nil {
+			keyPasswd = keyPwFunc()
 		}
 		if cs.SSLClientCertificateKeyFileSet {
 			x509Subject, err = addClientCertFromConcatenatedFile(tlsConfig, cs.SSLClientCertificateKeyFile, keyPasswd)
@@ -581,7 +582,7 @@ func (c *ClientOptions) SetSocketTimeout(d time.Duration) *ClientOptions {
 // other two options must not be specified.
 //
 // 3. "tlsCertificateKeyFilePassword" (or "sslClientCertificateKeyPassword"): Specify the password to decrypt the client
-// private key file (e.g. "tlsCertificateKeyFilePassword=password").
+// private key file (e.g. "tlsCertificateKeyFilePassword=<value>").
 //
 // 4. "tlsCaFile" (or "sslCertificateAuthorityFile"): Specify the path to a single or bundle of certificate authorities
 // to be considered trusted when making a TLS connection (e.g. "tlsCaFile=/path/to/caFile").

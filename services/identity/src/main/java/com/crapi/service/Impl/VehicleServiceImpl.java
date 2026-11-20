@@ -138,30 +138,41 @@ public class VehicleServiceImpl implements VehicleService {
 
   /**
    * @param carId
-   * @return VehicleDetails which is linked with this carId.
+   * @param request getting jwt token for user from request header
+   * @return VehicleDetails which is linked with this carId, only if the vehicle is owned by the
+   *     authenticated user.
    */
   @Transactional
   @Override
-  public VehicleLocationResponse getVehicleLocation(UUID carId) {
+  public VehicleLocationResponse getVehicleLocation(UUID carId, HttpServletRequest request) {
     VehicleDetails vehicleDetails = null;
     VehicleLocationResponse vehicleLocationForm = null;
     UserDetails userDetails = null;
     Random random = new Random();
+    User user = userService.getUserFromToken(request);
     try {
-      vehicleDetails = vehicleDetailsRepository.findByUuid(carId);
-      if (vehicleDetails != null) {
-        // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);
-        // vehicleDetails.setVehicleLocation(getVehicleLocationList().get(random.nextInt(getVehicleLocationList().size())));
-        if (vehicleDetails.getOwner() != null) {
-          userDetails = userDetailsRepository.findByUser_id(vehicleDetails.getOwner().getId());
-          vehicleLocationForm =
-              new VehicleLocationResponse(
-                  carId,
-                  (userDetails != null ? userDetails.getName() : null),
-                  (userDetails != null ? userDetails.getUser().getEmail() : null),
-                  vehicleDetails.getVehicleLocation());
-          return vehicleLocationForm;
+      // Object level authorization: walk from the authenticated user's own vehicles and compare
+      // the requested uuid in memory, the request value is never passed to a repository
+      if (user != null && user.getId() != null && carId != null) {
+        List<VehicleDetails> ownedVehicles =
+            vehicleDetailsRepository.findAllByOwner_id(user.getId());
+        if (ownedVehicles != null) {
+          vehicleDetails =
+              ownedVehicles.stream()
+                  .filter(owned -> carId.equals(owned.getUuid()))
+                  .findFirst()
+                  .orElse(null);
         }
+      }
+      if (vehicleDetails != null) {
+        userDetails = userDetailsRepository.findByUser_id(user.getId());
+        vehicleLocationForm =
+            new VehicleLocationResponse(
+                carId,
+                (userDetails != null ? userDetails.getName() : null),
+                (userDetails != null ? userDetails.getUser().getEmail() : null),
+                vehicleDetails.getVehicleLocation());
+        return vehicleLocationForm;
       }
     } catch (Exception exception) {
       log.error("Fail to get vehicle location-> Message: {}", exception);

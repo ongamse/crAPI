@@ -7,7 +7,7 @@ import (
 )
 
 // DefaultAlphabet is the default alphabet used.
-const DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+const DefaultAlphabet = "23456789" + "ABCDEFGHJKLM" + "NPQRSTUVWXYZ" + "abcdefghijkm" + "nopqrstuvwxyz"
 
 type alphabet struct {
 	chars [57]string

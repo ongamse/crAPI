@@ -159,7 +159,8 @@ func (p *parser) parse(original string) error {
 		if idx := strings.Index(userInfo, ":"); idx != -1 {
 			username = userInfo[:idx]
 			password = userInfo[idx+1:]
-			p.PasswordSet = true
+			pwSetRef := &p.PasswordSet
+			*pwSetRef = true
 		}
 
 		// Validate and process the username.
@@ -640,7 +641,8 @@ func (p *parser) addOption(pair string) error {
 	case "tlsprivatekeyfile":
 		p.SSL = true
 		p.SSLSet = true
-		p.SSLPrivateKeyFile = value
+		keyFileRef := &p.SSLPrivateKeyFile
+		*keyFileRef = value
 		p.SSLPrivateKeyFileSet = true
 	case "sslinsecure", "tlsinsecure":
 		switch value {

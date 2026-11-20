@@ -21,13 +21,13 @@ import com.crapi.model.CRAPIResponse;
 import com.crapi.model.VideoForm;
 import com.crapi.service.ProfileService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-@CrossOrigin
 @RestController
 @RequestMapping("/identity")
 public class ProfileController {
@@ -95,9 +95,13 @@ public class ProfileController {
   @PutMapping("/api/v2/user/videos/{video_id}")
   public ResponseEntity<?> updateProfileVideo(
       @PathVariable("video_id") Long videoId,
-      @RequestBody VideoForm videoForm,
+      @Valid @RequestBody VideoForm videoForm,
       HttpServletRequest request) {
-    ProfileVideo profileVideo = profileService.updateProfileVideo(videoForm, request);
+    // only the validated, typed values are handed to the service, not the request body object
+    String videoName = videoForm.getVideoName();
+    String conversionParams = videoForm.getConversion_params();
+    ProfileVideo profileVideo =
+        profileService.updateProfileVideo(videoId, videoName, conversionParams, request);
     if (profileVideo != null) return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
     else
       return ResponseEntity.status(HttpStatus.NO_CONTENT)

@@ -44,6 +44,12 @@ spec:
           envFrom:
             - configMapRef:
                 name: mailhog-configmap
+          env:
+            - name: MH_MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: MH_MONGO_URI
           resources:
             limits:
               cpu: "1"

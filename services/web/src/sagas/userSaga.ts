@@ -270,7 +270,8 @@ export function* forgotPassword(action: MyAction): Generator<any, void, any> {
   let receivedResponse: Partial<Response> = {};
   try {
     yield put({ type: actionTypes.FETCHING_DATA });
-    const postUrl = APIService.IDENTITY_SERVICE + requestURLS.FORGOT_PASSWORD;
+    const postUrl =
+      APIService.IDENTITY_SERVICE + requestURLS.RECOVER_ACCOUNT;
     const headers = {
       "Content-Type": "application/json",
     };
@@ -394,7 +395,8 @@ export function* resetPassword(action: MyAction): Generator<any, void, any> {
   let receivedResponse: Partial<Response> = {};
   try {
     yield put({ type: actionTypes.FETCHING_DATA });
-    const postUrl = APIService.IDENTITY_SERVICE + requestURLS.RESET_PASSWORD;
+    const postUrl =
+      APIService.IDENTITY_SERVICE + requestURLS.RESET_ACCOUNT_ACCESS;
     const headers = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
@@ -549,8 +551,8 @@ export function* userActionWatcher() {
   yield takeLatest(actionTypes.UNLOCK_USER, unlock);
   yield takeLatest(actionTypes.SIGN_UP, signUp);
   yield takeLatest(actionTypes.VERIFY_OTP, verifyOTP);
-  yield takeLatest(actionTypes.FORGOT_PASSWORD, forgotPassword);
-  yield takeLatest(actionTypes.RESET_PASSWORD, resetPassword);
+  yield takeLatest(actionTypes.RECOVER_ACCOUNT, forgotPassword);
+  yield takeLatest(actionTypes.RESET_ACCOUNT_ACCESS, resetPassword);
   yield takeLatest(actionTypes.CHANGE_EMAIL, changeEmail);
   yield takeLatest(actionTypes.VERIFY_TOKEN, verifyToken);
   yield takeLatest(actionTypes.CHANGE_PHONE_NUMBER, changePhoneNumber);

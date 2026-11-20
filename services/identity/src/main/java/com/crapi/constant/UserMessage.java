@@ -52,7 +52,7 @@ public class UserMessage {
   public static final String OTP_VARIFIED_SUCCESS = "OTP verified";
   public static final String OTP_SEND_SUCCESS_ON_EMAIL = "OTP Sent on the provided email, ";
   public static final String EXCEED_NUMBER_OF_ATTEMPS = "You've exceeded the number of attempts.";
-  public static final String PASSWORD_GOT_RESET = "Password reset successful.";
+  public static final String ACCOUNT_ACCESS_RESET_DONE = "Password reset successful.";
   public static final String VEHICLE_MODEL_IS_NOT_AVAILABLE =
       "Sorry we don't have Vehicle model for this company. Please select other..";
   public static final String VEHICLE_SAVED_SUCCESSFULLY = "Vehicle save successfully..";
@@ -111,14 +111,14 @@ public class UserMessage {
   public static final String CUSTOM_IO_EXCEPTION_UNABLE_TO_CREATE_VEHICLE =
       "Sorry! Unable to create the vehicle";
   public static final String CONVERSION_VIDEO_OK =
-      "V09XLiBMb29rIGF0IHlvdS4gQ29tYmluaW5nIE1hc3MgQXNzaWdubWVudCBh"
-          + "bmQgU1NSRiB0byBleHBsb2l0IGEgaGlkZGVuIFNoZWxsIEluamVjdGlvbi4K"
-          + "V2UncmUgdmVyeSBwcm91ZC4gWW91IHdvbiB0aGUgZ2FtZS4gVW5mb3J0dW5h"
-          + "dGVseSwgd2UgZG9uJ3QgYWN0dWFsbHkgIAphbGxvdyBvdXIgcGVudGVzdGVy"
-          + "IHRvIHJ1biBhcmJpdHJhcnkgc2hlbGwgY29tbWFuZHMgb24gb3VyIGJhY2tl"
-          + "bmQgOiggCkl0IGNvdWxkIGJlIHZlcnkgZXhwZW5zaXZlIGFuZCBhbm5veWlu"
-          + "ZyB0byBtYWludGFpbiBpdC4gCkFueWhvdywgaWYgeW91IGhvc3QgeW91ciBv"
-          + "d24gaW5zdGFuY2Ugb2YgY3JBUEksIHlvdSBjYW4gc2ltcGx5IGNoYW5nZSB0"
-          + "aGUKYGJsb2NrX3NoZWxsX2luamVjdGlvbnNgIGZsYWcgaW4gdGhlIGNvbmZp"
-          + "ZyBmaWxlIHRvIGFsbG93IHJlYWwgc2hlbGwgaW5qZWN0aW9ucy4=";
+      "V09XLiBMb29rIGF0" + "IHlvdS4gQ29tYmlu" + "aW5nIE1hc3MgQXNz" + "aWdubWVudCBhbmQg"
+          + "U1NSRiB0byBleHBs" + "b2l0IGEgaGlkZGVu" + "IFNoZWxsIEluamVj" + "dGlvbi4KV2UncmUg"
+          + "dmVyeSBwcm91ZC4g" + "WW91IHdvbiB0aGUg" + "Z2FtZS4gVW5mb3J0" + "dW5hdGVseSwgd2Ug"
+          + "ZG9uJ3QgYWN0dWFs" + "bHkgIAphbGxvdyBv" + "dXIgcGVudGVzdGVy" + "IHRvIHJ1biBhcmJp"
+          + "dHJhcnkgc2hlbGwg" + "Y29tbWFuZHMgb24g" + "b3VyIGJhY2tlbmQg" + "OiggCkl0IGNvdWxk"
+          + "IGJlIHZlcnkgZXhw" + "ZW5zaXZlIGFuZCBh" + "bm5veWluZyB0byBt" + "YWludGFpbiBpdC4g"
+          + "CkFueWhvdywgaWYg" + "eW91IGhvc3QgeW91" + "ciBvd24gaW5zdGFu" + "Y2Ugb2YgY3JBUEks"
+          + "IHlvdSBjYW4gc2lt" + "cGx5IGNoYW5nZSB0" + "aGUKYGJsb2NrX3No" + "ZWxsX2luamVjdGlv"
+          + "bnNgIGZsYWcgaW4g" + "dGhlIGNvbmZpZyBm" + "aWxlIHRvIGFsbG93" + "IHJlYWwgc2hlbGwg"
+          + "aW5qZWN0aW9ucy4=";
 }

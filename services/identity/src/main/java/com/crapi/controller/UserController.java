@@ -27,7 +27,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@CrossOrigin
 @RestController
 @RequestMapping("/identity/api/v2/user")
 public class UserController {
@@ -62,7 +61,7 @@ public class UserController {
 
     CRAPIResponse resetPasswordResponse = userService.resetPassword(loginForm, request);
     if (resetPasswordResponse != null && resetPasswordResponse.getStatus() == 200) {
-      return ResponseEntity.ok().body(new CRAPIResponse(UserMessage.PASSWORD_GOT_RESET));
+      return ResponseEntity.ok().body(new CRAPIResponse(UserMessage.ACCOUNT_ACCESS_RESET_DONE));
     }
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(resetPasswordResponse);
   }

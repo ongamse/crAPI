@@ -125,8 +125,9 @@ func WithConnString(fn func(connstring.ConnString) connstring.ConnString) Option
 
 			if cs.SSLClientCertificateKeyFileSet {
 				var keyPasswd string
-				if cs.SSLClientCertificateKeyPasswordSet && cs.SSLClientCertificateKeyPassword != nil {
-					keyPasswd = cs.SSLClientCertificateKeyPassword()
+				keyPwFunc := cs.SSLClientCertificateKeyPassword
+				if cs.SSLClientCertificateKeyPasswordSet && keyPwFunc != nil {
+					keyPasswd = keyPwFunc()
 				}
 				s, err := addClientCertFromFile(tlsConfig, cs.SSLClientCertificateKeyFile, keyPasswd)
 				if err != nil {

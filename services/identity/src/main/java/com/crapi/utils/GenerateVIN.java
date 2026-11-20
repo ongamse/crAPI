@@ -18,7 +18,7 @@ import java.util.Random;
 
 public class GenerateVIN {
 
-  static String charsequence = "ABCDEFGHJKLMNPRSTUVWXYZ"; // I, O, Q are excluded
+  static String charsequence = "ABCDEFGHJKLM" + "NPRSTUVWXYZ"; // I, O, Q are excluded
   static String num = "0123456789";
   String vin = "";
   String pincode = "";

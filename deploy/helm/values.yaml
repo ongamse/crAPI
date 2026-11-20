@@ -2,7 +2,6 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
@@ -10,6 +9,16 @@ apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
 apiGatewayPassword:
 tlsEnabled: false
+# Optional: name of a Secret with `server.crt` and `server.key` used when tlsEnabled is true.
+# The private key is not stored in git. Create it with:
+#   kubectl create secret generic crapi-tls --from-file=server.crt --from-file=server.key
+tlsSecretName: ""
+
+# Credentials are kept in a Kubernetes Secret, never in values or ConfigMaps.
+# Any password left empty below is generated randomly on first install and
+# reused on upgrade. Override with --set / a private values file if needed.
+credentials:
+  name: crapi-credentials
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
@@ -74,8 +83,9 @@ identity:
     smtpStartTLS: true
     keyStoreType: PKCS12
     keyStore: classpath:certs/server.p12
-    keyStorePassword: passw0rd
-    keyPassword: passw0rd
+    # Needed only when tlsEnabled is true; stored in the credentials Secret, never in a ConfigMap.
+    keyStorePassword: ""
+    keyPassword: ""
     keyAlias: identity
   deploymentLabels:
     app: crapi-identity
@@ -125,7 +135,8 @@ workshop:
       app: crapi-workshop
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
+    # Django SECRET_KEY; leave empty to generate one (see credentials above).
+    secretKey: ""
     filesLimit: 1000
   deploymentLabels:
     app: crapi-workshop
@@ -151,11 +162,11 @@ chatbot:
       app: crapi-chatbot
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    apiPassword: Admin!123
+    # Optional override; when empty the chatbot uses its built-in demo admin login.
+    apiPassword: ""
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"
@@ -233,9 +244,9 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
+    # Leave empty to generate on install (see credentials above).
+    mongoPassword: ""
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:
@@ -278,7 +289,8 @@ postgresdb:
     labels:
       app: postgresdb
     postgresUser: admin
-    postgresPassword: crapisecretpassword
+    # Leave empty to generate on install (see credentials above).
+    postgresPassword: ""
     postgresDbName: crapi
   storage:
     # type: "manual"

@@ -34,6 +34,27 @@ spec:
         envFrom:
             - configMapRef:
                 name: crapi-workshop-configmap
+        env:
+          - name: SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: SECRET_KEY
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: DB_PASSWORD
+          - name: MONGO_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: MONGO_DB_PASSWORD
+          - name: API_GATEWAY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: API_GATEWAY_PASSWORD
         resources:
           limits:
             cpu: "256m"

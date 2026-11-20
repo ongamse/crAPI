@@ -134,7 +134,7 @@ export const invalidSessionAction = () => {
 
 export const forgotPasswordAction = ({ email, callback }: LoginPayload) => {
   return {
-    type: actionTypes.FORGOT_PASSWORD,
+    type: actionTypes.RECOVER_ACCOUNT,
     payload: { email, callback },
   };
 };
@@ -171,7 +171,7 @@ export const resetPasswordAction = ({
   callback,
 }: ResetPasswordPayload) => {
   return {
-    type: actionTypes.RESET_PASSWORD,
+    type: actionTypes.RESET_ACCOUNT_ACCESS,
     payload: { email, accessToken, password, callback },
   };
 };

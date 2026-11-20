@@ -22,7 +22,6 @@ from urllib.parse import unquote
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.response import Response
@@ -51,7 +50,6 @@ class SignUpView(APIView):
     Used to add a new mechanic
     """
 
-    @csrf_exempt
     def post(self, request):
         """
         creates a new Mechanic in the db
@@ -227,7 +225,7 @@ class GetReportView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if not report_id.isnumeric():
+        if not re.fullmatch(r"[0-9]+", report_id):
             return Response(
                 {"message": messages.INVALID_REPORT_ID},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -240,7 +238,7 @@ class GetReportView(APIView):
             )
         serializer = MechanicServiceRequestSerializer(service_request)
         response_data = dict(serializer.data)
-        service_report_pdf(response_data, report_id)
+        service_report_pdf(response_data, int(report_id))
         return Response(response_data, status=status.HTTP_200_OK)
 
 
@@ -393,19 +391,60 @@ class DownloadReportView(APIView):
             )
 
         filename_from_user = unquote(filename_from_user)
-        full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
-        if os.path.exists(full_path) and os.path.isfile(full_path):
-            return FileResponse(open(full_path, 'rb'))
-        elif not os.path.exists(full_path):
+        # The decoded name must be a plain file name (no path separators or
+        # dot segments) and must resolve inside the reports directory.
+        if not SAFE_REPORT_NAME_PATTERN.fullmatch(filename_from_user):
             return Response(
-                {"message": f"File not found at '{full_path}'."},
+                {"message": "Invalid input."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        # The path is taken from the reports directory listing (never built
+        # from the request value) and verified to be inside that directory.
+        full_path = find_existing_report(filename_from_user)
+        if full_path is None:
+            return Response(
+                {"message": f"File not found: '{filename_from_user}'."},
                 status=status.HTTP_404_NOT_FOUND
             )
-        else:
-            return Response(
-                {"message": f"'{full_path}' is not a file."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        if os.path.isfile(full_path):
+            return FileResponse(open(full_path, 'rb'))
+        return Response(
+            {"message": f"'{filename_from_user}' is not a file."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+SAFE_REPORT_NAME_PATTERN = re.compile(r'[A-Za-z0-9_:]+')
+
+
+def reports_directory() -> str:
+    """Canonical absolute path of the reports directory."""
+    return os.path.realpath(os.path.join(settings.BASE_DIR, 'reports'))
+
+
+def find_existing_report(filename: str):
+    """
+    Looks up an existing report by name. The returned path is built from the
+    matching directory entry (an allowlist of files that really exist in the
+    reports directory), not from the caller-supplied string, and is verified
+    to resolve inside the reports directory. Returns None when the name is
+    unsafe or no such entry exists.
+    """
+    if not SAFE_REPORT_NAME_PATTERN.fullmatch(filename):
+        return None
+    reports_dir = reports_directory()
+    try:
+        entries = os.listdir(reports_dir)
+    except OSError:
+        return None
+    for entry in entries:
+        if entry != filename:
+            continue
+        candidate = os.path.realpath(os.path.join(reports_dir, entry))
+        if os.path.commonpath([reports_dir, candidate]) != reports_dir:
+            return None
+        return candidate
+    return None
+
 
 def validate_filename(input: str) -> bool:
     """
@@ -419,9 +458,17 @@ def service_report_pdf(response_data, report_id):
     """
     Generates service report's PDF file from a template and saves it to the disk.
     """
-    reports_dir = os.path.join(settings.BASE_DIR, 'reports')
+    reports_dir = reports_directory()
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = os.path.join(reports_dir, f"report_{report_id}")
+    # report_id must be a plain ASCII number; the file name is rebuilt from
+    # the parsed integer so no request text reaches the path.
+    if not re.fullmatch(r'[0-9]+', str(report_id)):
+        raise ValueError("Invalid report id")
+    report_filepath = os.path.realpath(
+        os.path.join(reports_dir, "report_%d" % int(report_id))
+    )
+    if os.path.commonpath([reports_dir, report_filepath]) != reports_dir:
+        raise ValueError("Invalid report path")
 
     template = get_template('service_report.html')
     html_string = template.render({'service': response_data})

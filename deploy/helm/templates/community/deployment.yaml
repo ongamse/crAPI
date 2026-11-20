@@ -51,7 +51,36 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.community.config.name }}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentials.name }}
+                  key: DB_PASSWORD
+            - name: MONGO_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentials.name }}
+                  key: MONGO_DB_PASSWORD
+          {{- if and .Values.tlsEnabled .Values.tlsSecretName }}
+            - name: TLS_CERTIFICATE
+              value: /app/tls/server.crt
+            - name: TLS_KEY
+              value: /app/tls/server.key
+          {{- end }}
           {{- if .Values.community.resources }}
           resources:
             {{- toYaml .Values.community.resources | nindent 12 }}
           {{- end }}
+          {{- if and .Values.tlsEnabled .Values.tlsSecretName }}
+          volumeMounts:
+            - name: tls
+              mountPath: /app/tls
+              readOnly: true
+          {{- end }}
+      {{- if and .Values.tlsEnabled .Values.tlsSecretName }}
+      volumes:
+        - name: tls
+          secret:
+            secretName: {{ .Values.tlsSecretName }}
+      {{- end }}

@@ -61,11 +61,40 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Host header allowlist (comma separated hostnames, without scheme or port;
+# a leading dot such as ".example.com" matches subdomains). Wildcards are
+# rejected to prevent DNS rebinding / Host header attacks. The default covers
+# local access, the container health check and the compose/k8s/helm service
+# names; set ALLOWED_HOSTS to add public hostnames for other deployments.
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,0.0.0.0,crapi-workshop,crapi-web,"
+        "crapi-workshop.default.svc.cluster.local",
+    ).split(",")
+    if host.strip() and "*" not in host
+]
+
+# Hosts the contact mechanic feature is allowed to call back into
+# (comma separated hostnames, without scheme or port).
+MECHANIC_API_ALLOWED_HOSTS = [
+    host.strip().lower()
+    for host in os.environ.get(
+        "MECHANIC_API_ALLOWED_HOSTS",
+        "localhost,127.0.0.1,crapi-web,crapi-workshop",
+    ).split(",")
+    if host.strip()
+]
+
+# TLS verification for outbound HTTPS requests. Defaults to the system trust
+# store; set OUTBOUND_CA_BUNDLE to a CA bundle path to trust a private CA
+# (e.g. the self-signed certificates used in development).
+OUTBOUND_TLS_VERIFY = os.environ.get("OUTBOUND_CA_BUNDLE") or True
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
 
 # Application definition
 
@@ -99,7 +128,19 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Only the listed origins (comma separated, with scheme, no wildcards) may make
+# cross-origin requests. Unlisted origins get no CORS headers (fail closed).
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,"
+        "https://127.0.0.1:8443,http://localhost:30080,https://localhost:30443",
+    ).split(",")
+    if origin.strip() and "*" not in origin
+]
+CORS_ALLOW_CREDENTIALS = False
 
 ROOT_URLCONF = "crapi_site.urls"
 
