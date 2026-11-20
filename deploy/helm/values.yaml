@@ -18,7 +18,7 @@ tlsSecretName: ""
 # Any password left empty below is generated randomly on first install and
 # reused on upgrade. Override with --set / a private values file if needed.
 credentials:
-  secretName: crapi-credentials
+  name: crapi-credentials
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
@@ -83,8 +83,9 @@ identity:
     smtpStartTLS: true
     keyStoreType: PKCS12
     keyStore: classpath:certs/server.p12
-    keyStorePassword: passw0rd
-    keyPassword: passw0rd
+    # Needed only when tlsEnabled is true; stored in the credentials Secret, never in a ConfigMap.
+    keyStorePassword: ""
+    keyPassword: ""
     keyAlias: identity
   deploymentLabels:
     app: crapi-identity
@@ -161,12 +162,11 @@ chatbot:
       app: crapi-chatbot
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    # Publicly documented crAPI demo admin account (seeded by the identity service); not a private secret.
-    apiPassword: Admin!123
+    # Optional override; when empty the chatbot uses its built-in demo admin login.
+    apiPassword: ""
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"
