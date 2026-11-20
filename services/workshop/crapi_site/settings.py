@@ -61,7 +61,20 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Host header allowlist (comma separated hostnames, without scheme or port;
+# a leading dot such as ".example.com" matches subdomains). Wildcards are
+# rejected to prevent DNS rebinding / Host header attacks. The default covers
+# local access, the container health check and the compose/k8s/helm service
+# names; set ALLOWED_HOSTS to add public hostnames for other deployments.
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,0.0.0.0,crapi-workshop,crapi-web,"
+        "crapi-workshop.default.svc.cluster.local",
+    ).split(",")
+    if host.strip() and "*" not in host
+]
 
 # Hosts the contact mechanic feature is allowed to call back into
 # (comma separated hostnames, without scheme or port).
