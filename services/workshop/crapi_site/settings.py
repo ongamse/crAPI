@@ -108,7 +108,15 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Comma separated list of explicitly trusted origins allowed to call this API
+# cross-origin. Empty (default) means same-origin only.
+CORS_ALLOWED_ORIGINS = [
+    entry.strip()
+    for entry in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if entry.strip() and entry.strip() != "*"
+]
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = False
 
 ROOT_URLCONF = "crapi_site.urls"
 
