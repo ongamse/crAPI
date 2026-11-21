@@ -61,7 +61,17 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Comma separated list of host names this service may be served as (validated
+# against the Host header). The default covers the standard deployments: the
+# docker-compose / k8s / helm service names used by the web proxy, and the
+# loopback / wildcard-bind addresses used by local access and health checks.
+# Wildcard entries are ignored so DNS rebinding protection stays on.
+DEFAULT_ALLOWED_HOSTS = "crapi-workshop,crapi-web,localhost,127.0.0.1,[::1],0.0.0.0"
+ALLOWED_HOSTS = [
+    entry.strip()
+    for entry in os.environ.get("ALLOWED_HOSTS", DEFAULT_ALLOWED_HOSTS).split(",")
+    if entry.strip() and entry.strip() != "*"
+]
 
 # Comma separated 'host' or 'host:port' entries of trusted internal hosts that
 # the contact mechanic feature may call. Everything else must resolve to a

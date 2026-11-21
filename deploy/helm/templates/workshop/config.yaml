@@ -20,3 +20,4 @@ data:
     API_GATEWAY_URL: {{ if .Values.apiGatewayServiceInstall }}"https://{{ .Values.apiGatewayService.service.name }}"{{ else }}{{ .Values.apiGatewayServiceUrl }}{{ end }}
     TLS_ENABLED: {{ .Values.tlsEnabled | quote }}
     FILES_LIMIT: {{ .Values.workshop.config.filesLimit | quote }}
+    ALLOWED_HOSTS: {{ printf "%s,%s,localhost,127.0.0.1,[::1],0.0.0.0" .Values.workshop.service.name .Values.web.service.name | quote }}
