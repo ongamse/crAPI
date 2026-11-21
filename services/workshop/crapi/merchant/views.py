@@ -27,7 +27,7 @@ from crapi.mechanic.serializers import (
 )
 from utils.jwt import jwt_auth_required
 from utils import messages
-from utils.helper import is_safe_outbound_url, get_safe_bearer_authorization
+from utils.helper import build_safe_outbound_url, get_safe_bearer_authorization
 from rest_framework.pagination import LimitOffsetPagination
 from utils.logging import log_error
 from crapi_site import settings
@@ -36,6 +36,8 @@ from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
 
 
 logger = logging.getLogger()
+
+MECHANIC_API_TIMEOUT_SECONDS = 10
 
 
 class ContactMechanicView(APIView):
@@ -97,11 +99,13 @@ class ContactMechanicView(APIView):
 
         repeat_count = 0
         while True:
-            request_url = request_data["mechanic_api"]
-            logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
-            if not is_safe_outbound_url(
-                request_url, settings.MECHANIC_API_ALLOWED_HOSTS
-            ):
+            # The client supplied url is only parsed and validated; the url that
+            # is requested is rebuilt from validated components.
+            safe_url = build_safe_outbound_url(
+                request_data["mechanic_api"], settings.MECHANIC_API_ALLOWED_HOSTS
+            )
+            logger.info(f"Repeat count: {repeat_count}, mechanic_api: {safe_url}")
+            if safe_url is None:
                 log_error(
                     request.path,
                     request.data,
@@ -114,11 +118,12 @@ class ContactMechanicView(APIView):
                 )
             try:
                 mechanic_response = requests.get(
-                    request_url,
+                    safe_url,
                     params=request_data,
                     headers={"Authorization": authorization},
                     verify=settings.OUTBOUND_TLS_VERIFY,
                     allow_redirects=False,
+                    timeout=MECHANIC_API_TIMEOUT_SECONDS,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")
@@ -131,7 +136,10 @@ class ContactMechanicView(APIView):
             except (MissingSchema, InvalidURL) as e:
                 log_error(request.path, request.data, status.HTTP_400_BAD_REQUEST, e)
                 return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            except requests.exceptions.ConnectionError as e:
+            except (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout,
+            ) as e:
                 if not repeat_request_if_failed:
                     return Response(
                         {"message": messages.COULD_NOT_CONNECT},

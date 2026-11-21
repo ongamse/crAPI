@@ -165,6 +165,81 @@ class MerchantTestCase(TestCase):
             self.assertEqual(res.status_code, 400, url)
             self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
 
+    def test_bypass_style_mechanic_api_blocked(self):
+        """
+        userinfo, non-allowlisted host, redirect-style, encoded host and
+        substring/suffix host tricks must not reach requests.get
+        :return: None
+        """
+        allowed = ["crapi-web", "crapi-workshop:8000"]
+        blocked_urls = [
+            "http://crapi-web@attacker.example/",
+            "http://crapi-web:pw@attacker.example/",
+            "http://attacker.example\\@crapi-web/",
+            "http://attacker.example#@crapi-web/",
+            "http://crapi-web.attacker.example/",
+            "http://attacker-crapi-web/",
+            "http://crapi-workshop:9999/",
+            "http://crapi%2dweb/",
+            "http://%31%32%37.0.0.1/",
+            "http://2130706433/",
+            "http://0x7f.0.0.1/",
+            "http://127.1/",
+            "http://[::ffff:127.0.0.1]/",
+            "http://[::1]:8000/",
+            "http://crapi-web\r\nX-Injected: 1/",
+            "http://crapi-web.example/\u2025",
+            "http://crapi\u2024web/",
+            "//crapi-web/",
+            "crapi-web/path",
+        ]
+        for url in blocked_urls:
+            self.contact_mechanic_request_body["mechanic_api"] = url
+            with patch(
+                "crapi.merchant.views.settings.MECHANIC_API_ALLOWED_HOSTS", allowed
+            ), patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+                mock_get.assert_not_called()
+            self.assertEqual(res.status_code, 400, url)
+
+    def test_allowlisted_mechanic_api_url_is_rebuilt(self):
+        """
+        an allowlisted host is requested with a url rebuilt from the
+        allowlist value, no redirects, a timeout and TLS verification
+        :return: None
+        """
+        self.contact_mechanic_request_body["mechanic_api"] = (
+            "HTTP://CRAPI-Workshop:8000/workshop/api/mechanic/receive_report"
+            "?a=1#frag"
+        )
+        self.contact_mechanic_request_body["repeat_request_if_failed"] = False
+        with patch(
+            "crapi.merchant.views.settings.MECHANIC_API_ALLOWED_HOSTS",
+            ["crapi-workshop:8000"],
+        ), patch("crapi.merchant.views.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"ok": True}
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+        self.assertEqual(res.status_code, 200)
+        args, kwargs = mock_get.call_args
+        self.assertEqual(
+            args[0],
+            "http://crapi-workshop:8000/workshop/api/mechanic/receive_report?a=1",
+        )
+        self.assertFalse(kwargs["allow_redirects"])
+        self.assertIsNotNone(kwargs["timeout"])
+        self.assertIn("verify", kwargs)
+
     def test_authorization_header_not_forwarded_with_control_chars(self):
         """
         sends an Authorization value containing CR/LF
