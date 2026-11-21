@@ -163,6 +163,24 @@ class MerchantTestCase(TestCase):
             self.assertEqual(res.status_code, 400, url)
             self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
 
+    def test_authorization_header_not_forwarded_with_control_chars(self):
+        """
+        sends an Authorization value containing CR/LF
+        should not make an outbound request and must not forward the value
+        :return: None
+        """
+        email = self.user_auth_headers["HTTP_AUTHORIZATION"]
+        for suffix in ("\r\nX-Injected: 1", "\nX-Injected: 1", " token", "\x00"):
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    HTTP_AUTHORIZATION=email + suffix,
+                    content_type="application/json"
+                )
+                mock_get.assert_not_called()
+            self.assertNotEqual(res.status_code, 200)
+
     def test_contact_mechanic(self):
         """
         gives all correct field for contact mechanic

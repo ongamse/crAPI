@@ -1,4 +1,5 @@
 import ipaddress
+import re
 import socket
 from base64 import b64encode
 from urllib.parse import urlparse
@@ -7,6 +8,25 @@ from urllib.parse import urlparse
 def basic_auth(username, password=""):
     token = b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
     return f"Basic {token}"
+
+
+_BEARER_AUTHORIZATION_RE = re.compile(r"Bearer [\x21-\x7e]+")
+
+
+def get_safe_bearer_authorization(value):
+    """
+    Validate a client supplied Authorization header value before it is
+    forwarded in an outbound request (HTTP header injection guard).
+
+    Only a 'Bearer <token>' value made of printable, non-space ASCII is
+    accepted, which rules out CR/LF and any other control characters.
+
+    :param value: raw Authorization header value from the incoming request
+    :returns the value if it is safe to forward, else None
+    """
+    if isinstance(value, str) and _BEARER_AUTHORIZATION_RE.fullmatch(value):
+        return value
+    return None
 
 
 def _is_public_address(address):
