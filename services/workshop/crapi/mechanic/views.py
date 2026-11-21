@@ -18,6 +18,7 @@ contains all the views related to Mechanic
 import os
 import bcrypt
 import re
+import stat
 from urllib.parse import unquote
 from django.template.loader import get_template
 from xhtml2pdf import pisa
@@ -404,12 +405,26 @@ class DownloadReportView(APIView):
                 {"message": "File not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
-        if not report_entry.is_file():
+        # Open directly (no exists/isfile pre-check) relative to the reports
+        # directory handle, then verify the type on the opened descriptor.
+        try:
+            report_file = open_report_for_read(report_entry.name)
+        except FileNotFoundError:
+            return Response(
+                {"message": "File not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except (IsADirectoryError, PermissionError):
             return Response(
                 {"message": "Requested path is not a file."},
                 status=status.HTTP_403_FORBIDDEN
             )
-        return FileResponse(open(report_entry.path, 'rb'))
+        except OSError:
+            return Response(
+                {"message": "File not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        return FileResponse(report_file)
 
 
 def get_reports_dir():
@@ -434,23 +449,81 @@ def is_plain_report_name(filename):
 def find_report_entry(filename):
     """
     Looks a report up in the reports directory listing and returns the
-    matching os.DirEntry (whose path is built by the OS from the listing,
-    not from the caller's text), or None when there is no such entry or it
-    resolves outside the reports directory.
+    matching os.DirEntry (whose name is built by the OS from the listing,
+    not from the caller's text), or None when there is no such entry.
+    Containment is enforced when the file is opened, relative to the
+    reports directory handle (see open_report_for_read).
     """
     reports_dir = get_reports_dir()
     try:
         with os.scandir(reports_dir) as entries:
             for entry in entries:
-                if entry.name != filename:
-                    continue
-                resolved = os.path.realpath(entry.path)
-                if os.path.commonpath([reports_dir, resolved]) != reports_dir:
-                    return None
-                return entry
+                if entry.name == filename:
+                    return entry
     except OSError:
         return None
     return None
+
+
+def _open_reports_dir_fd():
+    """
+    Opens the reports directory and returns the descriptor.
+    """
+    return os.open(
+        get_reports_dir(), os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    )
+
+
+def open_report_for_read(filename):
+    """
+    Opens a report for reading relative to the reports directory handle,
+    refusing symlinks, and verifies on the opened descriptor that it is a
+    regular file. Raises OSError subclasses on failure.
+    """
+    dir_fd = _open_reports_dir_fd()
+    try:
+        flags = (
+            os.O_RDONLY
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0)
+        )
+        fd = os.open(filename, flags, dir_fd=dir_fd)
+    finally:
+        os.close(dir_fd)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise IsADirectoryError("Requested path is not a file.")
+        return os.fdopen(fd, "rb")
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def open_report_for_write(filename):
+    """
+    Creates/truncates a report relative to the reports directory handle,
+    refusing symlinks, and verifies on the opened descriptor that it is a
+    regular file. Returns a binary read/write file object.
+    """
+    dir_fd = _open_reports_dir_fd()
+    try:
+        flags = (
+            os.O_RDWR
+            | os.O_CREAT
+            | os.O_TRUNC
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0)
+        )
+        fd = os.open(filename, flags, 0o600, dir_fd=dir_fd)
+    finally:
+        os.close(dir_fd)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise IsADirectoryError("Report path is not a file.")
+        return os.fdopen(fd, "w+b")
+    except BaseException:
+        os.close(fd)
+        raise
 
 def validate_filename(input: str) -> bool:
     """
@@ -468,13 +541,11 @@ def service_report_pdf(response_data, report_id):
     os.makedirs(reports_dir, exist_ok=True)
     # report_id is the integer primary key of a stored ServiceRequest; the
     # file name is generated here from that integer only.
-    report_filepath = os.path.join(reports_dir, "report_%d" % int(report_id))
-    if os.path.commonpath([reports_dir, os.path.realpath(report_filepath)]) != reports_dir:
-        raise ValueError("Invalid report id")
+    report_name = "report_%d" % int(report_id)
 
     template = get_template('service_report.html')
     html_string = template.render({'service': response_data})
-    with open(report_filepath, "w+b") as pdf_file:
+    with open_report_for_write(report_name) as pdf_file:
         pisa.CreatePDF(src=html_string, dest=pdf_file)
 
     manage_reports_directory()

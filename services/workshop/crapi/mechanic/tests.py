@@ -352,8 +352,10 @@ class ReportPathTest(TestCase):
     def tearDown(self):
         import os
 
-        if os.path.exists(self.sample_path):
+        try:
             os.remove(self.sample_path)
+        except FileNotFoundError:
+            pass
 
     def test_download_rejects_traversal_inputs(self):
         for name in [
@@ -396,6 +398,31 @@ class ReportPathTest(TestCase):
                 **self.auth_headers
             )
             self.assertEqual(res.status_code, 400, rid)
+
+    def test_open_report_for_read_refuses_symlink_and_directory(self):
+        import os
+        import tempfile
+        from crapi.mechanic.views import open_report_for_read
+
+        with open_report_for_read(self.sample_name) as f:
+            self.assertEqual(f.read(), b"sample-report")
+        link_name = "report_test_link"
+        link_path = os.path.join(self.reports_dir, link_name)
+        dir_name = "report_test_dir"
+        dir_path = os.path.join(self.reports_dir, dir_name)
+        os.mkdir(dir_path)
+        try:
+            with tempfile.NamedTemporaryFile() as outside:
+                os.symlink(outside.name, link_path)
+                try:
+                    with self.assertRaises(OSError):
+                        open_report_for_read(link_name)
+                finally:
+                    os.remove(link_path)
+            with self.assertRaises(OSError):
+                open_report_for_read(dir_name)
+        finally:
+            os.rmdir(dir_path)
 
     def test_find_report_entry(self):
         from crapi.mechanic.views import find_report_entry, is_plain_report_name
