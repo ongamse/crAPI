@@ -156,7 +156,8 @@ public class JwtProvider {
         throw new ParseException("Invalid JWT signature", 0);
       }
     } catch (JOSEException e) {
-      throw new ParseException("JWT signature verification failed: " + e.getMessage(), 0);
+      log.error("JWT signature verification failed", e);
+      throw new ParseException("JWT signature verification failed", 0);
     }
     return signedJWT.getJWTClaimsSet();
   }

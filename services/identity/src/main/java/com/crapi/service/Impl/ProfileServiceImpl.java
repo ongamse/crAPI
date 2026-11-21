@@ -80,7 +80,7 @@ public class ProfileServiceImpl implements ProfileService {
       userDetailsRepository.save(userDetails);
       return userDetails;
     } catch (IOException exception) {
-      log.error("unable to upload image -> Message: %d", exception);
+      log.error("unable to upload image", exception);
       throw new IOExceptionHandler(ProfileServiceImpl.class, UserMessage.CUSTOM_IO_EXCEPTION);
     }
   }
@@ -273,7 +273,7 @@ public class ProfileServiceImpl implements ProfileService {
         return new CRAPIResponse(UserMessage.CONVERT_VIDEO_INTERNAL_USE_ONLY, 403);
       }
     } catch (IOException exception) {
-      log.error("unable to convert video -> Message: %d ", exception);
+      log.error("unable to convert video", exception);
       throw new IOExceptionHandler(ProfileServiceImpl.class, UserMessage.ERROR);
     }
   }

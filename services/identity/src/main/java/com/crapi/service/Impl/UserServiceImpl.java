@@ -228,7 +228,7 @@ public class UserServiceImpl implements UserService {
       }
       return dashboardResponse;
     } catch (Exception exception) {
-      log.error("fail to load user by email:  -> Message: %d", exception);
+      log.error("Failed to load user for dashboard request", exception);
       return null;
     }
   }
