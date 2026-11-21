@@ -254,6 +254,9 @@ IDENTITY_LOGIN = "http://{}/identity/api/auth/login".format(
 IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
+# Certificate verification for outbound HTTPS requests. Defaults to the system
+# trust store (True); set TLS_CA_BUNDLE to a CA bundle path for internal CAs.
+OUTBOUND_TLS_VERIFY = os.environ.get("TLS_CA_BUNDLE") or True
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(
