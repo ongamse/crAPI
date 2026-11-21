@@ -19,22 +19,19 @@ import com.crapi.repository.UserRepository;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
+import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
-import java.net.URI;
-import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.text.ParseException;
 import java.util.*;
@@ -138,13 +135,22 @@ public class JwtProvider {
   }
 
   /**
-   * @param token
-   * @return username from JWT Token
+   * Verifies a token against the server's own RSA public key only. The token header is never used
+   * to select a key or an algorithm: anything but RS256 (including none and HS*) is rejected and
+   * jku/jwk/x5u/kid headers are ignored.
+   *
+   * @param token compact serialized JWT
+   * @return the claims when the signature is valid, otherwise a ParseException is thrown
    */
-  public String getUserNameFromJwtToken(String token) throws ParseException {
-    // Only trust claims of tokens signed with the server's own RSA key. Unsigned (alg=none) and
-    // otherwise unparseable tokens are rejected by SignedJWT.parse.
+  private JWTClaimsSet verifiedClaims(String token) throws ParseException {
+    if (token == null || token.isBlank()) {
+      throw new ParseException("Missing JWT", 0);
+    }
+    // Unsigned (alg=none) and otherwise unparseable tokens are rejected by SignedJWT.parse.
     SignedJWT signedJWT = SignedJWT.parse(token);
+    if (!JWSAlgorithm.RS256.equals(signedJWT.getHeader().getAlgorithm())) {
+      throw new ParseException("Unsupported JWT algorithm", 0);
+    }
     try {
       if (!signedJWT.verify(new RSASSAVerifier(this.publicRSAKey))) {
         throw new ParseException("Invalid JWT signature", 0);
@@ -152,84 +158,63 @@ public class JwtProvider {
     } catch (JOSEException e) {
       throw new ParseException("JWT signature verification failed: " + e.getMessage(), 0);
     }
-    return signedJWT.getJWTClaimsSet().getSubject();
+    return signedJWT.getJWTClaimsSet();
   }
 
-  // Load RSA Public Key for JKU header if present
-  private RSAKey getKeyFromJkuHeader(JWSHeader header) {
-    try {
-      URI jku = header.getJWKURL();
-      if (jku != null) {
-        URLConnection connection = jku.toURL().openConnection();
-        JWKSet jwkSet = JWKSet.load(connection.getInputStream());
-        connection.getInputStream().close();
-        log.info("JWKSet from URL : " + jwkSet.toString(false));
-        JWK key = jwkSet.getKeyByKeyId(header.getKeyID());
-        if (key != null && Objects.equals(key.getAlgorithm().getName(), "RS256")) {
-          return key.toRSAKey().toPublicJWK();
-        }
+  /**
+   * @param token
+   * @return username from JWT Token, only when it is signed with the server's own RSA key
+   */
+  public String getUserNameFromJwtToken(String token) throws ParseException {
+    return verifiedClaims(token).getSubject();
+  }
+
+  private static boolean hasValidTimeClaims(JWTClaimsSet claims, boolean expirationRequired) {
+    Date now = new Date();
+    Date exp = claims.getExpirationTime();
+    if (exp == null) {
+      if (expirationRequired) {
+        return false;
       }
-    } catch (IOException | ParseException e) {
-      return null;
+    } else if (!exp.after(now)) {
+      return false;
     }
-
-    return null;
+    Date nbf = claims.getNotBeforeTime();
+    return nbf == null || !nbf.after(now);
   }
 
-  // Construct secret for JWT Verification through HS256 (vulnerability)
-  private String getJwtSecret(JWSHeader header) throws JOSEException {
-    // defaultSecret is RSA Public Key as String
-    // Algorithm Confusion Attack
-    Base64.Encoder encoder = Base64.getEncoder();
-    String defaultSecret = encoder.encodeToString(this.publicRSAKey.toPublicKey().getEncoded());
-
-    // Check if KID header is pointing to /dev/null file
-    String kid = header.getKeyID();
-    if (kid != null && kid.contains("/dev/null")) {
-      return "AA==";
+  private boolean validate(String authToken, boolean expirationRequired) {
+    try {
+      JWTClaimsSet claims = verifiedClaims(authToken);
+      String subject = claims.getSubject();
+      if (subject == null || subject.isBlank()) {
+        return false;
+      }
+      return hasValidTimeClaims(claims, expirationRequired);
+    } catch (ParseException e) {
+      // Unsigned, badly signed or malformed tokens are never valid
+      log.error("JWT token rejected -> Message: {}", e.getMessage());
     }
-
-    return defaultSecret;
+    return false;
   }
 
   /**
    * @param authToken
-   * @return validate token expire and true boolean
+   * @return true only for an RS256 token signed by this server that has a subject, an expiry that
+   *     has not passed and (if present) a not-before that has passed
    */
   public boolean validateJwtToken(String authToken) {
-    try {
-      SignedJWT signedJWT = SignedJWT.parse(authToken);
-      JWSHeader header = signedJWT.getHeader();
-      Algorithm alg = header.getAlgorithm();
-      boolean valid = false;
-      // JWT Algorithm confusion vulnerability
-      log.debug("Algorithm: " + alg.getName());
-      JWSVerifier verifier;
-      if (Objects.equals(alg.getName(), "HS256")) {
-        String secret = getJwtSecret(header);
-        log.debug("JWT Secret: " + secret);
-        verifier = new MACVerifier(secret.getBytes(StandardCharsets.UTF_8));
-      } else {
-        RSAKey verificationKey = getKeyFromJkuHeader(header);
-        if (verificationKey == null) {
-          log.debug("Key from JWKS: " + this.publicRSAKey.toJSONString());
-          verifier = new RSASSAVerifier(this.publicRSAKey);
-        } else {
-          log.debug("Key from JKU: " + verificationKey.toJSONString());
-          verifier = new RSASSAVerifier(verificationKey);
-        }
-        valid = signedJWT.verify(verifier);
-        log.debug("JWT valid?: " + valid);
-        return valid;
-      }
+    return validate(authToken, true);
+  }
 
-    } catch (ParseException e) {
-      // Unsigned (alg=none) or malformed tokens are never valid
-      log.error("Could not parse signed JWT Token -> Message: %d", e);
-    } catch (JOSEException e) {
-      log.error("RSA JWK Extraction failed -> Message: %d", e);
-    }
-
-    return false;
+  /**
+   * API keys are issued without an expiry; they must still be signed by this server and carry a
+   * subject.
+   *
+   * @param apiKey
+   * @return true when the API key token is validly signed
+   */
+  public boolean validateApiKey(String apiKey) {
+    return validate(apiKey, false);
   }
 }

@@ -39,6 +39,8 @@ enum ApiType {
 @Slf4j
 public class JwtAuthTokenFilter extends OncePerRequestFilter {
 
+  private static final int MAX_TOKEN_LENGTH = 8192;
+
   @Autowired private JwtProvider tokenProvider;
 
   @Autowired private UserDetailsServiceImpl userDetailsService;
@@ -88,12 +90,27 @@ public class JwtAuthTokenFilter extends OncePerRequestFilter {
    */
   public String getToken(HttpServletRequest request) {
     String authHeader = request.getHeader("Authorization");
-
-    // checking token is there or not
-    if (authHeader != null && authHeader.length() > 7) {
-      return authHeader.substring(7);
+    if (authHeader == null) {
+      return null;
     }
-    return null;
+    String token;
+    if (authHeader.startsWith("Bearer ")) {
+      token = authHeader.substring("Bearer ".length());
+    } else if (authHeader.startsWith("ApiKey ")) {
+      token = authHeader.substring("ApiKey ".length());
+    } else {
+      return null;
+    }
+    if (token.isEmpty() || token.length() > MAX_TOKEN_LENGTH) {
+      return null;
+    }
+    for (int i = 0; i < token.length(); i++) {
+      char c = token.charAt(i);
+      if (c <= ' ' || c == 127) {
+        return null;
+      }
+    }
+    return token;
   }
 
   /**
@@ -121,7 +138,9 @@ public class JwtAuthTokenFilter extends OncePerRequestFilter {
     if (token != null) {
       if (apiType == ApiType.APIKEY) {
         log.debug("Token is api token");
-        username = tokenProvider.getUserNameFromJwtToken(token);
+        if (tokenProvider.validateApiKey(token)) {
+          username = tokenProvider.getUserNameFromJwtToken(token);
+        }
       } else {
         log.debug("Token is jwt token");
         if (tokenProvider.validateJwtToken(token)) {
