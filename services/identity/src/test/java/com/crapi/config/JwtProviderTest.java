@@ -202,11 +202,18 @@ public class JwtProviderTest {
   @Test
   public void malformedTokensAreRejected() {
     JwtProvider provider = newProvider();
-    String[] samples = {null, "", "abc", "a.b.c", "a.b", "....", "eyJhbGciOiJSUzI1NiJ9.e30."};
+    String headerOnlyToken = b64Url("{\"alg\":\"RS256\"}") + "." + b64Url("{}") + ".";
+    String[] samples = {null, "", "abc", "a.b.c", "a.b", "....", headerOnlyToken};
     for (String bad : samples) {
       Assertions.assertFalse(provider.validateJwtToken(bad));
       Assertions.assertThrows(ParseException.class, () -> provider.getUserNameFromJwtToken(bad));
     }
+  }
+
+  private static String b64Url(String value) {
+    return Base64.getUrlEncoder()
+        .withoutPadding()
+        .encodeToString(value.getBytes(StandardCharsets.UTF_8));
   }
 
   private static RSAKey signingKey(JwtProvider provider) {
