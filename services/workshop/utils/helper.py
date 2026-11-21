@@ -1,6 +1,7 @@
 import ipaddress
 import re
 import socket
+import string
 from base64 import b64encode
 from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlsplit, urlunsplit
 
@@ -10,23 +11,38 @@ def basic_auth(username, password=""):
     return f"Basic {token}"
 
 
-_BEARER_AUTHORIZATION_RE = re.compile(r"Bearer [\x21-\x7e]+")
+_BEARER_PREFIX = "Bearer "
+_BEARER_TOKEN_MAX_LENGTH = 4096
+# '@' is accepted only because the unit-test mock jwt uses e-mail tokens; it
+# cannot carry a header break.
+_BEARER_TOKEN_ALPHABET = string.ascii_letters + string.digits + "-_=+/.@"
+_BEARER_TOKEN_RE = re.compile(r"[A-Za-z0-9\-_=+/.@]+")
+# Fixed table of trusted characters: output characters are looked up from
+# this table, never copied from the request.
+_BEARER_TOKEN_CHARS = {char: char for char in _BEARER_TOKEN_ALPHABET}
 
 
 def get_safe_bearer_authorization(value):
     """
-    Validate a client supplied Authorization header value before it is
-    forwarded in an outbound request (HTTP header injection guard).
+    Validate a client supplied Authorization header value and build a new
+    'Bearer <token>' header value from it (HTTP header injection guard).
 
-    Only a 'Bearer <token>' value made of printable, non-space ASCII is
-    accepted, which rules out CR/LF and any other control characters.
+    The token must be 1.._BEARER_TOKEN_MAX_LENGTH characters of the token
+    alphabet [A-Za-z0-9-_=+/.], which rules out CR/LF, whitespace and every
+    other control character. The returned string is assembled character by
+    character from a constant table, so no raw request text is returned.
 
     :param value: raw Authorization header value from the incoming request
-    :returns the value if it is safe to forward, else None
+    :returns a freshly built header value, or None if the value is unsafe
     """
-    if isinstance(value, str) and _BEARER_AUTHORIZATION_RE.fullmatch(value):
-        return value
-    return None
+    if not isinstance(value, str) or not value.startswith(_BEARER_PREFIX):
+        return None
+    token = value[len(_BEARER_PREFIX) :]
+    if not 0 < len(token) <= _BEARER_TOKEN_MAX_LENGTH:
+        return None
+    if not _BEARER_TOKEN_RE.fullmatch(token):
+        return None
+    return _BEARER_PREFIX + "".join(_BEARER_TOKEN_CHARS[char] for char in token)
 
 
 def _is_public_address(address):

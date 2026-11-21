@@ -27,6 +27,7 @@ import bcrypt
 from django.test import TestCase, Client
 from django.utils import timezone
 from utils import messages
+from utils.helper import get_safe_bearer_authorization
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
 
 
@@ -254,6 +255,71 @@ class MerchantTestCase(TestCase):
                     self.contact_mechanic_request_body,
                     HTTP_AUTHORIZATION=email + suffix,
                     content_type="application/json"
+                )
+                mock_get.assert_not_called()
+            self.assertNotEqual(res.status_code, 200)
+
+    def test_authorization_header_validation(self):
+        """
+        CRLF, whitespace, overlong and missing tokens are rejected before any
+        outbound request; a valid token is rebuilt and forwarded unchanged
+        :return: None
+        """
+        valid_token = "abc.DEF-ghi_123=+/"
+        self.assertEqual(
+            get_safe_bearer_authorization("Bearer " + valid_token),
+            "Bearer " + valid_token,
+        )
+        for bad in (
+            None,
+            "",
+            "Bearer",
+            "Bearer ",
+            "Bearer a\r\nX-Injected: 1",
+            "Bearer a\nb",
+            "Bearer a b",
+            "Bearer a\x00",
+            "Bearer aé",
+            "Bearer " + "a" * 4097,
+            "Basic abc",
+        ):
+            self.assertIsNone(get_safe_bearer_authorization(bad), repr(bad))
+        self.assertIsNotNone(get_safe_bearer_authorization("Bearer " + "a" * 4096))
+
+        self.contact_mechanic_request_body["repeat_request_if_failed"] = False
+        with patch(
+            "crapi.merchant.views.settings.MECHANIC_API_ALLOWED_HOSTS",
+            ["crapi-workshop:8000"],
+        ), patch("crapi.merchant.views.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"ok": True}
+            self.contact_mechanic_request_body["mechanic_api"] = (
+                "http://crapi-workshop:8000/workshop/api/mechanic/receive_report"
+            )
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(
+            mock_get.call_args.kwargs["headers"],
+            {"Authorization": self.user_auth_headers["HTTP_AUTHORIZATION"]},
+        )
+
+    def test_authorization_header_too_long_or_missing(self):
+        """
+        an overlong or missing Authorization header must not reach requests.get
+        :return: None
+        """
+        for headers in ({"HTTP_AUTHORIZATION": "Bearer " + "a" * 5000}, {}):
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    content_type="application/json",
+                    **headers
                 )
                 mock_get.assert_not_called()
             self.assertNotEqual(res.status_code, 200)
