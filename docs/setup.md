@@ -147,9 +147,11 @@ You can change the smtp configuration if required however all emails with domain
    $ call "%cd%\deploy\docker\build-all.bat"
    ```
 
-3. Start crAPI
+3. Start crAPI. Credentials are no longer committed; export them (or add them to a private, untracked env file) first.
    ```
    $ cd deploy/docker
+
+   $ export DB_PASSWORD=<choose> MONGO_DB_PASSWORD=<choose> SECRET_KEY=<choose> API_GATEWAY_PASSWORD=<choose>
    
    $ docker compose -f docker-compose.yml --compatibility up -d
    
@@ -181,7 +183,9 @@ You can change the smtp configuration if required however all emails with domain
     ```
     cd deploy/helm
 
-    helm install --namespace crapi crapi . --values values.yaml
+    helm install --namespace crapi crapi . --values values.yaml \
+     --set-string postgresdb.config.postgresPassword=<choose> --set-string mongodb.config.mongoPassword=<choose> \
+     --set-string workshop.config.secretKey=<choose> --set-string apiGatewayPassword=<choose>
     ```
 
 3. If using minikube, create a tunnel to initialize the LoadBalancers

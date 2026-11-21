@@ -54,6 +54,17 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.chatbot.config.name }}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentialsSecretName }}
+                  key: DB_PASSWORD
+            - name: MONGO_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentialsSecretName }}
+                  key: MONGO_DB_PASSWORD
           {{- if .Values.chatbot.resources }}
           resources:
             {{- toYaml .Values.chatbot.resources | nindent 12 }}

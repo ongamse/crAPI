@@ -51,6 +51,17 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.community.config.name }}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentialsSecretName }}
+                  key: DB_PASSWORD
+            - name: MONGO_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentialsSecretName }}
+                  key: MONGO_DB_PASSWORD
           {{- if .Values.community.resources }}
           resources:
             {{- toYaml .Values.community.resources | nindent 12 }}

@@ -50,6 +50,17 @@ spec:
           envFrom:
               - configMapRef:
                   name: {{ .Values.identity.config.name }}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentialsSecretName }}
+                  key: DB_PASSWORD
+            - name: API_GATEWAY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentialsSecretName }}
+                  key: API_GATEWAY_PASSWORD
           {{- if .Values.identity.resources }}
           resources:
             {{- toYaml .Values.identity.resources | nindent 12 }}
