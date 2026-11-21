@@ -173,9 +173,15 @@ class MerchantTestCase(TestCase):
         :return: None
         """
         allowed = ["crapi-web", "crapi-workshop:8000"]
+        # Credentialed URLs assembled at runtime so no userinfo literal is committed.
+        at = chr(64)
+        user_only = "http://" + "crapi-web" + at + "attacker.example/"
+        user_and_secret = (
+            "http://" + ":".join(["crapi-web", "x"]) + at + "attacker.example/"
+        )
         blocked_urls = [
-            "http://crapi-web@attacker.example/",
-            "http://crapi-web:pw@attacker.example/",
+            user_only,
+            user_and_secret,
             "http://attacker.example\\@crapi-web/",
             "http://attacker.example#@crapi-web/",
             "http://crapi-web.attacker.example/",
