@@ -20,16 +20,16 @@ spec:
             - "service"
             - "postgresdb"
       volumes:
-        - name: jwt-key-secret
+        - name: jwt-signing-keys
           secret:
-            secretName: jwt-key-secret
+            secretName: jwt-signing-keys
             optional: true
       containers:
         - name: crapi-identity
           image: crapi/crapi-identity:latest
           volumeMounts:
             - mountPath: "/.keys"
-              name: jwt-key-secret
+              name: jwt-signing-keys
               readOnly: true
           imagePullPolicy: Always
           ports:

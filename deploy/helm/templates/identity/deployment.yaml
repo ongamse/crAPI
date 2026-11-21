@@ -34,7 +34,7 @@ spec:
             - {{ .Values.mailhog.webService.name | quote }}
       {{- end }}
       volumes:
-        - name: jwt-key-secret
+        - name: jwt-signing-keys
           secret:
             secretName: {{ .Values.identity.jwtKeySecret.name }}
             optional: true
@@ -44,7 +44,7 @@ spec:
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           volumeMounts:
             - mountPath: "/.keys"
-              name: jwt-key-secret
+              name: jwt-signing-keys
               readOnly: true
           ports:
           - containerPort: {{ .Values.identity.port }}

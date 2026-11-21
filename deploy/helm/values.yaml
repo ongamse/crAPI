@@ -56,7 +56,7 @@ identity:
     labels:
       app: crapi-identity
   jwtKeySecret:
-    name: jwt-key-secret
+    name: jwt-signing-keys
     file: keys/jwks.json
     labels:
       app: crapi-identity
