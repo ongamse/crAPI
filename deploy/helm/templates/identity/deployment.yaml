@@ -37,6 +37,7 @@ spec:
         - name: jwt-key-secret
           secret:
             secretName: {{ .Values.identity.jwtKeySecret.name }}
+            optional: true
       containers:
         - name: {{ .Values.identity.name }}
           image: {{ .Values.identity.image }}:{{ .Chart.AppVersion }}

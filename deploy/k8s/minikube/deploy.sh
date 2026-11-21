@@ -27,7 +27,11 @@ kubectl create -n crapi secret generic crapi-credentials \
   --from-literal=SECRET_KEY="$SECRET_KEY" \
   --from-literal=API_GATEWAY_PASSWORD="$API_GATEWAY_PASSWORD"
 
-kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
+# Optional: supply your own signing key by placing a jwks.json in ../keys. Without it the identity
+# service generates an ephemeral RSA signing key at startup.
+if [ -f ../keys/jwks.json ]; then
+  kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
+fi
 kubectl apply -n crapi -f ../base/rbac
 kubectl apply -n crapi -f ../base/mongodb
 kubectl apply -n crapi -f ../base/postgres

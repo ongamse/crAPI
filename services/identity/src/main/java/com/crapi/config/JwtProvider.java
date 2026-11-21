@@ -23,7 +23,9 @@ import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.SignedJWT;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
@@ -56,14 +58,34 @@ public class JwtProvider {
 
   private Map<String, Object> publicJwkSet;
 
-  public JwtProvider(@Value("${app.jwksJson}") String jwksJson) {
+  /**
+   * @param jwksJson base64 encoded JWKS (with the RSA private key) supplied at runtime through the
+   *     JWKS environment variable / mounted keys file. When it is blank or holds no keys, a fresh
+   *     RSA signing key is generated in memory so no private key material has to be committed.
+   */
+  public JwtProvider(@Value("${app.jwksJson:}") String jwksJson) {
     try {
-      Base64.Decoder decoder = Base64.getDecoder();
-      InputStream jwksStream = new ByteArrayInputStream(decoder.decode(jwksJson));
-      JWKSet jwkSet = JWKSet.load(jwksStream);
-      jwksStream.close();
+      JWKSet jwkSet = null;
+      if (jwksJson != null && !jwksJson.isBlank()) {
+        Base64.Decoder decoder = Base64.getDecoder();
+        InputStream jwksStream = new ByteArrayInputStream(decoder.decode(jwksJson.trim()));
+        jwkSet = JWKSet.load(jwksStream);
+        jwksStream.close();
+      }
+      if (jwkSet == null || jwkSet.getKeys().isEmpty()) {
+        log.warn("No JWKS key supplied, generating an ephemeral RSA signing key");
+        RSAKey generated =
+            new RSAKeyGenerator(2048)
+                .keyUse(KeyUse.SIGNATURE)
+                .algorithm(JWSAlgorithm.RS256)
+                .keyIDFromThumbprint(true)
+                .generate();
+        jwkSet = new JWKSet(generated);
+      }
       List<JWK> keys = jwkSet.getKeys();
-      if (keys.size() != 1 || !Objects.equals(keys.get(0).getAlgorithm().getName(), "RS256")) {
+      if (keys.size() != 1
+          || keys.get(0).getAlgorithm() == null
+          || !Objects.equals(keys.get(0).getAlgorithm().getName(), "RS256")) {
         throw new RuntimeException("Invalid JWKS key passed!!!");
       }
 
