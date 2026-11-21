@@ -393,7 +393,12 @@ class DownloadReportView(APIView):
             )
 
         filename_from_user = unquote(filename_from_user)
-        full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
+        full_path = resolve_report_path(filename_from_user)
+        if full_path is None:
+            return Response(
+                {"message": "Invalid input."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         if os.path.exists(full_path) and os.path.isfile(full_path):
             return FileResponse(open(full_path, 'rb'))
         elif not os.path.exists(full_path):
@@ -406,6 +411,25 @@ class DownloadReportView(APIView):
                 {"message": f"'{full_path}' is not a file."},
                 status=status.HTTP_403_FORBIDDEN
             )
+
+
+def resolve_report_path(filename):
+    """
+    Resolves a report file name to a canonical path inside the reports
+    directory. Returns None if the name is not a plain file name or the
+    resolved path escapes the reports directory.
+    """
+    if not filename or "\x00" in filename:
+        return None
+    if filename != os.path.basename(filename) or filename in (".", ".."):
+        return None
+    if "/" in filename or "\\" in filename:
+        return None
+    reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, "reports"))
+    full_path = os.path.realpath(os.path.join(reports_dir, filename))
+    if os.path.commonpath([reports_dir, full_path]) != reports_dir:
+        return None
+    return full_path
 
 def validate_filename(input: str) -> bool:
     """
@@ -421,7 +445,11 @@ def service_report_pdf(response_data, report_id):
     """
     reports_dir = os.path.join(settings.BASE_DIR, 'reports')
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = os.path.join(reports_dir, f"report_{report_id}")
+    if not re.fullmatch(r"[0-9]+", str(report_id)):
+        raise ValueError("Invalid report id")
+    report_filepath = resolve_report_path(f"report_{report_id}")
+    if report_filepath is None:
+        raise ValueError("Invalid report id")
 
     template = get_template('service_report.html')
     html_string = template.render({'service': response_data})

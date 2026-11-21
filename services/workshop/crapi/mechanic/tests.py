@@ -314,3 +314,23 @@ class MechanicServiceWorkFlowTestCase(TestCase):
         self.assertEqual(comments.status_code, 200)
         print(comments.json())
         self.assertEqual(len(comments.json()), comments_len + 1)
+
+
+class ReportPathTest(TestCase):
+    """
+    Tests for report path containment.
+    """
+
+    def test_resolve_report_path_rejects_traversal(self):
+        from crapi.mechanic.views import resolve_report_path
+
+        for name in ["..", "../etc/passwd", "a/b", "a\\b", "", "x\x00y"]:
+            self.assertIsNone(resolve_report_path(name))
+
+    def test_resolve_report_path_accepts_plain_name(self):
+        from crapi.mechanic.views import resolve_report_path
+        import os
+
+        path = resolve_report_path("report_1")
+        self.assertIsNotNone(path)
+        self.assertEqual(os.path.basename(path), "report_1")
