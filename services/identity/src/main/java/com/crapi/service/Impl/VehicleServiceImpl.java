@@ -138,21 +138,27 @@ public class VehicleServiceImpl implements VehicleService {
 
   /**
    * @param carId
-   * @return VehicleDetails which is linked with this carId.
+   * @param request getting jwt token for user from request header
+   * @return VehicleDetails which is linked with this carId, only when it is owned by the token
+   *     user.
    */
   @Transactional
   @Override
-  public VehicleLocationResponse getVehicleLocation(UUID carId) {
+  public VehicleLocationResponse getVehicleLocation(UUID carId, HttpServletRequest request) {
     VehicleDetails vehicleDetails = null;
     VehicleLocationResponse vehicleLocationForm = null;
     UserDetails userDetails = null;
     Random random = new Random();
     try {
+      User user = userService.getUserFromToken(request);
       vehicleDetails = vehicleDetailsRepository.findByUuid(carId);
       if (vehicleDetails != null) {
         // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);
         // vehicleDetails.setVehicleLocation(getVehicleLocationList().get(random.nextInt(getVehicleLocationList().size())));
-        if (vehicleDetails.getOwner() != null) {
+        if (vehicleDetails.getOwner() != null
+            && user != null
+            && user.getId() != null
+            && user.getId().equals(vehicleDetails.getOwner().getId())) {
           userDetails = userDetailsRepository.findByUser_id(vehicleDetails.getOwner().getId());
           vehicleLocationForm =
               new VehicleLocationResponse(
