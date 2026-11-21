@@ -38,6 +38,52 @@ public class SMTPMailServer {
    * @param subject send mail to given email with dynamic subject and body
    */
   public void sendMail(String sendMail, String body, String subject) {
+    String safeRecipients;
+    String safeSubject;
+    try {
+      safeRecipients = validateRecipients(sendMail);
+      safeSubject = validateHeaderValue(subject, "subject");
+    } catch (AddressException | IllegalArgumentException e) {
+      log.warn("Mail not sent: rejected unsafe recipient or subject");
+      return;
+    }
+    sendValidatedMail(safeRecipients, body, safeSubject);
+  }
+
+  /**
+   * Reject header values containing CR, LF or other control characters, which can be used to inject
+   * additional mail headers.
+   */
+  static String validateHeaderValue(String value, String field) {
+    if (value == null) {
+      throw new IllegalArgumentException(field + " is missing");
+    }
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c < 0x20 || c == 0x7f || c == 0x85 || c == 0x2028 || c == 0x2029) {
+        throw new IllegalArgumentException(field + " contains illegal control characters");
+      }
+    }
+    return value;
+  }
+
+  /**
+   * Validate the recipient list: no control characters and every address must be a syntactically
+   * valid e-mail address.
+   */
+  static String validateRecipients(String recipients) throws AddressException {
+    String checked = validateHeaderValue(recipients, "recipient");
+    InternetAddress[] parsed = InternetAddress.parse(checked);
+    if (parsed.length == 0) {
+      throw new AddressException("No recipient address", checked);
+    }
+    for (InternetAddress address : parsed) {
+      address.validate();
+    }
+    return checked;
+  }
+
+  private void sendValidatedMail(String sendMail, String body, String subject) {
     String mhogDomain = mailhogConfiguration.getDomain();
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
