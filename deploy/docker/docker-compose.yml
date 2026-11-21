@@ -127,6 +127,7 @@ services:
       - MONGO_DB_NAME=crapi
       - SECRET_KEY=crapi
       - API_GATEWAY_URL=https://api.mypremiumdealership.com
+      - MECHANIC_API_ALLOWED_HOSTS=crapi-web,crapi-workshop:${WORKSHOP_SERVER_PORT:-8000}
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - TLS_CERTIFICATE=certs/server.crt
       - TLS_KEY=certs/server.key

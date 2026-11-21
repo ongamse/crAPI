@@ -134,6 +134,35 @@ class MerchantTestCase(TestCase):
         )
         self.assertNotEqual(res.status_code, 200)
 
+    def test_internal_mechanic_api_blocked(self):
+        """
+        points mechanic_api at loopback, metadata, private and non http urls
+        should get a bad request response and no outbound request
+        :return: None
+        """
+        blocked_urls = [
+            "http://127.0.0.1:8000/",
+            "http://localhost/",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://10.0.0.1/",
+            "http://[::1]/",
+            "http://user:pass@example.com/",
+            "file:///etc/passwd",
+            "ftp://example.com/",
+        ]
+        for url in blocked_urls:
+            self.contact_mechanic_request_body["mechanic_api"] = url
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+                mock_get.assert_not_called()
+            self.assertEqual(res.status_code, 400, url)
+            self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
+
     def test_contact_mechanic(self):
         """
         gives all correct field for contact mechanic
