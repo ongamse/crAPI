@@ -61,6 +61,45 @@ public class SMTPMailServerTest {
   }
 
   @Test
+  public void validateRecipientsDropsPersonalName() throws AddressException {
+    InternetAddress[] parsed = SMTPMailServer.validateRecipients("Evil Name <user@example.com>");
+    Assertions.assertEquals(1, parsed.length);
+    Assertions.assertEquals("user@example.com", parsed[0].toString());
+    Assertions.assertNull(parsed[0].getPersonal());
+  }
+
+  @Test
+  public void validateRecipientsRejectsUnsafeCharacters() {
+    Assertions.assertThrows(
+        AddressException.class, () -> SMTPMailServer.validateRecipients("\"a b\"@example.com"));
+    Assertions.assertThrows(
+        AddressException.class, () -> SMTPMailServer.validateRecipients("a'b@example.com"));
+  }
+
+  @Test
+  public void validateRecipientsRejectsTooManyRecipients() {
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < 11; i++) {
+      if (i > 0) {
+        sb.append(',');
+      }
+      sb.append("user").append(i).append("@example.com");
+    }
+    Assertions.assertThrows(
+        IllegalArgumentException.class, () -> SMTPMailServer.validateRecipients(sb.toString()));
+  }
+
+  @Test
+  public void validateSubjectRejectsCrLfAndLongValues() {
+    Assertions.assertEquals("crAPI: Hello", SMTPMailServer.validateSubject("crAPI: Hello"));
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> SMTPMailServer.validateSubject("hi\r\nBcc: evil@example.com"));
+    Assertions.assertThrows(
+        IllegalArgumentException.class, () -> SMTPMailServer.validateSubject("a".repeat(201)));
+  }
+
+  @Test
   public void validateRecipientsRejectsInvalidAddress() {
     Assertions.assertThrows(
         AddressException.class, () -> SMTPMailServer.validateRecipients("not-an-email"));

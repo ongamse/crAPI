@@ -21,6 +21,7 @@ import jakarta.mail.Session;
 import jakarta.mail.Transport;
 import jakarta.mail.internet.*;
 import java.util.Date;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,11 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class SMTPMailServer {
+  private static final int MAX_RECIPIENTS = 10;
+  private static final int MAX_SUBJECT_LENGTH = 200;
+  private static final Pattern SAFE_ADDRESS =
+      Pattern.compile("^[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+$");
+
   @Autowired MailConfiguration mailConfiguration;
 
   @Autowired MailHogConfiguration mailhogConfiguration;
@@ -42,7 +48,7 @@ public class SMTPMailServer {
     String safeSubject;
     try {
       safeRecipients = validateRecipients(sendMail);
-      safeSubject = validateHeaderValue(subject, "subject");
+      safeSubject = validateSubject(subject);
     } catch (AddressException | IllegalArgumentException e) {
       log.warn("Mail not sent: rejected unsafe recipient or subject");
       return;
@@ -68,6 +74,18 @@ public class SMTPMailServer {
   }
 
   /**
+   * Validate a subject line: no control characters (CR/LF included) and bounded length. The
+   * returned value is later MIME-encoded by MimeMessage.setSubject(subject, "UTF-8").
+   */
+  static String validateSubject(String subject) {
+    String checked = validateHeaderValue(subject, "subject");
+    if (checked.length() > MAX_SUBJECT_LENGTH) {
+      throw new IllegalArgumentException("subject is too long");
+    }
+    return checked;
+  }
+
+  /**
    * Validate the recipient list: no control characters and every address must be a syntactically
    * valid e-mail address. The list is strictly parsed once and the parsed addresses are returned so
    * callers do not need to re-parse the raw string.
@@ -78,10 +96,21 @@ public class SMTPMailServer {
     if (parsed.length == 0) {
       throw new AddressException("No recipient address", checked);
     }
-    for (InternetAddress address : parsed) {
-      address.validate();
+    if (parsed.length > MAX_RECIPIENTS) {
+      throw new IllegalArgumentException("too many recipients");
     }
-    return parsed;
+    InternetAddress[] normalised = new InternetAddress[parsed.length];
+    for (int i = 0; i < parsed.length; i++) {
+      parsed[i].validate();
+      // Rebuild from the validated address part only; the personal name / comments from the
+      // input are dropped and never reach the message.
+      String addressPart = parsed[i].getAddress();
+      if (addressPart == null || !SAFE_ADDRESS.matcher(addressPart).matches()) {
+        throw new AddressException("Recipient contains unsupported characters", checked);
+      }
+      normalised[i] = new InternetAddress(addressPart, true);
+    }
+    return normalised;
   }
 
   private void sendValidatedMail(InternetAddress[] emails, String body, String subject) {
@@ -117,7 +146,7 @@ public class SMTPMailServer {
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
       msg.setRecipients(Message.RecipientType.TO, emails);
-      msg.setSubject(subject);
+      msg.setSubject(subject, "UTF-8");
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
 
