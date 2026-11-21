@@ -225,8 +225,9 @@ public class UserServiceImpl implements UserService {
         dashboardResponse.setVideo_id(profileVideo.getId());
       }
       return dashboardResponse;
-    } catch (Exception exception) {
-      log.error("Failed to load user for dashboard request", exception);
+    } catch (EntityNotFoundException exception) {
+      // Expected lookup failure (invalid token / unknown user): fixed message, no exception text.
+      log.warn("Dashboard user lookup failed");
       return null;
     }
   }
@@ -332,7 +333,7 @@ public class UserServiceImpl implements UserService {
         throw new EntityNotFoundException(User.class, "userEmail", username);
       }
     } catch (ParseException exception) {
-      log.error("fail to get username from token -> Message:%d", exception);
+      log.error("fail to get username from token", exception);
       throw new EntityNotFoundException(User.class, "userEmail", username);
     }
   }
@@ -354,7 +355,7 @@ public class UserServiceImpl implements UserService {
         throw new EntityNotFoundException(User.class, "userEmail", username);
       }
     } catch (ParseException exception) {
-      log.error("fail to get username from token -> Message:%d", exception);
+      log.error("fail to get username from token", exception);
       throw new EntityNotFoundException(User.class, "userEmail");
     }
   }
@@ -423,7 +424,7 @@ public class UserServiceImpl implements UserService {
         return new CRAPIResponse(UserMessage.EMAIL_NOT_REGISTERED, HttpStatus.BAD_REQUEST.value());
       }
     } catch (Exception exception) {
-      log.error("fail to lock account  -> Message:%s", exception.getMessage());
+      log.error("fail to lock account", exception);
     }
     return new CRAPIResponse(UserMessage.ACCOUNT_LOCK_FAILURE, HttpStatus.BAD_REQUEST.value());
   }
@@ -451,7 +452,7 @@ public class UserServiceImpl implements UserService {
         }
       }
     } catch (Exception exception) {
-      log.error("fail to unlock account  -> Message:%s", exception.getMessage());
+      log.error("fail to unlock account", exception);
     }
     JwtResponse jwtResponse = new JwtResponse();
     jwtResponse.setMessage(UserMessage.INVALID_CREDENTIALS);

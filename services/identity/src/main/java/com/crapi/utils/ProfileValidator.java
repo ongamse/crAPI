@@ -55,7 +55,7 @@ public class ProfileValidator {
       }
       return file.getBytes();
     } catch (Exception e) {
-      log.error("unable to upload video -> Message: %d ", e);
+      log.error("unable to upload video", e);
     }
     return null;
   }

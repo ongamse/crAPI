@@ -41,7 +41,9 @@ public class ExceptionHandler extends ResponseEntityExceptionHandler {
 
   @org.springframework.web.bind.annotation.ExceptionHandler({RuntimeException.class})
   public ResponseEntity<String> handleRunTimeException(RuntimeException e) {
-    return ResponseEntity.status(INTERNAL_SERVER_ERROR).body(e.getMessage());
+    // Log details server-side only; never return exception text to the client.
+    log.error("Unhandled runtime exception", e);
+    return ResponseEntity.status(INTERNAL_SERVER_ERROR).body(UserMessage.GENERIC_INTERNAL_ERROR);
   }
 
   @org.springframework.web.bind.annotation.ExceptionHandler({CRAPIExceptionHandler.class})

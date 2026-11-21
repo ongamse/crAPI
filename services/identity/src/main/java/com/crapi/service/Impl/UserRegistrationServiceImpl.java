@@ -60,7 +60,7 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
       userDetails.setStatus(EStatus.ACTIVE.toString());
       return userDetails;
     } catch (Exception exception) {
-      log.error("fail to create UserDetails  Message: %d", exception);
+      log.error("fail to create UserDetails", exception);
     }
     return null;
   }
