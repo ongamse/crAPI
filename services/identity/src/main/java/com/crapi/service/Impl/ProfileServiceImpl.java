@@ -196,19 +196,35 @@ public class ProfileServiceImpl implements ProfileService {
   @Transactional
   @Override
   public CRAPIResponse deleteAdminProfileVideo(Long videoId, HttpServletRequest request) {
-    Optional<ProfileVideo> optionalProfileVideo;
-    ProfileVideo profileVideo;
     User user = userService.getUserFromToken(request);
     if (videoId == null) {
       throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404);
     }
     if (isAdmin(user)) {
-      optionalProfileVideo = profileVideoRepository.findById(videoId);
-    } else {
-      optionalProfileVideo = findOwnedVideo(videoId, user);
+      return deleteAnyProfileVideoAsAdmin(videoId, user);
     }
-    if (optionalProfileVideo.isPresent()) {
-      profileVideo = optionalProfileVideo.get();
+    // Non-admin callers only ever reach the owner-scoped lookup.
+    return removeVideo(findOwnedVideo(videoId, user));
+  }
+
+  /**
+   * Admin-only capability: delete any profile video regardless of owner. Method security is not
+   * enabled in this service, so the role is enforced with a hard guard before the unscoped
+   * lookup is reached.
+   */
+  private CRAPIResponse deleteAnyProfileVideoAsAdmin(Long videoId, User admin) {
+    if (!isAdmin(admin)) {
+      throw new CRAPIExceptionHandler(UserMessage.THIS_IS_ADMIN_FUNCTION, 403);
+    }
+    if (videoId == null) {
+      throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404);
+    }
+    return removeVideo(profileVideoRepository.findByIdForAdminDeletion(videoId));
+  }
+
+  private CRAPIResponse removeVideo(Optional<ProfileVideo> optionalProfileVideo) {
+    if (optionalProfileVideo != null && optionalProfileVideo.isPresent()) {
+      ProfileVideo profileVideo = optionalProfileVideo.get();
       profileVideo.setUser(null);
       profileVideoRepository.delete(profileVideo);
       return new CRAPIResponse(UserMessage.VIDEO_DELETED_SUCCESS_MESSAGE, 200);

@@ -240,7 +240,36 @@ public class ProfileServiceImplTest {
     try {
       profileService.deleteAdminProfileVideo(profileVideo.getId(), getMockHttpRequest());
     } finally {
+      Mockito.verify(profileVideoRepository, Mockito.times(0))
+          .findByIdForAdminDeletion(Mockito.anyLong());
       Mockito.verify(profileVideoRepository, Mockito.times(0)).findById(Mockito.anyLong());
+      Mockito.verify(profileVideoRepository, Mockito.times(0)).delete(Mockito.any());
+    }
+  }
+
+  @Test(expected = CRAPIExceptionHandler.class)
+  @DisplayName("deleteAdminProfileVideoFailWhenVideoIdNull")
+  public void deleteProfileAdminVideoFailWhenVideoIdNull() {
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
+    try {
+      profileService.deleteAdminProfileVideo(null, getMockHttpRequest());
+    } finally {
+      Mockito.verify(profileVideoRepository, Mockito.times(0)).delete(Mockito.any());
+    }
+  }
+
+  @Test(expected = CRAPIExceptionHandler.class)
+  @DisplayName("deleteAdminProfileVideoFailWhenAdminAndVideoNotFound")
+  public void deleteProfileAdminVideoFailWhenAdminAndVideoNotFound() {
+    User adminUser = getDummyUser();
+    adminUser.setId(2l);
+    adminUser.setRole(ERole.ROLE_ADMIN);
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(adminUser);
+    Mockito.when(profileVideoRepository.findByIdForAdminDeletion(Mockito.anyLong()))
+        .thenReturn(Optional.empty());
+    try {
+      profileService.deleteAdminProfileVideo(99l, getMockHttpRequest());
+    } finally {
       Mockito.verify(profileVideoRepository, Mockito.times(0)).delete(Mockito.any());
     }
   }
@@ -253,10 +282,11 @@ public class ProfileServiceImplTest {
     adminUser.setId(2l);
     adminUser.setRole(ERole.ROLE_ADMIN);
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(adminUser);
-    Mockito.when(profileVideoRepository.findById(Mockito.anyLong()))
+    Mockito.when(profileVideoRepository.findByIdForAdminDeletion(Mockito.anyLong()))
         .thenReturn(Optional.of(profileVideo));
     CRAPIResponse crapiAPIResponse =
         profileService.deleteAdminProfileVideo(profileVideo.getId(), getMockHttpRequest());
+    Mockito.verify(profileVideoRepository, Mockito.times(0)).findById(Mockito.anyLong());
     Mockito.verify(profileVideoRepository, Mockito.times(1)).delete(Mockito.any());
     Assertions.assertEquals(HttpStatus.OK.value(), crapiAPIResponse.getStatus());
   }
