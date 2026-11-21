@@ -132,24 +132,29 @@ public class JwtAuthTokenFilter extends OncePerRequestFilter {
    *     from request token
    */
   public String getUserFromToken(HttpServletRequest request) throws ParseException {
-    ApiType apiType = getKeyType(request);
-    String token = getToken(request);
-    String username = null;
-    if (token != null) {
-      if (apiType == ApiType.APIKEY) {
-        log.debug("Token is api token");
-        if (tokenProvider.validateApiKey(token)) {
-          username = tokenProvider.getUserNameFromJwtToken(token);
-        }
-      } else {
-        log.debug("Token is jwt token");
-        if (tokenProvider.validateJwtToken(token)) {
-          username = tokenProvider.getUserNameFromJwtToken(token);
-        }
-      }
-      // checking username from token
-      if (username != null) return username;
+    try {
+      return getVerifiedUsername(request);
+    } catch (ParseException e) {
+      log.debug("Request carries no valid token -> Message: {}", e.getMessage());
+      return EStatus.INVALID.toString();
     }
-    return EStatus.INVALID.toString();
+  }
+
+  /**
+   * Single gate for reading the user out of a request token: the token is verified exactly once
+   * (signature, subject, expiry for JWTs, not-before) and the subject is only returned afterwards.
+   *
+   * @param request
+   * @return username of the verified token
+   * @throws ParseException when the request has no token or the token is not valid
+   */
+  public String getVerifiedUsername(HttpServletRequest request) throws ParseException {
+    String token = getToken(request);
+    if (token == null) {
+      throw new ParseException("Missing or malformed Authorization token", 0);
+    }
+    boolean isApiKey = getKeyType(request) == ApiType.APIKEY;
+    log.debug(isApiKey ? "Token is api token" : "Token is jwt token");
+    return tokenProvider.getVerifiedSubject(token, !isApiKey);
   }
 }

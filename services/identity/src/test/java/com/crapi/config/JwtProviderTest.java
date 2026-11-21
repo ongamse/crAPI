@@ -74,7 +74,7 @@ public class JwtProviderTest {
     JwtProvider provider = newProvider();
     String token = provider.generateJwtToken(testUser());
     Assertions.assertTrue(provider.validateJwtToken(token));
-    Assertions.assertEquals(EMAIL, provider.getUserNameFromJwtToken(token));
+    Assertions.assertEquals(EMAIL, provider.getVerifiedSubject(token, true));
   }
 
   @Test
@@ -83,7 +83,8 @@ public class JwtProviderTest {
     String apiKey = provider.generateApiKey(testUser());
     Assertions.assertTrue(provider.validateApiKey(apiKey));
     Assertions.assertFalse(provider.validateJwtToken(apiKey));
-    Assertions.assertEquals(EMAIL, provider.getUserNameFromJwtToken(apiKey));
+    Assertions.assertEquals(EMAIL, provider.getVerifiedSubject(apiKey, false));
+    Assertions.assertThrows(ParseException.class, () -> provider.getVerifiedSubject(apiKey, true));
   }
 
   @Test
@@ -96,7 +97,8 @@ public class JwtProviderTest {
     String newSig = Base64.getUrlEncoder().withoutPadding().encodeToString(sig);
     String tampered = parts[0] + "." + parts[1] + "." + newSig;
     Assertions.assertFalse(provider.validateJwtToken(tampered));
-    Assertions.assertThrows(ParseException.class, () -> provider.getUserNameFromJwtToken(tampered));
+    Assertions.assertThrows(
+        ParseException.class, () -> provider.getVerifiedSubject(tampered, true));
   }
 
   @Test
@@ -116,7 +118,7 @@ public class JwtProviderTest {
                 new JWTClaimsSet.Builder().subject(EMAIL).expirationTime(in(60000)).build())
             .serialize();
     Assertions.assertFalse(provider.validateJwtToken(token));
-    Assertions.assertThrows(ParseException.class, () -> provider.getUserNameFromJwtToken(token));
+    Assertions.assertThrows(ParseException.class, () -> provider.getVerifiedSubject(token, true));
   }
 
   @Test
@@ -134,7 +136,7 @@ public class JwtProviderTest {
       String token = jwt.serialize();
       Assertions.assertFalse(provider.validateJwtToken(token));
       Assertions.assertThrows(
-          ParseException.class, () -> provider.getUserNameFromJwtToken(token));
+          ParseException.class, () -> provider.getVerifiedSubject(token, true));
     }
   }
 
@@ -203,11 +205,40 @@ public class JwtProviderTest {
   public void malformedTokensAreRejected() {
     JwtProvider provider = newProvider();
     String headerOnlyToken = b64Url("{\"alg\":\"RS256\"}") + "." + b64Url("{}") + ".";
-    String[] samples = {null, "", "abc", "a.b.c", "a.b", "....", headerOnlyToken};
+    String[] samples = {
+      null,
+      "",
+      "abc",
+      "a.b.c",
+      "a.b",
+      "....",
+      "a..c",
+      "a.b.c.d",
+      "a.b.c d",
+      "a.b.c=",
+      "a".repeat(8193),
+      "a.b." + "c".repeat(8193),
+      headerOnlyToken
+    };
     for (String bad : samples) {
       Assertions.assertFalse(provider.validateJwtToken(bad));
-      Assertions.assertThrows(ParseException.class, () -> provider.getUserNameFromJwtToken(bad));
+      Assertions.assertFalse(provider.validateApiKey(bad));
+      Assertions.assertThrows(ParseException.class, () -> provider.getVerifiedSubject(bad, true));
+      Assertions.assertThrows(ParseException.class, () -> provider.getVerifiedSubject(bad, false));
     }
+  }
+
+  @Test
+  public void expiredTokenIsRejectedByVerifiedSubject() throws JOSEException {
+    JwtProvider provider = newProvider();
+    String token =
+        sign(
+            signingKey(provider),
+            new JWSHeader.Builder(JWSAlgorithm.RS256).build(),
+            in(-60000),
+            null,
+            EMAIL);
+    Assertions.assertThrows(ParseException.class, () -> provider.getVerifiedSubject(token, true));
   }
 
   private static String b64Url(String value) {

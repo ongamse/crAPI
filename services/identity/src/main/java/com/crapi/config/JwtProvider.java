@@ -44,6 +44,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtProvider {
 
+  private static final int MAX_TOKEN_LENGTH = 8192;
+
   @Autowired private UserRepository userRepository;
 
   @Value("${app.jwtExpiration}")
@@ -143,10 +145,10 @@ public class JwtProvider {
    * @return the claims when the signature is valid, otherwise a ParseException is thrown
    */
   private JWTClaimsSet verifiedClaims(String token) throws ParseException {
-    if (token == null || token.isBlank()) {
-      throw new ParseException("Missing JWT", 0);
-    }
-    // Unsigned (alg=none) and otherwise unparseable tokens are rejected by SignedJWT.parse.
+    requireCompactJwsShape(token);
+    // This is the only place a raw token is parsed. It is parsed and verified in the same step and
+    // no caller ever sees claims of an unverified token. Unsigned (alg=none) tokens have an empty
+    // signature part and were already rejected by the structural pre-check above.
     SignedJWT signedJWT = SignedJWT.parse(token);
     if (!JWSAlgorithm.RS256.equals(signedJWT.getHeader().getAlgorithm())) {
       throw new ParseException("Unsupported JWT algorithm", 0);
@@ -163,11 +165,62 @@ public class JwtProvider {
   }
 
   /**
-   * @param token
-   * @return username from JWT Token, only when it is signed with the server's own RSA key
+   * Cheap structural check done with plain string operations before any JWT parsing: bounded
+   * length and exactly three non-empty dot separated base64url parts.
    */
-  public String getUserNameFromJwtToken(String token) throws ParseException {
-    return verifiedClaims(token).getSubject();
+  private static void requireCompactJwsShape(String token) throws ParseException {
+    if (token == null || token.isEmpty()) {
+      throw new ParseException("Missing JWT", 0);
+    }
+    if (token.length() > MAX_TOKEN_LENGTH) {
+      throw new ParseException("JWT too long", 0);
+    }
+    int parts = 1;
+    int partLength = 0;
+    for (int i = 0; i < token.length(); i++) {
+      char c = token.charAt(i);
+      if (c == '.') {
+        if (partLength == 0) {
+          throw new ParseException("Malformed JWT", i);
+        }
+        parts++;
+        partLength = 0;
+      } else if ((c >= 'A' && c <= 'Z')
+          || (c >= 'a' && c <= 'z')
+          || (c >= '0' && c <= '9')
+          || c == '-'
+          || c == '_') {
+        partLength++;
+      } else {
+        throw new ParseException("Malformed JWT", i);
+      }
+    }
+    if (parts != 3 || partLength == 0) {
+      throw new ParseException("Malformed JWT", 0);
+    }
+  }
+
+  /**
+   * Single verification gate for reading a user out of a token. The token is verified once (RS256
+   * signature with the server key, subject, expiry and not-before) and only then is the subject
+   * returned.
+   *
+   * @param token compact serialized JWT or API key
+   * @param expirationRequired true for session JWTs, false for API keys (issued without expiry)
+   * @return the subject of the verified token
+   * @throws ParseException when the token is malformed, not signed by this server or not valid
+   */
+  public String getVerifiedSubject(String token, boolean expirationRequired)
+      throws ParseException {
+    JWTClaimsSet claims = verifiedClaims(token);
+    String subject = claims.getSubject();
+    if (subject == null || subject.isBlank()) {
+      throw new ParseException("JWT has no subject", 0);
+    }
+    if (!hasValidTimeClaims(claims, expirationRequired)) {
+      throw new ParseException("JWT is expired or not yet valid", 0);
+    }
+    return subject;
   }
 
   private static boolean hasValidTimeClaims(JWTClaimsSet claims, boolean expirationRequired) {
@@ -186,12 +239,8 @@ public class JwtProvider {
 
   private boolean validate(String authToken, boolean expirationRequired) {
     try {
-      JWTClaimsSet claims = verifiedClaims(authToken);
-      String subject = claims.getSubject();
-      if (subject == null || subject.isBlank()) {
-        return false;
-      }
-      return hasValidTimeClaims(claims, expirationRequired);
+      getVerifiedSubject(authToken, expirationRequired);
+      return true;
     } catch (ParseException e) {
       // Unsigned, badly signed or malformed tokens are never valid
       log.error("JWT token rejected -> Message: {}", e.getMessage());
