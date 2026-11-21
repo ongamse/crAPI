@@ -318,19 +318,91 @@ class MechanicServiceWorkFlowTestCase(TestCase):
 
 class ReportPathTest(TestCase):
     """
-    Tests for report path containment.
+    Tests for report path containment on the report views.
     """
 
-    def test_resolve_report_path_rejects_traversal(self):
-        from crapi.mechanic.views import resolve_report_path
+    def setUp(self):
+        import os
+        from django.conf import settings as dj_settings
 
-        for name in ["..", "../etc/passwd", "a/b", "a\\b", "", "x\x00y"]:
-            self.assertIsNone(resolve_report_path(name))
+        self.client = Client()
+        mechanic_data = get_sample_mechanic_data()
+        self.mechanic = Mechanic.objects.create(
+            id=1,
+            mechanic_code=mechanic_data["mechanic_code"],
+            user=User.objects.create(
+                id=1,
+                email=mechanic_data["email"],
+                number=mechanic_data["number"],
+                password=mechanic_data["password"],
+                role=User.ROLE_CHOICES.MECH,
+                created_on=timezone.now(),
+            ),
+        )
+        self.auth_headers = {"HTTP_AUTHORIZATION": "Bearer " + self.mechanic.user.email}
+        self.reports_dir = os.path.realpath(
+            os.path.join(dj_settings.BASE_DIR, "reports")
+        )
+        os.makedirs(self.reports_dir, exist_ok=True)
+        self.sample_name = "report_test_sample"
+        self.sample_path = os.path.join(self.reports_dir, self.sample_name)
+        with open(self.sample_path, "wb") as f:
+            f.write(b"sample-report")
 
-    def test_resolve_report_path_accepts_plain_name(self):
-        from crapi.mechanic.views import resolve_report_path
+    def tearDown(self):
         import os
 
-        path = resolve_report_path("report_1")
-        self.assertIsNotNone(path)
-        self.assertEqual(os.path.basename(path), "report_1")
+        if os.path.exists(self.sample_path):
+            os.remove(self.sample_path)
+
+    def test_download_rejects_traversal_inputs(self):
+        for name in [
+            "../etc/passwd",
+            "..%2F..%2Fetc%2Fpasswd",
+            "%2Fetc%2Fpasswd",
+            "/etc/passwd",
+            "report%00",
+            "%2e%2e",
+            "a%5Cb",
+        ]:
+            res = self.client.get(
+                "/workshop/api/mechanic/download_report", {"filename": name}
+            )
+            self.assertEqual(res.status_code, 400, name)
+
+    def test_download_missing_param(self):
+        res = self.client.get("/workshop/api/mechanic/download_report")
+        self.assertEqual(res.status_code, 400)
+
+    def test_download_unknown_file(self):
+        res = self.client.get(
+            "/workshop/api/mechanic/download_report", {"filename": "report_nope"}
+        )
+        self.assertEqual(res.status_code, 404)
+
+    def test_download_valid_file(self):
+        res = self.client.get(
+            "/workshop/api/mechanic/download_report",
+            {"filename": self.sample_name},
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(b"".join(res.streaming_content), b"sample-report")
+
+    def test_get_report_rejects_non_numeric_ids(self):
+        for rid in ["../x", "/etc/passwd", "1%00", "abc", "1.5", "-1"]:
+            res = self.client.get(
+                "/workshop/api/mechanic/mechanic_report",
+                {"report_id": rid},
+                **self.auth_headers
+            )
+            self.assertEqual(res.status_code, 400, rid)
+
+    def test_find_report_entry(self):
+        from crapi.mechanic.views import find_report_entry, is_plain_report_name
+
+        for name in ["..", "../etc/passwd", "a/b", "a\\b", "", "x\x00y"]:
+            self.assertFalse(is_plain_report_name(name), name)
+        self.assertIsNone(find_report_entry("report_nope"))
+        entry = find_report_entry(self.sample_name)
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.name, self.sample_name)
