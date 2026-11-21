@@ -38,7 +38,7 @@ public class SMTPMailServer {
    * @param subject send mail to given email with dynamic subject and body
    */
   public void sendMail(String sendMail, String body, String subject) {
-    String safeRecipients;
+    InternetAddress[] safeRecipients;
     String safeSubject;
     try {
       safeRecipients = validateRecipients(sendMail);
@@ -69,27 +69,28 @@ public class SMTPMailServer {
 
   /**
    * Validate the recipient list: no control characters and every address must be a syntactically
-   * valid e-mail address.
+   * valid e-mail address. The list is strictly parsed once and the parsed addresses are returned so
+   * callers do not need to re-parse the raw string.
    */
-  static String validateRecipients(String recipients) throws AddressException {
+  static InternetAddress[] validateRecipients(String recipients) throws AddressException {
     String checked = validateHeaderValue(recipients, "recipient");
-    InternetAddress[] parsed = InternetAddress.parse(checked);
+    InternetAddress[] parsed = InternetAddress.parseHeader(checked, true);
     if (parsed.length == 0) {
       throw new AddressException("No recipient address", checked);
     }
     for (InternetAddress address : parsed) {
       address.validate();
     }
-    return checked;
+    return parsed;
   }
 
-  private void sendValidatedMail(String sendMail, String body, String subject) {
+  private void sendValidatedMail(InternetAddress[] emails, String body, String subject) {
     String mhogDomain = mailhogConfiguration.getDomain();
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
+    String sendMail = InternetAddress.toString(emails);
     try {
       log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -115,7 +116,7 @@ public class SMTPMailServer {
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
+      msg.setRecipients(Message.RecipientType.TO, emails);
       msg.setSubject(subject);
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());

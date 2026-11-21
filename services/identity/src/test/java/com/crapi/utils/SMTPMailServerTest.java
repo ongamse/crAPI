@@ -15,6 +15,7 @@
 package com.crapi.utils;
 
 import jakarta.mail.internet.AddressException;
+import jakarta.mail.internet.InternetAddress;
 import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
 
@@ -40,8 +41,16 @@ public class SMTPMailServerTest {
 
   @Test
   public void validateRecipientsAcceptsValidAddress() throws AddressException {
-    Assertions.assertEquals(
-        "user@example.com", SMTPMailServer.validateRecipients("user@example.com"));
+    InternetAddress[] parsed = SMTPMailServer.validateRecipients("user@example.com");
+    Assertions.assertEquals(1, parsed.length);
+    Assertions.assertEquals("user@example.com", parsed[0].getAddress());
+  }
+
+  @Test
+  public void validateRecipientsParsesMultipleAddresses() throws AddressException {
+    InternetAddress[] parsed = SMTPMailServer.validateRecipients("a@example.com,b@example.com");
+    Assertions.assertEquals(2, parsed.length);
+    Assertions.assertEquals("b@example.com", parsed[1].getAddress());
   }
 
   @Test
