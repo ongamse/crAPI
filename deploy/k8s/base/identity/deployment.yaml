@@ -19,18 +19,9 @@ spec:
           args:
             - "service"
             - "postgresdb"
-      volumes:
-        - name: jwt-signing-keys
-          secret:
-            secretName: jwt-signing-keys
-            optional: true
       containers:
         - name: crapi-identity
           image: crapi/crapi-identity:latest
-          volumeMounts:
-            - mountPath: "/.keys"
-              name: jwt-signing-keys
-              readOnly: true
           imagePullPolicy: Always
           ports:
           - containerPort: 8080
@@ -38,6 +29,12 @@ spec:
               - configMapRef:
                   name: crapi-identity-configmap
           env:
+            - name: JWKS
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-signing-keys
+                  key: JWKS
+                  optional: true
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:

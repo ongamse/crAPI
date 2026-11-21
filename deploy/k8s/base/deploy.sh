@@ -26,7 +26,8 @@ kubectl create -n crapi secret generic crapi-credentials \
 # Optional: supply your own signing key by placing a jwks.json in ../keys. Without it the identity
 # service generates an ephemeral RSA signing key at startup.
 if [ -f ../keys/jwks.json ]; then
-  kubectl create -n crapi secret generic jwt-signing-keys --from-file=../keys
+  kubectl create -n crapi secret generic jwt-signing-keys \
+    --from-literal=JWKS="$(openssl base64 -in ../keys/jwks.json -A)"
 fi
 kubectl apply -n crapi -f ./rbac
 kubectl apply -n crapi -f ./mongodb
