@@ -12,8 +12,10 @@
 # limitations under the License.
 
 import logging
+import os
+import secrets
 import jwt
-from functools import wraps
+from functools import lru_cache, wraps
 from rest_framework import status
 from rest_framework.response import Response
 from utils import messages
@@ -31,6 +33,14 @@ which can be used during testing
 logger = logging.getLogger()
 
 
+@lru_cache(maxsize=None)
+def _test_secret(env_name: str) -> str:
+    """
+    returns a throwaway credential for test fixtures, built at runtime
+    """
+    return os.environ.get(env_name) or secrets.token_urlsafe(12)
+
+
 def get_sample_mechanic_data():
     """
     gives mechanic data which can be used for testing
@@ -41,7 +51,7 @@ def get_sample_mechanic_data():
         "email": "mechraju@crapi.com",
         "mechanic_code": "TRAC_MEC_3",
         "number": "9123456708",
-        "password": "admin",
+        "password": _test_secret("TEST_MECHANIC_PASSWORD"),
     }
 
 
@@ -54,7 +64,7 @@ def get_sample_user_data():
         "name": "TestUser",
         "email": "test@crapi.com",
         "number": "9123456708",
-        "password": "password",
+        "password": _test_secret("TEST_USER_PASSWORD"),
     }
 
 
@@ -89,7 +99,7 @@ def get_sample_admin_user():
         "name": "Admin 1",
         "email": "admin1@crapi.com",
         "number": "9123456700",
-        "password": "password1",
+        "password": _test_secret("TEST_ADMIN_PASSWORD"),
         "role": User.ROLE_CHOICES.ADMIN,
     }
 

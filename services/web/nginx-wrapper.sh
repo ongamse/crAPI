@@ -17,6 +17,10 @@
 if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
     export HTTP_PROTOCOL=https
     export NGINX_TEMPLATE=/etc/nginx/conf.d/default.ssl.conf.template
+    if [ ! -f /app/certs/server.key ]; then
+        echo "TLS private key /app/certs/server.key not found. Run services/gencert.sh before building or mount the key."
+        exit 1
+    fi
 else
     export HTTP_PROTOCOL=http
     export NGINX_TEMPLATE=/etc/nginx/conf.d/default.conf.template

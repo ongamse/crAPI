@@ -26,6 +26,9 @@ public interface VehicleDetailsRepository extends JpaRepository<VehicleDetails, 
 
   VehicleDetails findByUuid(UUID uuid);
 
+  /** Owner-scoped lookup: a vehicle that belongs to another user is never loaded. */
+  VehicleDetails findByUuidAndOwner_Id(UUID uuid, Long ownerId);
+
   List<VehicleDetails> findAllByOwner_id(Long id);
 
   VehicleDetails findByVehicleLocation_id(Long carId);

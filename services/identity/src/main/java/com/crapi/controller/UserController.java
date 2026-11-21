@@ -22,12 +22,13 @@ import com.crapi.model.LoginForm;
 import com.crapi.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.UnsupportedEncodingException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@CrossOrigin
+@Slf4j
 @RestController
 @RequestMapping("/identity/api/v2/user")
 public class UserController {
@@ -42,7 +43,15 @@ public class UserController {
    */
   @GetMapping("/dashboard")
   public ResponseEntity<?> dashboard(HttpServletRequest request) {
-    DashboardResponse userData = userService.getUserByRequestToken(request);
+    DashboardResponse userData;
+    try {
+      userData = userService.getUserByRequestToken(request);
+    } catch (RuntimeException exception) {
+      // Fixed message only: never expose exception text to the client.
+      log.error("Unexpected failure while serving dashboard request", exception);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(new CRAPIResponse(UserMessage.GENERIC_INTERNAL_ERROR, 500));
+    }
     if (userData != null) {
       return ResponseEntity.status(HttpStatus.OK).body(userData);
     } else
@@ -62,7 +71,7 @@ public class UserController {
 
     CRAPIResponse resetPasswordResponse = userService.resetPassword(loginForm, request);
     if (resetPasswordResponse != null && resetPasswordResponse.getStatus() == 200) {
-      return ResponseEntity.ok().body(new CRAPIResponse(UserMessage.PASSWORD_GOT_RESET));
+      return ResponseEntity.ok().body(new CRAPIResponse(UserMessage.RESET_SUCCESS_MESSAGE));
     }
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(resetPasswordResponse);
   }

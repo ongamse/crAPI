@@ -19,22 +19,19 @@ import com.crapi.repository.UserRepository;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
-import com.nimbusds.jwt.JWTParser;
-import com.nimbusds.jwt.PlainJWT;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
+import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
-import java.net.URI;
-import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.text.ParseException;
 import java.util.*;
@@ -47,6 +44,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtProvider {
 
+  private static final int MAX_TOKEN_LENGTH = 8192;
+
   @Autowired private UserRepository userRepository;
 
   @Value("${app.jwtExpiration}")
@@ -58,14 +57,34 @@ public class JwtProvider {
 
   private Map<String, Object> publicJwkSet;
 
-  public JwtProvider(@Value("${app.jwksJson}") String jwksJson) {
+  /**
+   * @param jwksJson base64 encoded JWKS (with the RSA private key) supplied at runtime through the
+   *     JWKS environment variable / mounted keys file. When it is blank or holds no keys, a fresh
+   *     RSA signing key is generated in memory so no private key material has to be committed.
+   */
+  public JwtProvider(@Value("${app.jwksJson:}") String jwksJson) {
     try {
-      Base64.Decoder decoder = Base64.getDecoder();
-      InputStream jwksStream = new ByteArrayInputStream(decoder.decode(jwksJson));
-      JWKSet jwkSet = JWKSet.load(jwksStream);
-      jwksStream.close();
+      JWKSet jwkSet = null;
+      if (jwksJson != null && !jwksJson.isBlank()) {
+        Base64.Decoder decoder = Base64.getDecoder();
+        InputStream jwksStream = new ByteArrayInputStream(decoder.decode(jwksJson.trim()));
+        jwkSet = JWKSet.load(jwksStream);
+        jwksStream.close();
+      }
+      if (jwkSet == null || jwkSet.getKeys().isEmpty()) {
+        log.warn("No JWKS key supplied, generating an ephemeral RSA signing key");
+        RSAKey generated =
+            new RSAKeyGenerator(2048)
+                .keyUse(KeyUse.SIGNATURE)
+                .algorithm(JWSAlgorithm.RS256)
+                .keyIDFromThumbprint(true)
+                .generate();
+        jwkSet = new JWKSet(generated);
+      }
       List<JWK> keys = jwkSet.getKeys();
-      if (keys.size() != 1 || !Objects.equals(keys.get(0).getAlgorithm().getName(), "RS256")) {
+      if (keys.size() != 1
+          || keys.get(0).getAlgorithm() == null
+          || !Objects.equals(keys.get(0).getAlgorithm().getName(), "RS256")) {
         throw new RuntimeException("Invalid JWKS key passed!!!");
       }
 
@@ -118,93 +137,134 @@ public class JwtProvider {
   }
 
   /**
-   * @param token
-   * @return username from JWT Token
+   * Verifies a token against the server's own RSA public key only. The token header is never used
+   * to select a key or an algorithm: anything but RS256 (including none and HS*) is rejected and
+   * jku/jwk/x5u/kid headers are ignored.
+   *
+   * @param token compact serialized JWT
+   * @return the claims when the signature is valid, otherwise a ParseException is thrown
    */
-  public String getUserNameFromJwtToken(String token) throws ParseException {
-    // Parse without verifying token signature
-    return JWTParser.parse(token).getJWTClaimsSet().getSubject();
-  }
-
-  // Load RSA Public Key for JKU header if present
-  private RSAKey getKeyFromJkuHeader(JWSHeader header) {
+  private JWTClaimsSet verifiedClaims(String token) throws ParseException {
+    requireCompactJwsShape(token);
+    // This is the only place a raw token is parsed. It is parsed and verified in the same step and
+    // no caller ever sees claims of an unverified token. Unsigned (alg=none) tokens have an empty
+    // signature part and were already rejected by the structural pre-check above.
+    SignedJWT signedJWT = SignedJWT.parse(token);
+    if (!JWSAlgorithm.RS256.equals(signedJWT.getHeader().getAlgorithm())) {
+      throw new ParseException("Unsupported JWT algorithm", 0);
+    }
     try {
-      URI jku = header.getJWKURL();
-      if (jku != null) {
-        URLConnection connection = jku.toURL().openConnection();
-        JWKSet jwkSet = JWKSet.load(connection.getInputStream());
-        connection.getInputStream().close();
-        log.info("JWKSet from URL : " + jwkSet.toString(false));
-        JWK key = jwkSet.getKeyByKeyId(header.getKeyID());
-        if (key != null && Objects.equals(key.getAlgorithm().getName(), "RS256")) {
-          return key.toRSAKey().toPublicJWK();
-        }
+      if (!signedJWT.verify(new RSASSAVerifier(this.publicRSAKey))) {
+        throw new ParseException("Invalid JWT signature", 0);
       }
-    } catch (IOException | ParseException e) {
-      return null;
+    } catch (JOSEException e) {
+      log.error("JWT signature verification failed", e);
+      throw new ParseException("JWT signature verification failed", 0);
     }
-
-    return null;
+    return signedJWT.getJWTClaimsSet();
   }
 
-  // Construct secret for JWT Verification through HS256 (vulnerability)
-  private String getJwtSecret(JWSHeader header) throws JOSEException {
-    // defaultSecret is RSA Public Key as String
-    // Algorithm Confusion Attack
-    Base64.Encoder encoder = Base64.getEncoder();
-    String defaultSecret = encoder.encodeToString(this.publicRSAKey.toPublicKey().getEncoded());
-
-    // Check if KID header is pointing to /dev/null file
-    String kid = header.getKeyID();
-    if (kid != null && kid.contains("/dev/null")) {
-      return "AA==";
+  /**
+   * Cheap structural check done with plain string operations before any JWT parsing: bounded
+   * length and exactly three non-empty dot separated base64url parts.
+   */
+  private static void requireCompactJwsShape(String token) throws ParseException {
+    if (token == null || token.isEmpty()) {
+      throw new ParseException("Missing JWT", 0);
     }
+    if (token.length() > MAX_TOKEN_LENGTH) {
+      throw new ParseException("JWT too long", 0);
+    }
+    int parts = 1;
+    int partLength = 0;
+    for (int i = 0; i < token.length(); i++) {
+      char c = token.charAt(i);
+      if (c == '.') {
+        if (partLength == 0) {
+          throw new ParseException("Malformed JWT", i);
+        }
+        parts++;
+        partLength = 0;
+      } else if ((c >= 'A' && c <= 'Z')
+          || (c >= 'a' && c <= 'z')
+          || (c >= '0' && c <= '9')
+          || c == '-'
+          || c == '_') {
+        partLength++;
+      } else {
+        throw new ParseException("Malformed JWT", i);
+      }
+    }
+    if (parts != 3 || partLength == 0) {
+      throw new ParseException("Malformed JWT", 0);
+    }
+  }
 
-    return defaultSecret;
+  /**
+   * Single verification gate for reading a user out of a token. The token is verified once (RS256
+   * signature with the server key, subject, expiry and not-before) and only then is the subject
+   * returned.
+   *
+   * @param token compact serialized JWT or API key
+   * @param expirationRequired true for session JWTs, false for API keys (issued without expiry)
+   * @return the subject of the verified token
+   * @throws ParseException when the token is malformed, not signed by this server or not valid
+   */
+  public String getVerifiedSubject(String token, boolean expirationRequired)
+      throws ParseException {
+    JWTClaimsSet claims = verifiedClaims(token);
+    String subject = claims.getSubject();
+    if (subject == null || subject.isBlank()) {
+      throw new ParseException("JWT has no subject", 0);
+    }
+    if (!hasValidTimeClaims(claims, expirationRequired)) {
+      throw new ParseException("JWT is expired or not yet valid", 0);
+    }
+    return subject;
+  }
+
+  private static boolean hasValidTimeClaims(JWTClaimsSet claims, boolean expirationRequired) {
+    Date now = new Date();
+    Date exp = claims.getExpirationTime();
+    if (exp == null) {
+      if (expirationRequired) {
+        return false;
+      }
+    } else if (!exp.after(now)) {
+      return false;
+    }
+    Date nbf = claims.getNotBeforeTime();
+    return nbf == null || !nbf.after(now);
+  }
+
+  private boolean validate(String authToken, boolean expirationRequired) {
+    try {
+      getVerifiedSubject(authToken, expirationRequired);
+      return true;
+    } catch (ParseException e) {
+      // Unsigned, badly signed or malformed tokens are never valid
+      log.error("JWT token rejected -> Message: {}", e.getMessage());
+    }
+    return false;
   }
 
   /**
    * @param authToken
-   * @return validate token expire and true boolean
+   * @return true only for an RS256 token signed by this server that has a subject, an expiry that
+   *     has not passed and (if present) a not-before that has passed
    */
   public boolean validateJwtToken(String authToken) {
-    try {
-      SignedJWT signedJWT = SignedJWT.parse(authToken);
-      JWSHeader header = signedJWT.getHeader();
-      Algorithm alg = header.getAlgorithm();
-      boolean valid = false;
-      // JWT Algorithm confusion vulnerability
-      log.debug("Algorithm: " + alg.getName());
-      JWSVerifier verifier;
-      if (Objects.equals(alg.getName(), "HS256")) {
-        String secret = getJwtSecret(header);
-        log.debug("JWT Secret: " + secret);
-        verifier = new MACVerifier(secret.getBytes(StandardCharsets.UTF_8));
-      } else {
-        RSAKey verificationKey = getKeyFromJkuHeader(header);
-        if (verificationKey == null) {
-          log.debug("Key from JWKS: " + this.publicRSAKey.toJSONString());
-          verifier = new RSASSAVerifier(this.publicRSAKey);
-        } else {
-          log.debug("Key from JKU: " + verificationKey.toJSONString());
-          verifier = new RSASSAVerifier(verificationKey);
-        }
-        valid = signedJWT.verify(verifier);
-        log.debug("JWT valid?: " + valid);
-        return valid;
-      }
+    return validate(authToken, true);
+  }
 
-    } catch (ParseException e) {
-      try {
-        PlainJWT jwt = PlainJWT.parse(authToken);
-        return true;
-      } catch (ParseException parseException) {
-        log.error("Could not parse JWT Token -> Message: %d", parseException);
-      }
-    } catch (JOSEException e) {
-      log.error("RSA JWK Extraction failed -> Message: %d", e);
-    }
-
-    return false;
+  /**
+   * API keys are issued without an expiry; they must still be signed by this server and carry a
+   * subject.
+   *
+   * @param apiKey
+   * @return true when the API key token is validly signed
+   */
+  public boolean validateApiKey(String apiKey) {
+    return validate(apiKey, false);
   }
 }

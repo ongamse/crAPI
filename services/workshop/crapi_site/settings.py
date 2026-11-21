@@ -61,11 +61,30 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Comma separated list of host names this service may be served as (validated
+# against the Host header). The default covers the standard deployments: the
+# docker-compose / k8s / helm service names used by the web proxy, and the
+# loopback / wildcard-bind addresses used by local access and health checks.
+# Wildcard entries are ignored so DNS rebinding protection stays on.
+DEFAULT_ALLOWED_HOSTS = "crapi-workshop,crapi-web,localhost,127.0.0.1,[::1],0.0.0.0"
+ALLOWED_HOSTS = [
+    entry.strip()
+    for entry in os.environ.get("ALLOWED_HOSTS", DEFAULT_ALLOWED_HOSTS).split(",")
+    if entry.strip() and entry.strip() != "*"
+]
+
+# Comma separated 'host' or 'host:port' entries of trusted internal hosts that
+# the contact mechanic feature may call. Everything else must resolve to a
+# public address.
+MECHANIC_API_ALLOWED_HOSTS = [
+    entry.strip()
+    for entry in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
+    if entry.strip()
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
 
 # Application definition
 
@@ -99,7 +118,15 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Comma separated list of explicitly trusted origins allowed to call this API
+# cross-origin. Empty (default) means same-origin only.
+CORS_ALLOWED_ORIGINS = [
+    entry.strip()
+    for entry in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if entry.strip() and entry.strip() != "*"
+]
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = False
 
 ROOT_URLCONF = "crapi_site.urls"
 
@@ -245,6 +272,9 @@ IDENTITY_LOGIN = "http://{}/identity/api/auth/login".format(
 IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
+# Certificate verification for outbound HTTPS requests. Defaults to the system
+# trust store (True); set TLS_CA_BUNDLE to a CA bundle path for internal CAs.
+OUTBOUND_TLS_VERIFY = os.environ.get("TLS_CA_BUNDLE") or True
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(

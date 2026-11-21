@@ -52,6 +52,14 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.mailhog.config.name }}
+          env:
+            - name: MONGO_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentialsName }}
+                  key: MONGO_DB_PASSWORD
+            - name: MH_MONGO_URI
+              value: {{ .Values.mongodb.config.mongoUser }}:$(MONGO_DB_PASSWORD)@{{ .Values.mongodb.service.name }}:{{ .Values.mongodb.port }}
           {{- if .Values.mailhog.resources }}
           resources:
             {{- toYaml .Values.mailhog.resources | nindent 12 }}

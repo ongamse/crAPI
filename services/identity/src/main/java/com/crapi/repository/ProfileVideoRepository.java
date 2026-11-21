@@ -15,10 +15,23 @@
 package com.crapi.repository;
 
 import com.crapi.entity.ProfileVideo;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ProfileVideoRepository extends JpaRepository<ProfileVideo, Long> {
   ProfileVideo findByUser_id(Long id);
+
+  /** Owner-scoped lookup: a video that belongs to another user is never loaded. */
+  Optional<ProfileVideo> findByIdAndUser_Id(Long id, Long userId);
+
+  /**
+   * Unscoped lookup reserved for the admin deletion capability. It must only be called after the
+   * caller has been verified to hold the admin role (see ProfileServiceImpl).
+   */
+  @Query("select pv from ProfileVideo pv where pv.id = :id")
+  Optional<ProfileVideo> findByIdForAdminDeletion(@Param("id") Long id);
 }

@@ -145,7 +145,7 @@ class OrderControlView(APIView):
                         "Content-Type": "application/json",
                     },
                     json=data,
-                    verify=False,
+                    verify=settings.OUTBOUND_TLS_VERIFY,
                     timeout=5,
                 )
                 if payment_response.status_code == 200:
@@ -386,11 +386,9 @@ class ApplyCouponView(APIView):
         with connection.cursor() as cursor:
             try:
                 cursor.execute(
-                    "SELECT coupon_code from applied_coupon WHERE user_id = "
-                    + str(user.id)
-                    + " AND coupon_code = '"
-                    + coupon_request_body["coupon_code"]
-                    + "'"
+                    "SELECT coupon_code from applied_coupon "
+                    "WHERE user_id = %s AND coupon_code = %s",
+                    [user.id, coupon_request_body["coupon_code"]],
                 )
                 row = cursor.fetchall()
             except Exception as e:
@@ -418,11 +416,20 @@ class ApplyCouponView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        AppliedCoupon.objects.create(
-            user=user, coupon_code=coupon_request_body["coupon_code"]
-        )
+        # The credit amount is taken from the stored coupon, never from the
+        # client-supplied request body.
+        try:
+            coupon_amount = float(coupon.amount)
+        except (TypeError, ValueError) as e:
+            log_error(request.path, request.data, 400, e)
+            return Response(
+                {"message": messages.COUPON_NOT_FOUND},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        AppliedCoupon.objects.create(user=user, coupon_code=coupon.coupon_code)
         user_details = UserDetails.objects.get(user=user)
-        user_details.available_credit += coupon_request_body["amount"]
+        user_details.available_credit += coupon_amount
         user_details.save()
         return Response(
             {

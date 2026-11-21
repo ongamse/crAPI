@@ -92,7 +92,7 @@ public class UserServiceImplTest {
     LoginForm loginForm = getDummyLoginForm();
     User user = new User("email@example.com", "9798789212", "Pass", ERole.ROLE_USER);
     CRAPIResponse crapiAPIResponse = new CRAPIResponse();
-    crapiAPIResponse.setMessage(UserMessage.PASSWORD_GOT_RESET);
+    crapiAPIResponse.setMessage(UserMessage.RESET_SUCCESS_MESSAGE);
     crapiAPIResponse.setStatus(200);
     Mockito.doReturn(user).when(userService).getUserFromToken(Mockito.any());
     Mockito.when(encoder.encode(Mockito.anyString())).thenReturn("newPassword");
@@ -106,7 +106,7 @@ public class UserServiceImplTest {
     LoginForm loginForm = getDummyLoginForm();
     User user = getDummyUser();
     CRAPIResponse crapiAPIResponse = new CRAPIResponse();
-    crapiAPIResponse.setMessage(UserMessage.PASSWORD_GOT_RESET);
+    crapiAPIResponse.setMessage(UserMessage.RESET_SUCCESS_MESSAGE);
     crapiAPIResponse.setStatus(200);
     Mockito.doReturn(null).when(userService).getUserFromToken(Mockito.any());
     userService.resetPassword(loginForm, getMockHttpRequest());
@@ -242,7 +242,7 @@ public class UserServiceImplTest {
   @Test
   public void testUpdateUserPassword() {
     User user = getDummyUser();
-    String samplePassword = "samplePassword";
+    String samplePassword = java.util.UUID.randomUUID().toString();
     Mockito.when(userRepository.findByEmail(user.getEmail())).thenReturn(user);
     Mockito.when(userRepository.saveAndFlush(Mockito.any())).thenReturn(user);
     userService.updateUserPassword(samplePassword, getDummyUser().getEmail());
@@ -256,7 +256,7 @@ public class UserServiceImplTest {
     User user = getDummyUser();
     UserDetails userDetails = getDummyUserDetails();
     ProfileVideo profileVideo = getDummyProfileVideo();
-    Mockito.doReturn(user).when(userService).getUserFromTokenWithoutValidation(Mockito.any());
+    Mockito.doReturn(user).when(userService).getVerifiedUserFromToken(Mockito.any());
     userDetailsRepository.findByUser_id(user.getId());
     Mockito.when(userDetailsRepository.findByUser_id(Mockito.anyLong())).thenReturn(userDetails);
     Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong()))
@@ -272,7 +272,7 @@ public class UserServiceImplTest {
   public void getUserByRequestTokenRequestSuccessFullWhenUserDetailsNull() {
     User user = getDummyUser();
     ProfileVideo profileVideo = getDummyProfileVideo();
-    Mockito.doReturn(user).when(userService).getUserFromTokenWithoutValidation(Mockito.any());
+    Mockito.doReturn(user).when(userService).getVerifiedUserFromToken(Mockito.any());
     userDetailsRepository.findByUser_id(user.getId());
     Mockito.when(userDetailsRepository.findByUser_id(Mockito.anyLong())).thenReturn(null);
     Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong()))
@@ -289,7 +289,7 @@ public class UserServiceImplTest {
   public void getUserByRequestTokenRequestSuccessFullWhenProfileVideoNull() {
     User user = getDummyUser();
     UserDetails userDetails = getDummyUserDetails();
-    Mockito.doReturn(user).when(userService).getUserFromTokenWithoutValidation(Mockito.any());
+    Mockito.doReturn(user).when(userService).getVerifiedUserFromToken(Mockito.any());
     userDetailsRepository.findByUser_id(user.getId());
     Mockito.when(userDetailsRepository.findByUser_id(Mockito.anyLong())).thenReturn(userDetails);
     Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong())).thenReturn(null);

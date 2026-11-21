@@ -1,7 +1,7 @@
 Setup | crAPI
 =============
 
-> **Note**: Custom jwks key can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys`
+> **Note**: A custom jwks key can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys`. No signing key is committed to the repository: when no *jwks.json* is supplied, the identity service generates an ephemeral RSA signing key at startup (tokens are invalidated on restart).
 
 ## Docker and docker compose
 
@@ -147,9 +147,19 @@ You can change the smtp configuration if required however all emails with domain
    $ call "%cd%\deploy\docker\build-all.bat"
    ```
 
-3. Start crAPI
+3. Start crAPI. Credentials are no longer committed; export them (or add them to a private, untracked env file) first.
    ```
    $ cd deploy/docker
+
+   $ export DB_PASSWORD=<choose> MONGO_DB_PASSWORD=<choose> SECRET_KEY=<choose> API_GATEWAY_PASSWORD=<choose>
+
+   # Optional: password for the seeded mechanic accounts (jhon@example.com, james@example.com).
+   # When unset a random password is generated at seed time.
+   $ export MECHANIC_SEED_PASSWORD=<choose>
+   # Optional: password the chatbot uses to log in as admin@example.com.
+   $ export API_PASSWORD=<admin password>
+   # Optional, only with TLS_ENABLED=true: identity keystore passwords.
+   $ export TLS_KEYSTORE_PASSWORD=<keystore password> TLS_KEY_PASSWORD=<key password>
    
    $ docker compose -f docker-compose.yml --compatibility up -d
    
@@ -181,8 +191,16 @@ You can change the smtp configuration if required however all emails with domain
     ```
     cd deploy/helm
 
-    helm install --namespace crapi crapi . --values values.yaml
+    helm install --namespace crapi crapi . --values values.yaml \
+     --set-string postgresdb.config.postgresPassword=<choose> --set-string mongodb.config.mongoPassword=<choose> \
+     --set-string workshop.config.secretKey=<choose> --set-string apiGatewayPassword=<choose>
     ```
+    Optional values (none are committed): `--set-string workshop.config.mechanicSeedPassword=<choose>`,
+    `--set-string chatbot.config.apiPassword=<admin password>`, and, with `tlsEnabled=true`,
+    `--set-string identity.config.keyStorePassword=<keystore password> --set-string identity.config.keyPassword=<key password>`.
+    The Secret name can be changed with `credentialsName` (default `crapi-credentials`).
+    For the kubectl based scripts export `MECHANIC_SEED_PASSWORD`, `API_PASSWORD`, `TLS_KEYSTORE_PASSWORD`
+    and `TLS_KEY_PASSWORD` before running `deploy.sh` to add them to the Secret.
 
 3. If using minikube, create a tunnel to initialize the LoadBalancers
     ```

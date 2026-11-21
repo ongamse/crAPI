@@ -18,11 +18,11 @@ contains all the views related to Mechanic
 import os
 import bcrypt
 import re
+import stat
 from urllib.parse import unquote
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.response import Response
@@ -51,7 +51,6 @@ class SignUpView(APIView):
     Used to add a new mechanic
     """
 
-    @csrf_exempt
     def post(self, request):
         """
         creates a new Mechanic in the db
@@ -220,19 +219,19 @@ class GetReportView(APIView):
             service request object and 200 status if no error
             message and corresponding status if error
         """
-        report_id = request.GET["report_id"]
+        report_id = request.GET.get("report_id")
         if not report_id:
             return Response(
                 {"message": messages.REPORT_ID_MISSING},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if not report_id.isnumeric():
+        if not re.fullmatch(r"[0-9]+", report_id):
             return Response(
                 {"message": messages.INVALID_REPORT_ID},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        service_request = ServiceRequest.objects.filter(id=report_id).first()
+        service_request = ServiceRequest.objects.filter(id=int(report_id)).first()
         if not service_request:
             return Response(
                 {"message": messages.REPORT_DOES_NOT_EXIST},
@@ -240,7 +239,7 @@ class GetReportView(APIView):
             )
         serializer = MechanicServiceRequestSerializer(service_request)
         response_data = dict(serializer.data)
-        service_report_pdf(response_data, report_id)
+        service_report_pdf(response_data, service_request.id)
         return Response(response_data, status=status.HTTP_200_OK)
 
 
@@ -393,19 +392,138 @@ class DownloadReportView(APIView):
             )
 
         filename_from_user = unquote(filename_from_user)
-        full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
-        if os.path.exists(full_path) and os.path.isfile(full_path):
-            return FileResponse(open(full_path, 'rb'))
-        elif not os.path.exists(full_path):
+        if not is_plain_report_name(filename_from_user):
             return Response(
-                {"message": f"File not found at '{full_path}'."},
+                {"message": "Invalid input."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        # The path handed to open() comes from the reports directory
+        # listing, never from the request.
+        report_entry = find_report_entry(filename_from_user)
+        if report_entry is None:
+            return Response(
+                {"message": "File not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
-        else:
+        # Open directly (no exists/isfile pre-check) relative to the reports
+        # directory handle, then verify the type on the opened descriptor.
+        try:
+            report_file = open_report_for_read(report_entry.name)
+        except FileNotFoundError:
             return Response(
-                {"message": f"'{full_path}' is not a file."},
+                {"message": "File not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except (IsADirectoryError, PermissionError):
+            return Response(
+                {"message": "Requested path is not a file."},
                 status=status.HTTP_403_FORBIDDEN
             )
+        except OSError:
+            return Response(
+                {"message": "File not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        return FileResponse(report_file)
+
+
+def get_reports_dir():
+    """
+    Canonical path of the directory holding generated service reports.
+    """
+    return os.path.realpath(os.path.join(settings.BASE_DIR, "reports"))
+
+
+def is_plain_report_name(filename):
+    """
+    True when the name is a plain file name: no separators, no NUL, no
+    dot segments.
+    """
+    if not filename or "\x00" in filename:
+        return False
+    if filename in (".", "..") or filename != os.path.basename(filename):
+        return False
+    return "/" not in filename and "\\" not in filename
+
+
+def find_report_entry(filename):
+    """
+    Looks a report up in the reports directory listing and returns the
+    matching os.DirEntry (whose name is built by the OS from the listing,
+    not from the caller's text), or None when there is no such entry.
+    Containment is enforced when the file is opened, relative to the
+    reports directory handle (see open_report_for_read).
+    """
+    reports_dir = get_reports_dir()
+    try:
+        with os.scandir(reports_dir) as entries:
+            for entry in entries:
+                if entry.name == filename:
+                    return entry
+    except OSError:
+        return None
+    return None
+
+
+def _open_reports_dir_fd():
+    """
+    Opens the reports directory and returns the descriptor.
+    """
+    return os.open(
+        get_reports_dir(), os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    )
+
+
+def open_report_for_read(filename):
+    """
+    Opens a report for reading relative to the reports directory handle,
+    refusing symlinks, and verifies on the opened descriptor that it is a
+    regular file. Raises OSError subclasses on failure.
+    """
+    dir_fd = _open_reports_dir_fd()
+    try:
+        flags = (
+            os.O_RDONLY
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0)
+        )
+        fd = os.open(filename, flags, dir_fd=dir_fd)
+    finally:
+        os.close(dir_fd)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise IsADirectoryError("Requested path is not a file.")
+        return os.fdopen(fd, "rb")
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def open_report_for_write(filename):
+    """
+    Creates/truncates a report relative to the reports directory handle,
+    refusing symlinks, and verifies on the opened descriptor that it is a
+    regular file. Returns a binary read/write file object.
+    """
+    dir_fd = _open_reports_dir_fd()
+    try:
+        flags = (
+            os.O_RDWR
+            | os.O_CREAT
+            | os.O_TRUNC
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0)
+        )
+        fd = os.open(filename, flags, 0o600, dir_fd=dir_fd)
+    finally:
+        os.close(dir_fd)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise IsADirectoryError("Report path is not a file.")
+        return os.fdopen(fd, "w+b")
+    except BaseException:
+        os.close(fd)
+        raise
 
 def validate_filename(input: str) -> bool:
     """
@@ -419,13 +537,15 @@ def service_report_pdf(response_data, report_id):
     """
     Generates service report's PDF file from a template and saves it to the disk.
     """
-    reports_dir = os.path.join(settings.BASE_DIR, 'reports')
+    reports_dir = get_reports_dir()
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = os.path.join(reports_dir, f"report_{report_id}")
+    # report_id is the integer primary key of a stored ServiceRequest; the
+    # file name is generated here from that integer only.
+    report_name = "report_%d" % int(report_id)
 
     template = get_template('service_report.html')
     html_string = template.render({'service': response_data})
-    with open(report_filepath, "w+b") as pdf_file:
+    with open_report_for_write(report_name) as pdf_file:
         pisa.CreatePDF(src=html_string, dest=pdf_file)
 
     manage_reports_directory()

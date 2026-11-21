@@ -189,7 +189,7 @@ public class UserServiceImpl implements UserService {
     if (user != null) {
       user.setPassword(encoder.encode(loginForm.getPassword()));
       userRepository.saveAndFlush(user);
-      return new CRAPIResponse(UserMessage.PASSWORD_GOT_RESET, 200);
+      return new CRAPIResponse(UserMessage.RESET_SUCCESS_MESSAGE, 200);
     }
     throw new EntityNotFoundException(User.class, UserMessage.ERROR, loginForm.getEmail());
   }
@@ -206,9 +206,7 @@ public class UserServiceImpl implements UserService {
     DashboardResponse dashboardResponse;
     ProfileVideo profileVideo;
     try {
-      // Invalid Signature vulnerability
-      // Not Checking the validity of the token for this request
-      user = getUserFromTokenWithoutValidation(request);
+      user = getVerifiedUserFromToken(request);
       userDetails = userDetailsRepository.findByUser_id(user.getId());
       profileVideo = profileVideoRepository.findByUser_id(user.getId());
       dashboardResponse =
@@ -227,8 +225,9 @@ public class UserServiceImpl implements UserService {
         dashboardResponse.setVideo_id(profileVideo.getId());
       }
       return dashboardResponse;
-    } catch (Exception exception) {
-      log.error("fail to load user by email:  -> Message: %d", exception);
+    } catch (EntityNotFoundException exception) {
+      // Expected lookup failure (invalid token / unknown user): fixed message, no exception text.
+      log.warn("Dashboard user lookup failed");
       return null;
     }
   }
@@ -334,18 +333,18 @@ public class UserServiceImpl implements UserService {
         throw new EntityNotFoundException(User.class, "userEmail", username);
       }
     } catch (ParseException exception) {
-      log.error("fail to get username from token -> Message:%d", exception);
+      log.error("fail to get username from token", exception);
       throw new EntityNotFoundException(User.class, "userEmail", username);
     }
   }
 
   @Transactional
   @Override
-  public User getUserFromTokenWithoutValidation(HttpServletRequest request) {
+  public User getVerifiedUserFromToken(HttpServletRequest request) {
     User user = null;
     try {
-      String jwt = jwtAuthTokenFilter.getToken(request);
-      String username = jwtProvider.getUserNameFromJwtToken(jwt);
+      // Verifies the token (signature, subject, expiry) once before the subject is used.
+      String username = jwtAuthTokenFilter.getVerifiedUsername(request);
       if (username != null && !username.equalsIgnoreCase(EStatus.INVALID.toString())) {
         user = userRepository.findByEmail(username);
       }
@@ -356,7 +355,7 @@ public class UserServiceImpl implements UserService {
         throw new EntityNotFoundException(User.class, "userEmail", username);
       }
     } catch (ParseException exception) {
-      log.error("fail to get username from token -> Message:%d", exception);
+      log.error("fail to get username from token", exception);
       throw new EntityNotFoundException(User.class, "userEmail");
     }
   }
@@ -425,7 +424,7 @@ public class UserServiceImpl implements UserService {
         return new CRAPIResponse(UserMessage.EMAIL_NOT_REGISTERED, HttpStatus.BAD_REQUEST.value());
       }
     } catch (Exception exception) {
-      log.error("fail to lock account  -> Message:%s", exception.getMessage());
+      log.error("fail to lock account", exception);
     }
     return new CRAPIResponse(UserMessage.ACCOUNT_LOCK_FAILURE, HttpStatus.BAD_REQUEST.value());
   }
@@ -453,7 +452,7 @@ public class UserServiceImpl implements UserService {
         }
       }
     } catch (Exception exception) {
-      log.error("fail to unlock account  -> Message:%s", exception.getMessage());
+      log.error("fail to unlock account", exception);
     }
     JwtResponse jwtResponse = new JwtResponse();
     jwtResponse.setMessage(UserMessage.INVALID_CREDENTIALS);

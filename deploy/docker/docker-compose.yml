@@ -23,12 +23,11 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DB_NAME=crapi
       - DB_USER=admin
-      - DB_PASSWORD=crapisecretpassword
+      - DB_PASSWORD=${DB_PASSWORD:?Set DB_PASSWORD in your environment or .env file}
       - DB_HOST=postgresdb
       - DB_PORT=5432
       - SERVER_PORT=${IDENTITY_SERVER_PORT:-8080}
       - ENABLE_SHELL_INJECTION=${ENABLE_SHELL_INJECTION:-false}
-      - JWT_SECRET=crapi
       - MAILHOG_HOST=mailhog
       - MAILHOG_PORT=1025
       - MAILHOG_DOMAIN=example.com
@@ -42,11 +41,12 @@ services:
       - JWT_EXPIRATION=604800000
       - ENABLE_LOG4J=${ENABLE_LOG4J:-false}
       - API_GATEWAY_URL=https://api.mypremiumdealership.com
+      - API_GATEWAY_PASSWORD=${API_GATEWAY_PASSWORD:?Set API_GATEWAY_PASSWORD in your environment or .env file}
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - TLS_KEYSTORE_TYPE=PKCS12
       - TLS_KEYSTORE=classpath:certs/server.p12
-      - TLS_KEYSTORE_PASSWORD=passw0rd
-      - TLS_KEY_PASSWORD=passw0rd
+      - TLS_KEYSTORE_PASSWORD=${TLS_KEYSTORE_PASSWORD:-}
+      - TLS_KEY_PASSWORD=${TLS_KEY_PASSWORD:-}
       - TLS_KEY_ALIAS=identity
     depends_on:
       postgresdb:
@@ -76,14 +76,14 @@ services:
       - IDENTITY_SERVICE=crapi-identity:${IDENTITY_SERVER_PORT:-8080}
       - DB_NAME=crapi
       - DB_USER=admin
-      - DB_PASSWORD=crapisecretpassword
+      - DB_PASSWORD=${DB_PASSWORD:?Set DB_PASSWORD in your environment or .env file}
       - DB_HOST=postgresdb
       - DB_PORT=5432
       - SERVER_PORT=${COMMUNITY_SERVER_PORT:-8087}
       - MONGO_DB_HOST=mongodb
       - MONGO_DB_PORT=27017
       - MONGO_DB_USER=admin
-      - MONGO_DB_PASSWORD=crapisecretpassword
+      - MONGO_DB_PASSWORD=${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD in your environment or .env file}
       - MONGO_DB_NAME=crapi
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - TLS_CERTIFICATE=certs/server.crt
@@ -116,17 +116,21 @@ services:
       - IDENTITY_SERVICE=crapi-identity:${IDENTITY_SERVER_PORT:-8080}
       - DB_NAME=crapi
       - DB_USER=admin
-      - DB_PASSWORD=crapisecretpassword
+      - DB_PASSWORD=${DB_PASSWORD:?Set DB_PASSWORD in your environment or .env file}
       - DB_HOST=postgresdb
       - DB_PORT=5432
       - SERVER_PORT=${WORKSHOP_SERVER_PORT:-8000}
       - MONGO_DB_HOST=mongodb
       - MONGO_DB_PORT=27017
       - MONGO_DB_USER=admin
-      - MONGO_DB_PASSWORD=crapisecretpassword
+      - MONGO_DB_PASSWORD=${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD in your environment or .env file}
       - MONGO_DB_NAME=crapi
-      - SECRET_KEY=crapi
+      - SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY in your environment or .env file}
       - API_GATEWAY_URL=https://api.mypremiumdealership.com
+      - API_GATEWAY_PASSWORD=${API_GATEWAY_PASSWORD:?Set API_GATEWAY_PASSWORD in your environment or .env file}
+      - MECHANIC_SEED_PASSWORD=${MECHANIC_SEED_PASSWORD:-}
+      - MECHANIC_API_ALLOWED_HOSTS=crapi-web,crapi-workshop:${WORKSHOP_SERVER_PORT:-8000}
+      - ALLOWED_HOSTS=${WORKSHOP_ALLOWED_HOSTS:-crapi-workshop,crapi-web,localhost,127.0.0.1,[::1],0.0.0.0}
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - TLS_CERTIFICATE=certs/server.crt
       - TLS_KEY=certs/server.key
@@ -161,16 +165,16 @@ services:
       - IDENTITY_SERVICE=crapi-identity:${IDENTITY_SERVER_PORT:-8080}
       - DB_NAME=crapi
       - DB_USER=admin
-      - DB_PASSWORD=crapisecretpassword
+      - DB_PASSWORD=${DB_PASSWORD:?Set DB_PASSWORD in your environment or .env file}
       - DB_HOST=postgresdb
       - DB_PORT=5432
       - MONGO_DB_HOST=mongodb
       - MONGO_DB_PORT=27017
       - MONGO_DB_USER=admin
-      - MONGO_DB_PASSWORD=crapisecretpassword
+      - MONGO_DB_PASSWORD=${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD in your environment or .env file}
       - MONGO_DB_NAME=crapi
       - API_USER=admin@example.com
-      - API_PASSWORD=Admin!123
+      - API_PASSWORD
       - OPENAPI_SPEC=/app/resources/crapi-openapi-spec.json
       - DEFAULT_MODEL=gpt-4o-mini
       - CHROMA_HOST=chromadb
@@ -225,7 +229,7 @@ services:
     command: ["postgres", "-c", "max_connections=500"]
     environment:
       POSTGRES_USER: admin
-      POSTGRES_PASSWORD: crapisecretpassword
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in your environment or .env file}
       POSTGRES_DB: crapi
     #ports:
     #  - "${LISTEN_IP:-127.0.0.1}:5432:5432"
@@ -247,7 +251,7 @@ services:
     image: 'mongo:4.4'
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: crapisecretpassword
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD in your environment or .env file}
     #ports:
     #  - "${LISTEN_IP:-127.0.0.1}:27017:27017"
     healthcheck:
@@ -285,7 +289,7 @@ services:
     container_name: mailhog
     image: crapi/mailhog:${VERSION:-latest}
     environment:
-      MH_MONGO_URI: admin:crapisecretpassword@mongodb:27017
+      MH_MONGO_URI: admin:${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD in your environment or .env file}@mongodb:27017
       MH_STORAGE: mongodb
     ports:
       #  - "127.0.0.1:1025:1025" # smtp server
@@ -304,6 +308,8 @@ services:
   api.mypremiumdealership.com:
     container_name: api.mypremiumdealership.com
     image: crapi/gateway-service:${VERSION:-latest}
+    environment:
+      - API_GATEWAY_PASSWORD=${API_GATEWAY_PASSWORD:?Set API_GATEWAY_PASSWORD in your environment or .env file}
     #ports:
     #  - "${LISTEN_IP:-127.0.0.1}:8443:443" # https
     healthcheck:

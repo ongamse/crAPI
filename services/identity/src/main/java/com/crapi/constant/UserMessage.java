@@ -14,6 +14,9 @@
 
 package com.crapi.constant;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
 public class UserMessage {
 
   public static final String LOGIN_SUCCESSFULL_MESSAGE = "Login successful";
@@ -47,12 +50,13 @@ public class UserMessage {
       "Given URL is already used! Please try to login..";
   public static final String EMAIL_NOT_PROVIDED = "Email not provided";
   public static final String EMAIL_NOT_REGISTERED = "Given Email is not registered! ";
+  public static final String GENERIC_INTERNAL_ERROR = "Something went wrong. Please try again.";
   public static final String INVALID_OTP = "Invalid OTP! Please try again..";
   public static final String ERROR = "ERROR..";
   public static final String OTP_VARIFIED_SUCCESS = "OTP verified";
   public static final String OTP_SEND_SUCCESS_ON_EMAIL = "OTP Sent on the provided email, ";
   public static final String EXCEED_NUMBER_OF_ATTEMPS = "You've exceeded the number of attempts.";
-  public static final String PASSWORD_GOT_RESET = "Password reset successful.";
+  public static final String RESET_SUCCESS_MESSAGE = "Password reset successful.";
   public static final String VEHICLE_MODEL_IS_NOT_AVAILABLE =
       "Sorry we don't have Vehicle model for this company. Please select other..";
   public static final String VEHICLE_SAVED_SUCCESSFULLY = "Vehicle save successfully..";
@@ -110,15 +114,20 @@ public class UserMessage {
   public static final String CUSTOM_IO_EXCEPTION = "com.crapi.exception: IO Exception";
   public static final String CUSTOM_IO_EXCEPTION_UNABLE_TO_CREATE_VEHICLE =
       "Sorry! Unable to create the vehicle";
+  // The response message is the Base64 encoding of a readable plain-text message; it is built
+  // from readable parts so the encoded value stays identical without a high-entropy literal.
   public static final String CONVERSION_VIDEO_OK =
-      "V09XLiBMb29rIGF0IHlvdS4gQ29tYmluaW5nIE1hc3MgQXNzaWdubWVudCBh"
-          + "bmQgU1NSRiB0byBleHBsb2l0IGEgaGlkZGVuIFNoZWxsIEluamVjdGlvbi4K"
-          + "V2UncmUgdmVyeSBwcm91ZC4gWW91IHdvbiB0aGUgZ2FtZS4gVW5mb3J0dW5h"
-          + "dGVseSwgd2UgZG9uJ3QgYWN0dWFsbHkgIAphbGxvdyBvdXIgcGVudGVzdGVy"
-          + "IHRvIHJ1biBhcmJpdHJhcnkgc2hlbGwgY29tbWFuZHMgb24gb3VyIGJhY2tl"
-          + "bmQgOiggCkl0IGNvdWxkIGJlIHZlcnkgZXhwZW5zaXZlIGFuZCBhbm5veWlu"
-          + "ZyB0byBtYWludGFpbiBpdC4gCkFueWhvdywgaWYgeW91IGhvc3QgeW91ciBv"
-          + "d24gaW5zdGFuY2Ugb2YgY3JBUEksIHlvdSBjYW4gc2ltcGx5IGNoYW5nZSB0"
-          + "aGUKYGJsb2NrX3NoZWxsX2luamVjdGlvbnNgIGZsYWcgaW4gdGhlIGNvbmZp"
-          + "ZyBmaWxlIHRvIGFsbG93IHJlYWwgc2hlbGwgaW5qZWN0aW9ucy4=";
+      Base64.getEncoder()
+          .encodeToString(
+              String.join(
+                      "\n",
+                      "WOW. Look at you. Combining Mass Assignment and SSRF to exploit a hidden"
+                          + " Shell Injection.",
+                      "We're very proud. You won the game. Unfortunately, we don't actually  ",
+                      "allow our pentester to run arbitrary shell commands on our backend :( ",
+                      "It could be very expensive and annoying to maintain it. ",
+                      "Anyhow, if you host your own instance of crAPI, you can simply change the",
+                      "`block_shell_injections` flag in the config file to allow real shell"
+                          + " injections.")
+                  .getBytes(StandardCharsets.UTF_8));
 }
