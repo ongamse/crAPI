@@ -48,6 +48,18 @@ spec:
                 secretKeyRef:
                   name: crapi-credentials
                   key: API_GATEWAY_PASSWORD
+            - name: TLS_KEYSTORE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: TLS_KEYSTORE_PASSWORD
+                  optional: true
+            - name: TLS_KEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: TLS_KEY_PASSWORD
+                  optional: true
           resources:
             limits:
               cpu: "500m"

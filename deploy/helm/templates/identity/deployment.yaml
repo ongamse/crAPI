@@ -55,13 +55,25 @@ spec:
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentialsSecretName }}
+                  name: {{ .Values.credentialsName }}
                   key: DB_PASSWORD
             - name: API_GATEWAY_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentialsSecretName }}
+                  name: {{ .Values.credentialsName }}
                   key: API_GATEWAY_PASSWORD
+            - name: TLS_KEYSTORE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentialsName }}
+                  key: TLS_KEYSTORE_PASSWORD
+                  optional: true
+            - name: TLS_KEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentialsName }}
+                  key: TLS_KEY_PASSWORD
+                  optional: true
           {{- if .Values.identity.resources }}
           resources:
             {{- toYaml .Values.identity.resources | nindent 12 }}

@@ -2,8 +2,8 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# Name of the Secret holding DB/API credentials (rendered by templates/credentials-secret.yaml).
-credentialsSecretName: crapi-credentials
+# Name of the Kubernetes object holding DB/API credentials (rendered by templates/credentials-secret.yaml).
+credentialsName: crapi-credentials
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
@@ -76,8 +76,6 @@ identity:
     smtpStartTLS: true
     keyStoreType: PKCS12
     keyStore: classpath:certs/server.p12
-    keyStorePassword: passw0rd
-    keyPassword: passw0rd
     keyAlias: identity
   deploymentLabels:
     app: crapi-identity
@@ -153,11 +151,9 @@ chatbot:
       app: crapi-chatbot
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    apiPassword: Admin!123
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"

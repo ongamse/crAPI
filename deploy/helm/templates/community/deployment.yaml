@@ -55,12 +55,12 @@ spec:
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentialsSecretName }}
+                  name: {{ .Values.credentialsName }}
                   key: DB_PASSWORD
             - name: MONGO_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentialsSecretName }}
+                  name: {{ .Values.credentialsName }}
                   key: MONGO_DB_PASSWORD
           {{- if .Values.community.resources }}
           resources:

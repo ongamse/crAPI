@@ -33,7 +33,7 @@ spec:
               - name: POSTGRES_PASSWORD
                 valueFrom:
                   secretKeyRef:
-                    name: {{ .Values.credentialsSecretName }}
+                    name: {{ .Values.credentialsName }}
                     key: DB_PASSWORD
 
           volumeMounts:

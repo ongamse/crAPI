@@ -55,6 +55,12 @@ spec:
               secretKeyRef:
                 name: crapi-credentials
                 key: API_GATEWAY_PASSWORD
+          - name: MECHANIC_SEED_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: MECHANIC_SEED_PASSWORD
+                optional: true
         resources:
           limits:
             cpu: "256m"

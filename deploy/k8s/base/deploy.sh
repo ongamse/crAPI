@@ -7,11 +7,20 @@ kubectl create namespace crapi
 : "${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD}"
 : "${SECRET_KEY:?Set SECRET_KEY}"
 : "${API_GATEWAY_PASSWORD:?Set API_GATEWAY_PASSWORD}"
+# Optional (add to the Secret only when exported): API_PASSWORD (chatbot login), MECHANIC_SEED_PASSWORD,
+# TLS_KEYSTORE_PASSWORD and TLS_KEY_PASSWORD (identity TLS).
+optional_args=()
+for v in API_PASSWORD MECHANIC_SEED_PASSWORD TLS_KEYSTORE_PASSWORD TLS_KEY_PASSWORD; do
+  if [ -n "${!v:-}" ]; then
+    optional_args+=("--from-literal=$v=${!v}")
+  fi
+done
 kubectl create -n crapi secret generic crapi-credentials \
   --from-literal=DB_PASSWORD="$DB_PASSWORD" \
   --from-literal=MONGO_DB_PASSWORD="$MONGO_DB_PASSWORD" \
   --from-literal=SECRET_KEY="$SECRET_KEY" \
-  --from-literal=API_GATEWAY_PASSWORD="$API_GATEWAY_PASSWORD"
+  --from-literal=API_GATEWAY_PASSWORD="$API_GATEWAY_PASSWORD" \
+  "${optional_args[@]}"
 #kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 
 # Optional: supply your own signing key by placing a jwks.json in ../keys. Without it the identity

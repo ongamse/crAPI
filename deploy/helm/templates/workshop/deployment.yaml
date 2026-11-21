@@ -48,23 +48,29 @@ spec:
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentialsSecretName }}
+                  name: {{ .Values.credentialsName }}
                   key: DB_PASSWORD
             - name: MONGO_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentialsSecretName }}
+                  name: {{ .Values.credentialsName }}
                   key: MONGO_DB_PASSWORD
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentialsSecretName }}
+                  name: {{ .Values.credentialsName }}
                   key: SECRET_KEY
             - name: API_GATEWAY_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentialsSecretName }}
+                  name: {{ .Values.credentialsName }}
                   key: API_GATEWAY_PASSWORD
+            - name: MECHANIC_SEED_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentialsName }}
+                  key: MECHANIC_SEED_PASSWORD
+                  optional: true
           {{- if .Values.workshop.resources }}
           resources:
             {{- toYaml .Values.workshop.resources | nindent 12 }}

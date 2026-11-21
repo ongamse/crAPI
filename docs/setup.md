@@ -152,6 +152,14 @@ You can change the smtp configuration if required however all emails with domain
    $ cd deploy/docker
 
    $ export DB_PASSWORD=<choose> MONGO_DB_PASSWORD=<choose> SECRET_KEY=<choose> API_GATEWAY_PASSWORD=<choose>
+
+   # Optional: password for the seeded mechanic accounts (jhon@example.com, james@example.com).
+   # When unset a random password is generated at seed time.
+   $ export MECHANIC_SEED_PASSWORD=<choose>
+   # Optional: password the chatbot uses to log in as admin@example.com.
+   $ export API_PASSWORD=<admin password>
+   # Optional, only with TLS_ENABLED=true: identity keystore passwords.
+   $ export TLS_KEYSTORE_PASSWORD=<keystore password> TLS_KEY_PASSWORD=<key password>
    
    $ docker compose -f docker-compose.yml --compatibility up -d
    
@@ -187,6 +195,12 @@ You can change the smtp configuration if required however all emails with domain
      --set-string postgresdb.config.postgresPassword=<choose> --set-string mongodb.config.mongoPassword=<choose> \
      --set-string workshop.config.secretKey=<choose> --set-string apiGatewayPassword=<choose>
     ```
+    Optional values (none are committed): `--set-string workshop.config.mechanicSeedPassword=<choose>`,
+    `--set-string chatbot.config.apiPassword=<admin password>`, and, with `tlsEnabled=true`,
+    `--set-string identity.config.keyStorePassword=<keystore password> --set-string identity.config.keyPassword=<key password>`.
+    The Secret name can be changed with `credentialsName` (default `crapi-credentials`).
+    For the kubectl based scripts export `MECHANIC_SEED_PASSWORD`, `API_PASSWORD`, `TLS_KEYSTORE_PASSWORD`
+    and `TLS_KEY_PASSWORD` before running `deploy.sh` to add them to the Secret.
 
 3. If using minikube, create a tunnel to initialize the LoadBalancers
     ```

@@ -45,8 +45,8 @@ services:
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - TLS_KEYSTORE_TYPE=PKCS12
       - TLS_KEYSTORE=classpath:certs/server.p12
-      - TLS_KEYSTORE_PASSWORD=passw0rd
-      - TLS_KEY_PASSWORD=passw0rd
+      - TLS_KEYSTORE_PASSWORD=${TLS_KEYSTORE_PASSWORD:-}
+      - TLS_KEY_PASSWORD=${TLS_KEY_PASSWORD:-}
       - TLS_KEY_ALIAS=identity
     depends_on:
       postgresdb:
@@ -128,6 +128,7 @@ services:
       - SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY in your environment or .env file}
       - API_GATEWAY_URL=https://api.mypremiumdealership.com
       - API_GATEWAY_PASSWORD=${API_GATEWAY_PASSWORD:?Set API_GATEWAY_PASSWORD in your environment or .env file}
+      - MECHANIC_SEED_PASSWORD=${MECHANIC_SEED_PASSWORD:-}
       - MECHANIC_API_ALLOWED_HOSTS=crapi-web,crapi-workshop:${WORKSHOP_SERVER_PORT:-8000}
       - ALLOWED_HOSTS=${WORKSHOP_ALLOWED_HOSTS:-crapi-workshop,crapi-web,localhost,127.0.0.1,[::1],0.0.0.0}
       - TLS_ENABLED=${TLS_ENABLED:-false}
@@ -173,7 +174,7 @@ services:
       - MONGO_DB_PASSWORD=${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD in your environment or .env file}
       - MONGO_DB_NAME=crapi
       - API_USER=admin@example.com
-      - API_PASSWORD=Admin!123
+      - API_PASSWORD
       - OPENAPI_SPEC=/app/resources/crapi-openapi-spec.json
       - DEFAULT_MODEL=gpt-4o-mini
       - CHROMA_HOST=chromadb
