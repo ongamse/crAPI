@@ -19,6 +19,7 @@ import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import com.crapi.constant.UserMessage;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.ErrorDetails;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -54,8 +55,7 @@ public class ExceptionHandler extends ResponseEntityExceptionHandler {
 
   @org.springframework.web.bind.annotation.ExceptionHandler({LockedException.class})
   private ResponseEntity<Object> handleAccountLockException(LockedException e) {
-    // Print stack trace
-    e.printStackTrace();
+    log.warn("Account locked", e);
     CRAPIResponse cr =
         new CRAPIResponse(UserMessage.ACCOUNT_LOCKED_MESSAGE, HttpStatus.LOCKED.value());
     return new ResponseEntity<Object>(cr, HttpStatus.LOCKED);
@@ -79,8 +79,13 @@ public class ExceptionHandler extends ResponseEntityExceptionHandler {
       HttpHeaders headers,
       HttpStatusCode status,
       WebRequest request) {
-    String bindingResult = ex.getBindingResult().toString();
-    ErrorDetails errorDetails = new ErrorDetails("Validation failed", bindingResult);
+    // Log the full exception server-side only; the response carries field-level data only.
+    log.warn("Request validation failed", ex);
+    String details =
+        ex.getBindingResult().getFieldErrors().stream()
+            .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+            .collect(Collectors.joining("; "));
+    ErrorDetails errorDetails = new ErrorDetails("Validation failed", details);
     return new ResponseEntity<Object>(errorDetails, HttpStatus.BAD_REQUEST);
   }
 }
