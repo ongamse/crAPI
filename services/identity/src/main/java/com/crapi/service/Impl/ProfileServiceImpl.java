@@ -44,6 +44,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 public class ProfileServiceImpl implements ProfileService {
 
+  private static final int MAX_FIELD_LENGTH = 255;
+
   @Autowired UserService userService;
   @Autowired ProfileVideoRepository profileVideoRepository;
   @Autowired UserDetailsRepository userDetailsRepository;
@@ -143,23 +145,30 @@ public class ProfileServiceImpl implements ProfileService {
   @Override
   public ProfileVideo updateProfileVideo(
       Long videoId, VideoForm videoForm, HttpServletRequest request) {
-    User user;
-    ProfileVideo profileVideo;
-    user = userService.getUserFromToken(request);
-    profileVideo = profileVideoRepository.findByUser_id(user.getId());
-    if (profileVideo != null) {
-      if (videoId == null || profileVideo.getId() != videoId) {
-        throw new CRAPIExceptionHandler(UserMessage.VIDEO_NOT_FOUND, 404);
-      }
-      profileVideo.setVideo_name(videoForm.getVideoName());
-      profileVideo.setConversion_params(
-          (videoForm.getConversion_params() != null
-              ? videoForm.getConversion_params()
-              : profileVideo.getConversion_params()));
-      profileVideoRepository.save(profileVideo);
-      return profileVideo;
+    User user = userService.getUserFromToken(request);
+    if (user == null || user.getId() == null) {
+      throw new CRAPIExceptionHandler(UserMessage.VIDEO_NOT_FOUND, 404);
     }
-    throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE + user.getEmail(), 404);
+    if (videoForm == null
+        || !isValidVideoName(videoForm.getVideoName())
+        || !isValidConversionParams(videoForm.getConversion_params())) {
+      throw new CRAPIExceptionHandler(UserMessage.INVALID_CHANGE_REQUEST, 400);
+    }
+    if (videoId == null) {
+      throw new CRAPIExceptionHandler(UserMessage.VIDEO_NOT_FOUND, 404);
+    }
+    // Owner-scoped lookup: unknown ids and ids owned by other users are indistinguishable.
+    ProfileVideo profileVideo =
+        profileVideoRepository
+            .findByIdAndUser_Id(videoId, user.getId())
+            .orElseThrow(() -> new CRAPIExceptionHandler(UserMessage.VIDEO_NOT_FOUND, 404));
+    profileVideo.setVideo_name(videoForm.getVideoName());
+    profileVideo.setConversion_params(
+        (videoForm.getConversion_params() != null
+            ? videoForm.getConversion_params()
+            : profileVideo.getConversion_params()));
+    profileVideoRepository.save(profileVideo);
+    return profileVideo;
   }
 
   /**
@@ -172,8 +181,8 @@ public class ProfileServiceImpl implements ProfileService {
   public CRAPIResponse deleteProfileVideo(Long videoId, HttpServletRequest request) {
     Optional<ProfileVideo> optionalProfileVideo;
     User user = userService.getUserFromToken(request);
-    optionalProfileVideo = profileVideoRepository.findById(videoId);
-    if (optionalProfileVideo.isPresent() && isVideoOwner(optionalProfileVideo.get(), user)) {
+    optionalProfileVideo = findOwnedVideo(videoId, user);
+    if (optionalProfileVideo.isPresent()) {
       return new CRAPIResponse(UserMessage.THIS_IS_ADMIN_FUNCTION, 403);
     }
     throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404);
@@ -190,9 +199,15 @@ public class ProfileServiceImpl implements ProfileService {
     Optional<ProfileVideo> optionalProfileVideo;
     ProfileVideo profileVideo;
     User user = userService.getUserFromToken(request);
-    optionalProfileVideo = profileVideoRepository.findById(videoId);
-    if (optionalProfileVideo.isPresent()
-        && (isAdmin(user) || isVideoOwner(optionalProfileVideo.get(), user))) {
+    if (videoId == null) {
+      throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404);
+    }
+    if (isAdmin(user)) {
+      optionalProfileVideo = profileVideoRepository.findById(videoId);
+    } else {
+      optionalProfileVideo = findOwnedVideo(videoId, user);
+    }
+    if (optionalProfileVideo.isPresent()) {
       profileVideo = optionalProfileVideo.get();
       profileVideo.setUser(null);
       profileVideoRepository.delete(profileVideo);
@@ -227,9 +242,7 @@ public class ProfileServiceImpl implements ProfileService {
       if (xForwardedHost == null) {
         if (videoId != null && videoId > 0) {
           Optional<ProfileVideo> optionalProfileVideo =
-              profileVideoRepository
-                  .findById(videoId)
-                  .filter(video -> isVideoOwner(video, userService.getUserFromToken(request)));
+              findOwnedVideo(videoId, userService.getUserFromToken(request));
           if (optionalProfileVideo.isPresent() && !enable_shell_injection) {
             profileVideo = optionalProfileVideo.get();
             if (ProfileValidator.checkContains(profileVideo.getConversion_params())) {
@@ -265,13 +278,24 @@ public class ProfileServiceImpl implements ProfileService {
     }
   }
 
-  /** Returns true only when the video belongs to the given (authenticated) user. */
-  private boolean isVideoOwner(ProfileVideo video, User user) {
-    return video != null
-        && user != null
-        && user.getId() != null
-        && video.getUser() != null
-        && user.getId().equals(video.getUser().getId());
+  /**
+   * Owner-scoped data access: only a video that belongs to the given (authenticated) user is ever
+   * loaded. Unknown ids and ids owned by someone else both yield an empty result.
+   */
+  private Optional<ProfileVideo> findOwnedVideo(Long videoId, User user) {
+    if (videoId == null || user == null || user.getId() == null) {
+      return Optional.empty();
+    }
+    Optional<ProfileVideo> video = profileVideoRepository.findByIdAndUser_Id(videoId, user.getId());
+    return video == null ? Optional.empty() : video;
+  }
+
+  private boolean isValidVideoName(String videoName) {
+    return videoName != null && !videoName.isBlank() && videoName.length() <= MAX_FIELD_LENGTH;
+  }
+
+  private boolean isValidConversionParams(String conversionParams) {
+    return conversionParams == null || conversionParams.length() <= MAX_FIELD_LENGTH;
   }
 
   private boolean isAdmin(User user) {

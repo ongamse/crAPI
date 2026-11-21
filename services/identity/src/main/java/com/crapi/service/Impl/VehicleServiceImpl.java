@@ -151,15 +151,11 @@ public class VehicleServiceImpl implements VehicleService {
     Random random = new Random();
     try {
       User user = userService.getUserFromToken(request);
-      vehicleDetails = vehicleDetailsRepository.findByUuid(carId);
-      if (vehicleDetails != null) {
-        // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);
-        // vehicleDetails.setVehicleLocation(getVehicleLocationList().get(random.nextInt(getVehicleLocationList().size())));
-        if (vehicleDetails.getOwner() != null
-            && user != null
-            && user.getId() != null
-            && user.getId().equals(vehicleDetails.getOwner().getId())) {
-          userDetails = userDetailsRepository.findByUser_id(vehicleDetails.getOwner().getId());
+      if (carId != null && user != null && user.getId() != null) {
+        // Owner-scoped lookup: a vehicle owned by someone else is never loaded.
+        vehicleDetails = vehicleDetailsRepository.findByUuidAndOwner_Id(carId, user.getId());
+        if (vehicleDetails != null) {
+          userDetails = userDetailsRepository.findByUser_id(user.getId());
           vehicleLocationForm =
               new VehicleLocationResponse(
                   carId,
