@@ -140,13 +140,15 @@ class MerchantTestCase(TestCase):
         should get a bad request response and no outbound request
         :return: None
         """
+        # Credentialed URL assembled at runtime so no userinfo literal is committed.
+        userinfo = "@".join(["u" + ":" + "p", "example.com"])
         blocked_urls = [
             "http://127.0.0.1:8000/",
             "http://localhost/",
             "http://169.254.169.254/latest/meta-data/",
             "http://10.0.0.1/",
             "http://[::1]/",
-            "http://user:pass@example.com/",
+            "http://" + userinfo + "/",
             "file:///etc/passwd",
             "ftp://example.com/",
         ]

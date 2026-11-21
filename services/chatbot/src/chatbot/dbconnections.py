@@ -1,5 +1,4 @@
 import os
-from urllib.parse import quote_plus
 
 MONGO_USER = os.environ.get("MONGO_DB_USER", "admin")
 # Required: supplied via deployment config (compose / k8s / helm). No default.
@@ -9,16 +8,20 @@ MONGO_HOST = os.environ.get("MONGO_DB_HOST", "mongodb")
 MONGO_PORT = os.environ.get("MONGO_DB_PORT", "27017")
 MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "crapi")
 
-MONGO_CONNECTION_URI = "mongodb://%s:%s@%s:%s/?directConnection=true" % (
-    quote_plus(MONGO_USER),
-    quote_plus(MONGO_PASSWORD),
+# The URI carries no credentials; they are passed to the client separately
+# via MONGO_CLIENT_KWARGS (pymongo/motor handle encoding themselves).
+MONGO_CONNECTION_URI = "mongodb://%s:%s/?directConnection=true" % (
     MONGO_HOST,
     MONGO_PORT,
 )
 
-MONGO_CONNECTION_URI_ATLAS = "mongodb+srv://%s:%s@%s?retryWrites=true&w=majority" % (
-    MONGO_USER,
-    MONGO_PASSWORD,
+MONGO_CLIENT_KWARGS = {
+    "username": MONGO_USER,
+    "password": MONGO_PASSWORD,
+}
+
+# Credentials are supplied separately via MONGO_CLIENT_KWARGS.
+MONGO_CONNECTION_URI_ATLAS = "mongodb+srv://%s?retryWrites=true&w=majority" % (
     MONGO_HOST,
 )
 
