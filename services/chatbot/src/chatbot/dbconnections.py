@@ -1,14 +1,17 @@
 import os
+from urllib.parse import quote_plus
 
 MONGO_USER = os.environ.get("MONGO_DB_USER", "admin")
-MONGO_PASSWORD = os.environ.get("MONGO_DB_PASSWORD", "crapisecretpassword")
+# Required: supplied via deployment config (compose / k8s / helm). No default.
+# The credential previously committed here must be rotated; it remains in git history.
+MONGO_PASSWORD = os.environ["MONGO_DB_PASSWORD"]
 MONGO_HOST = os.environ.get("MONGO_DB_HOST", "mongodb")
 MONGO_PORT = os.environ.get("MONGO_DB_PORT", "27017")
 MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "crapi")
 
 MONGO_CONNECTION_URI = "mongodb://%s:%s@%s:%s/?directConnection=true" % (
-    MONGO_USER,
-    MONGO_PASSWORD,
+    quote_plus(MONGO_USER),
+    quote_plus(MONGO_PASSWORD),
     MONGO_HOST,
     MONGO_PORT,
 )
