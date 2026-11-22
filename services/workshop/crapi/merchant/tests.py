@@ -210,6 +210,7 @@ class MerchantTestCase(TestCase):
             )
             self.assertEqual(mock_get.call_count, 1)
             self.assertFalse(mock_get.call_args.kwargs["allow_redirects"])
+            self.assertIsNot(mock_get.call_args.kwargs["verify"], False)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["response_from_mechanic_api"], {"sent": True})
 
