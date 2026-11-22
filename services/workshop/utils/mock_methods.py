@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import logging
+import secrets
 import jwt
 from functools import wraps
 from rest_framework import status
@@ -41,7 +42,7 @@ def get_sample_mechanic_data():
         "email": "mechraju@crapi.com",
         "mechanic_code": "TRAC_MEC_3",
         "number": "9123456708",
-        "password": "admin",
+        "password": secrets.token_urlsafe(12),
     }
 
 
@@ -54,7 +55,7 @@ def get_sample_user_data():
         "name": "TestUser",
         "email": "test@crapi.com",
         "number": "9123456708",
-        "password": "password",
+        "password": secrets.token_urlsafe(12),
     }
 
 
@@ -89,7 +90,7 @@ def get_sample_admin_user():
         "name": "Admin 1",
         "email": "admin1@crapi.com",
         "number": "9123456700",
-        "password": "password1",
+        "password": secrets.token_urlsafe(12),
         "role": User.ROLE_CHOICES.ADMIN,
     }
 

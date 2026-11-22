@@ -81,8 +81,10 @@ identity:
     smtpStartTLS: true
     keyStoreType: PKCS12
     keyStore: classpath:certs/server.p12
-    keyStorePassword: passw0rd
-    keyPassword: passw0rd
+    # TLS keystore passwords are stored in the credentials Secret, not here. Set them with --set
+    # (required when tlsEnabled is true) to the password the keystore was generated with.
+    keyStorePassword: ""
+    keyPassword: ""
     keyAlias: identity
   deploymentLabels:
     app: crapi-identity
@@ -158,12 +160,11 @@ chatbot:
       app: crapi-chatbot
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    # Login of the seeded crAPI demo admin user (see TestUsers); documented demo account, not a deployment secret.
-    apiPassword: Admin!123
+    # Password for apiUser, stored in the credentials Secret. Leave empty to use the chatbot's built-in default.
+    apiPassword: ""
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"
