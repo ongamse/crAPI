@@ -16,10 +16,12 @@ package com.crapi.controller;
 
 import com.crapi.constant.UserMessage;
 import com.crapi.entity.ProfileVideo;
+import com.crapi.entity.User;
 import com.crapi.entity.UserDetails;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.VideoForm;
 import com.crapi.service.ProfileService;
+import com.crapi.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -32,6 +34,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class ProfileController {
 
   @Autowired ProfileService profileService;
+
+  @Autowired UserService userService;
 
   /**
    * @param videoId
@@ -96,7 +100,10 @@ public class ProfileController {
       @PathVariable("video_id") Long videoId,
       @RequestBody VideoForm videoForm,
       HttpServletRequest request) {
-    ProfileVideo profileVideo = profileService.updateProfileVideo(videoId, videoForm, request);
+    // Resolve the authenticated principal here; the service scopes the lookup to that user and
+    // uses only the path id (any id in the body is ignored).
+    User user = userService.getUserFromToken(request);
+    ProfileVideo profileVideo = profileService.updateProfileVideo(videoId, videoForm, user);
     if (profileVideo != null) return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
     else
       return ResponseEntity.status(HttpStatus.NO_CONTENT)

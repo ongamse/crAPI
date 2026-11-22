@@ -134,19 +134,19 @@ public class ProfileServiceImpl implements ProfileService {
   }
 
   /**
-   * @param videoForm
-   * @param request getting jwt token for user from request header
+   * @param videoId path video id (the only id used; any id inside videoForm is ignored)
+   * @param videoForm new video name and conversion params
+   * @param user authenticated user resolved from the token by the caller
    * @return its change user profile object and return success message.
    */
   @Transactional
   @Override
-  public ProfileVideo updateProfileVideo(
-      Long videoId, VideoForm videoForm, HttpServletRequest request) {
-    User user;
+  public ProfileVideo updateProfileVideo(Long videoId, VideoForm videoForm, User user) {
+    if (user == null) {
+      throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404);
+    }
     ProfileVideo profileVideo;
-    user = userService.getUserFromToken(request);
-    // Only the path video id is used (any id in the body is ignored) and it must reference the
-    // authenticated user's own video.
+    // The video must reference the authenticated user's own video.
     profileVideo = findOwnedVideo(videoId, user).orElse(null);
     if (profileVideo != null) {
       profileVideo.setVideo_name(videoForm.getVideoName());

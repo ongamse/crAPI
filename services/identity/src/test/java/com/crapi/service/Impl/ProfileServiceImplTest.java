@@ -129,9 +129,8 @@ public class ProfileServiceImplTest {
   @DisplayName("uploadProfileVideoFailsDueToProfileObjectVideoNotFound")
   public void uploadProfileVideoWhenProfileVideoNotFound() {
     User user = getDummyUser();
-    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(user);
     Mockito.when(profileVideoRepository.findById(Mockito.anyLong())).thenReturn(Optional.empty());
-    profileService.updateProfileVideo(1L, getDummyVideoForm(), getMockHttpRequest());
+    profileService.updateProfileVideo(1L, getDummyVideoForm(), user);
     Mockito.verify(profileVideoRepository, Mockito.times(0)).save(Mockito.any());
   }
 
@@ -141,10 +140,31 @@ public class ProfileServiceImplTest {
     User user = getDummyUser();
     user.setId(2l);
     ProfileVideo profileVideo = getDummyProfileVideo();
-    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(user);
     Mockito.when(profileVideoRepository.findById(Mockito.anyLong()))
         .thenReturn(Optional.of(profileVideo));
-    profileService.updateProfileVideo(1L, getDummyVideoForm(), getMockHttpRequest());
+    profileService.updateProfileVideo(1L, getDummyVideoForm(), user);
+  }
+
+  @Test(expected = CRAPIExceptionHandler.class)
+  @DisplayName("updateProfileVideoFailsWhenUserIsNull")
+  public void updateProfileVideoFailsWhenUserIsNull() {
+    profileService.updateProfileVideo(1L, getDummyVideoForm(), null);
+  }
+
+  @Test
+  @DisplayName("updateProfileVideoNonOwnerDoesNotModifyVideo")
+  public void updateProfileVideoNonOwnerDoesNotModifyVideo() {
+    User other = getDummyUser();
+    other.setId(2L);
+    ProfileVideo profileVideo = getDummyProfileVideo();
+    String originalName = profileVideo.getVideo_name();
+    VideoForm videoForm = getDummyVideoForm();
+    videoForm.setVideoName("hijacked");
+    Mockito.when(profileVideoRepository.findById(1L)).thenReturn(Optional.of(profileVideo));
+    Assertions.assertThrows(
+        CRAPIExceptionHandler.class, () -> profileService.updateProfileVideo(1L, videoForm, other));
+    Assertions.assertEquals(originalName, profileVideo.getVideo_name());
+    Mockito.verify(profileVideoRepository, Mockito.never()).save(Mockito.any());
   }
 
   @Test
@@ -153,12 +173,10 @@ public class ProfileServiceImplTest {
     VideoForm videoForm = getDummyVideoForm();
     User user = getDummyUser();
     ProfileVideo profileVideo = getDummyProfileVideo();
-    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(user);
     Mockito.when(profileVideoRepository.findById(Mockito.anyLong()))
         .thenReturn(Optional.of(profileVideo));
     Mockito.when(profileVideoRepository.save(Mockito.any())).thenReturn(profileVideo);
-    ProfileVideo profileVideoResponse =
-        profileService.updateProfileVideo(1L, videoForm, getMockHttpRequest());
+    ProfileVideo profileVideoResponse = profileService.updateProfileVideo(1L, videoForm, user);
     Mockito.verify(profileVideoRepository, Mockito.times(1)).save(Mockito.any());
     Assertions.assertEquals(profileVideo.getVideo_name(), profileVideoResponse.getVideo_name());
   }
@@ -170,12 +188,10 @@ public class ProfileServiceImplTest {
     User user = getDummyUser();
     ProfileVideo profileVideo = getDummyProfileVideo();
     videoForm.setConversion_params(null);
-    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(user);
     Mockito.when(profileVideoRepository.findById(Mockito.anyLong()))
         .thenReturn(Optional.of(profileVideo));
     Mockito.when(profileVideoRepository.save(Mockito.any())).thenReturn(profileVideo);
-    ProfileVideo profileVideoResponse =
-        profileService.updateProfileVideo(1L, videoForm, getMockHttpRequest());
+    ProfileVideo profileVideoResponse = profileService.updateProfileVideo(1L, videoForm, user);
     Mockito.verify(profileVideoRepository, Mockito.times(1)).save(Mockito.any());
     Assertions.assertEquals(profileVideo.getVideo_name(), profileVideoResponse.getVideo_name());
   }
@@ -186,10 +202,8 @@ public class ProfileServiceImplTest {
     VideoForm videoForm = getDummyVideoForm();
     User user = getDummyUser();
     String expectedMessage = UserMessage.SORRY_DIDNT_GET_PROFILE + user.getEmail();
-    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(user);
     Mockito.when(profileVideoRepository.findById(Mockito.anyLong())).thenReturn(Optional.empty());
-    ProfileVideo profileVideoResponse =
-        profileService.updateProfileVideo(1L, videoForm, getMockHttpRequest());
+    ProfileVideo profileVideoResponse = profileService.updateProfileVideo(1L, videoForm, user);
     Mockito.verify(profileVideoRepository, Mockito.times(0)).save(Mockito.any());
   }
 
@@ -199,10 +213,9 @@ public class ProfileServiceImplTest {
     VideoForm videoForm = getDummyVideoForm();
     videoForm.setId(999L);
     ProfileVideo profileVideo = getDummyProfileVideo();
-    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
     Mockito.when(profileVideoRepository.findById(1L)).thenReturn(Optional.of(profileVideo));
     Mockito.when(profileVideoRepository.save(Mockito.any())).thenReturn(profileVideo);
-    ProfileVideo response = profileService.updateProfileVideo(1L, videoForm, getMockHttpRequest());
+    ProfileVideo response = profileService.updateProfileVideo(1L, videoForm, getDummyUser());
     Assertions.assertEquals(1L, response.getId());
     Mockito.verify(profileVideoRepository, Mockito.never()).findById(999L);
   }
