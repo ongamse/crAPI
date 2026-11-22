@@ -63,6 +63,20 @@ def is_allowed_mechanic_api(url):
     )
 
 
+def is_safe_header_value(value):
+    """
+    checks that a value can be forwarded in an http header without
+    injecting CR/LF or other control characters
+    :param value: header value taken from the incoming request (or None)
+    :returns True if the value is None or a string free of control characters
+    """
+    if value is None:
+        return True
+    if not isinstance(value, str):
+        return False
+    return not any(ord(ch) < 32 or ord(ch) == 127 for ch in value)
+
+
 class ContactMechanicView(APIView):
     """
     View for contact mechanic feature
@@ -118,6 +132,19 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        authorization = request.META.get("HTTP_AUTHORIZATION")
+        if not is_safe_header_value(authorization):
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.INVALID_AUTHORIZATION_HEADER,
+            )
+            return Response(
+                {"message": messages.INVALID_AUTHORIZATION_HEADER},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         repeat_count = 0
         while True:
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
@@ -125,7 +152,7 @@ class ContactMechanicView(APIView):
                 mechanic_response = requests.get(
                     request_url,
                     params=request_data,
-                    headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
+                    headers={"Authorization": authorization},
                     verify=False,
                     allow_redirects=False,
                 )
