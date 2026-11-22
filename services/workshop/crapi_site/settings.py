@@ -114,7 +114,18 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Explicit CORS origin allowlist (comma separated scheme://host[:port], no wildcards).
+# Set CORS_ALLOWED_ORIGINS to where the crAPI web UI is served from.
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,"
+        "https://127.0.0.1:8443,http://localhost:30080,https://localhost:30443",
+    ).split(",")
+    if origin.strip() and "*" not in origin
+]
 
 ROOT_URLCONF = "crapi_site.urls"
 

@@ -15,6 +15,9 @@ tlsEnabled: false
 # "server.key" (not stored in this repo). Only used when tlsEnabled is true.
 tlsKeySecretName: crapi-tls-key
 jwtExpiration: 604800000
+# Comma separated explicit origins (scheme://host[:port], no wildcards) allowed for CORS by the
+# identity and workshop services. Set to where the crAPI web UI is served from.
+corsAllowedOrigins: "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443,http://localhost:30080,https://localhost:30443"
 openAIApiKey: ""
 logLevel: INFO
 
