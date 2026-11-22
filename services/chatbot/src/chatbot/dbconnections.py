@@ -23,12 +23,6 @@ MONGO_CONNECTION_URI = (
     + "/?directConnection=true"
 )
 
-MONGO_CONNECTION_URI_ATLAS = "mongodb+srv://%s:%s@%s?retryWrites=true&w=majority" % (
-    MONGO_USER,
-    MONGO_PASSWORD,
-    MONGO_HOST,
-)
-
 POSTGRES_HOST = os.environ.get("DB_HOST", "postgresdb")
 POSTGRES_PORT = os.environ.get("DB_PORT", "5432")
 POSTGRES_USER = os.environ.get("DB_USER", "admin")
