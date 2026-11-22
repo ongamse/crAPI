@@ -93,7 +93,7 @@ class MerchantTestCase(TestCase):
             vehicle_model=self.vehicle_model,
         )
         self.contact_mechanic_request_body = {
-            "mechanic_api": "https://www.google.com",
+            "mechanic_api": "http://localhost:8000/workshop/api/mechanic/receive_report",
             "repeat_request_if_failed": True,
             "number_of_repeats": 5,
             "mechanic_code": self.mechanic["mechanic_code"],
@@ -134,34 +134,164 @@ class MerchantTestCase(TestCase):
         )
         self.assertNotEqual(res.status_code, 200)
 
+    def test_disallowed_mechanic_api(self):
+        """
+        sets mechanic_api to hosts / schemes outside the allowlist
+        should get a 400 and no outbound request should be made
+        :return: None
+        """
+        disallowed_urls = [
+            "https://www.google.com",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://localhost.evil.com/",
+            "http://localhost@evil.com/",
+            "file:///etc/passwd",
+            "ftp://localhost/",
+            "localhost",
+        ]
+        for url in disallowed_urls:
+            self.contact_mechanic_request_body["mechanic_api"] = url
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+                self.assertEqual(res.status_code, 400, url)
+                self.assertEqual(
+                    res.json()["message"], messages.MECHANIC_API_NOT_ALLOWED
+                )
+                mock_get.assert_not_called()
+
+    def test_header_injection_rejected(self):
+        """
+        sends an Authorization header with control characters
+        should get a 400 and no outbound request should be made
+        :return: None
+        """
+        from crapi.merchant.views import extract_bearer_token
+
+        self.assertEqual(
+            extract_bearer_token("Bearer abc.def-ghi_1=="), "abc.def-ghi_1=="
+        )
+        self.assertEqual(
+            extract_bearer_token("Bearer user@crapi.com"), "user@crapi.com"
+        )
+        self.assertIsNone(extract_bearer_token(None))
+        self.assertIsNone(extract_bearer_token(""))
+        self.assertIsNone(extract_bearer_token("Bearer "))
+        self.assertIsNone(extract_bearer_token("Basic abc"))
+        self.assertIsNone(extract_bearer_token("Bearer abc\r\nX-Injected: 1"))
+        self.assertIsNone(extract_bearer_token("Bearer abc\nX-Injected: 1"))
+        self.assertIsNone(extract_bearer_token("Bearer abc\n"))
+        self.assertIsNone(extract_bearer_token("Bearer abc\x00"))
+        self.assertIsNone(extract_bearer_token("Bearer abc def"))
+        self.assertIsNone(extract_bearer_token("Bearer " + "a" * 4097))
+
+        with patch("crapi.merchant.views.requests.get") as mock_get, patch(
+            "crapi.merchant.views.extract_bearer_token", return_value=None
+        ):
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(
+                res.json()["message"], messages.INVALID_AUTHORIZATION_HEADER
+            )
+            mock_get.assert_not_called()
+
+    def test_bearer_token_auth_sets_header(self):
+        """
+        BearerTokenAuth sets the Authorization header from the validated token
+        :return: None
+        """
+        from requests import Request
+        from crapi.merchant.views import BearerTokenAuth
+
+        prepared = Request(
+            "GET", "http://localhost:8000/", auth=BearerTokenAuth("abc.def")
+        ).prepare()
+        self.assertEqual(prepared.headers["Authorization"], "Bearer abc.def")
+
     def test_contact_mechanic(self):
         """
         gives all correct field for contact mechanic
         should get a valid response from mechanic_api
         :return: None
         """
-        res = self.client.post(
-            "/workshop/api/merchant/contact_mechanic",
-            self.contact_mechanic_request_body,
-            **self.user_auth_headers,
-            content_type="application/json"
-        )
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"sent": True}
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+            self.assertEqual(mock_get.call_count, 1)
+            self.assertFalse(mock_get.call_args.kwargs["allow_redirects"])
+            self.assertIsNot(mock_get.call_args.kwargs["verify"], False)
+            self.assertNotIn("headers", mock_get.call_args.kwargs)
+            auth = mock_get.call_args.kwargs["auth"]
+            self.assertEqual(
+                "Bearer " + auth.token,
+                self.user_auth_headers["HTTP_AUTHORIZATION"],
+            )
+            self.assertEqual(
+                mock_get.call_args.kwargs["params"],
+                {
+                    "mechanic_code": self.mechanic["mechanic_code"],
+                    "vin": self.vehicle.vin,
+                    "problem_details": "My Car is not working",
+                },
+            )
         self.assertEqual(res.status_code, 200)
-        self.assertIn("<title>Google</title>", res.json()["response_from_mechanic_api"])
+        self.assertEqual(res.json()["response_from_mechanic_api"], {"sent": True})
+
+    def test_contact_mechanic_url_built_from_config(self):
+        """
+        sends an allowlisted origin with an arbitrary path / query / fragment
+        the requested url must be the configured base url + fixed path
+        :return: None
+        """
+        self.contact_mechanic_request_body["mechanic_api"] = (
+            "http://localhost:8000/other/path?x=1#frag"
+        )
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"sent": True}
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(
+                mock_get.call_args.args[0],
+                "http://localhost:8000/workshop/api/mechanic/receive_report",
+            )
 
     def test_repeat_missing_request(self):
         """
         deletes repeat_request_if_failed field from contact_mechanic request body
-        should get a bad request response
+        should get a valid response
         :return: None
         """
         del self.contact_mechanic_request_body["repeat_request_if_failed"]
-        res = self.client.post(
-            "/workshop/api/merchant/contact_mechanic",
-            self.contact_mechanic_request_body,
-            **self.user_auth_headers,
-            content_type="application/json"
-        )
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"sent": True}
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
         self.assertEqual(res.status_code, 200)
 
     def test_receive_report_and_get_report(self):

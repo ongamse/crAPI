@@ -35,12 +35,46 @@ spec:
             - "service"
             - {{ .Values.community.service.name | quote }}
       {{- end }}
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-key
+          secret:
+            secretName: {{ .Values.tlsKeySecretName }}
+      {{- end }}
       containers:
         - name: {{ .Values.workshop.name }}
           image: {{ .Values.workshop.image }}:{{ .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - name: tls-key
+              mountPath: /app/certs/server.key
+              subPath: server.key
+              readOnly: true
+          {{- end }}
           ports:
             - containerPort: {{ .Values.workshop.port }}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: DB_PASSWORD
+            - name: MONGO_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: MONGO_DB_PASSWORD
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: SECRET_KEY
+            - name: API_GATEWAY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: API_GATEWAY_PASSWORD
           envFrom:
             - configMapRef:
                 name: {{ .Values.workshop.config.name }}

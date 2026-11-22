@@ -42,8 +42,23 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
+      if (containsControlCharacters(sendMail) || containsControlCharacters(subject)) {
+        log.error("Refusing to send mail: recipient or subject contains control characters");
+        return;
+      }
+      // Strict parsing and validation reject malformed addresses and header injection attempts.
+      InternetAddress[] emails = InternetAddress.parse(sendMail, true);
+      if (emails.length == 0) {
+        log.error("Refusing to send mail: no recipient address");
+        return;
+      }
+      // Rebuild the recipients only from the validated, parsed address objects.
+      InternetAddress[] recipients = new InternetAddress[emails.length];
+      for (int i = 0; i < emails.length; i++) {
+        emails[i].validate();
+        recipients[i] = new InternetAddress(emails[i].getAddress(), false);
+      }
       log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -69,17 +84,42 @@ public class SMTPMailServer {
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
-      msg.setSubject(subject);
+      msg.setRecipients(Message.RecipientType.TO, recipients);
+      msg.setSubject(sanitizeHeaderValue(subject), "UTF-8");
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
-
-      MimeBodyPart messageBodyPart = new MimeBodyPart();
-      messageBodyPart.setContent(body, "text/html");
 
       Transport.send(msg);
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  /** Removes every ISO control character (CR, LF, ...) so a header value stays on one line. */
+  static String sanitizeHeaderValue(String value) {
+    if (value == null) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (!Character.isISOControl(c)) {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
+  }
+
+  /** Returns true when the value has CR, LF or any other ISO control character. */
+  private static boolean containsControlCharacters(String value) {
+    if (value == null) {
+      return false;
+    }
+    for (int i = 0; i < value.length(); i++) {
+      if (Character.isISOControl(value.charAt(i))) {
+        return true;
+      }
+    }
+    return false;
   }
 }

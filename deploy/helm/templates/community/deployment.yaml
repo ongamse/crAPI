@@ -42,12 +42,36 @@ spec:
             - "service"
             - {{ .Values.identity.service.name | quote }}
       {{- end }}
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-key
+          secret:
+            secretName: {{ .Values.tlsKeySecretName }}
+      {{- end }}
       containers:
         - name: {{ .Values.community.name }}
           image: {{ .Values.community.image }}:{{ .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - name: tls-key
+              mountPath: /app/certs/server.key
+              subPath: server.key
+              readOnly: true
+          {{- end }}
           ports:
             - containerPort: {{ .Values.community.port }}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: DB_PASSWORD
+            - name: MONGO_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: MONGO_DB_PASSWORD
           envFrom:
             - configMapRef:
                 name: {{ .Values.community.config.name }}

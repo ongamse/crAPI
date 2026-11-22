@@ -2,15 +2,22 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
-apiGatewayPassword:
+# Credentials are not stored in this file. Leave empty to auto-generate, or set via
+# --set / a private values file (use URL-safe values).
+apiGatewayPassword: ""
 tlsEnabled: false
+# Name of a pre-created Kubernetes Secret holding the TLS private key under the key
+# "server.key" (not stored in this repo). Only used when tlsEnabled is true.
+tlsKeySecretName: crapi-tls-key
 jwtExpiration: 604800000
+# Comma separated explicit origins (scheme://host[:port], no wildcards) allowed for CORS by the
+# identity and workshop services. Set to where the crAPI web UI is served from.
+corsAllowedOrigins: "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443,http://localhost:30080,https://localhost:30443"
 openAIApiKey: ""
 logLevel: INFO
 
@@ -74,8 +81,10 @@ identity:
     smtpStartTLS: true
     keyStoreType: PKCS12
     keyStore: classpath:certs/server.p12
-    keyStorePassword: passw0rd
-    keyPassword: passw0rd
+    # TLS keystore passwords are stored in the credentials Secret, not here. Set them with --set
+    # (required when tlsEnabled is true) to the password the keystore was generated with.
+    keyStorePassword: ""
+    keyPassword: ""
     keyAlias: identity
   deploymentLabels:
     app: crapi-identity
@@ -125,7 +134,7 @@ workshop:
       app: crapi-workshop
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
+    secretKey: ""
     filesLimit: 1000
   deploymentLabels:
     app: crapi-workshop
@@ -151,11 +160,11 @@ chatbot:
       app: crapi-chatbot
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    apiPassword: Admin!123
+    # Password for apiUser, stored in the credentials Secret. Leave empty to use the chatbot's built-in default.
+    apiPassword: ""
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"
@@ -233,9 +242,8 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
+    mongoPassword: ""
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:
@@ -278,7 +286,7 @@ postgresdb:
     labels:
       app: postgresdb
     postgresUser: admin
-    postgresPassword: crapisecretpassword
+    postgresPassword: ""
     postgresDbName: crapi
   storage:
     # type: "manual"

@@ -206,9 +206,7 @@ public class UserServiceImpl implements UserService {
     DashboardResponse dashboardResponse;
     ProfileVideo profileVideo;
     try {
-      // Invalid Signature vulnerability
-      // Not Checking the validity of the token for this request
-      user = getUserFromTokenWithoutValidation(request);
+      user = getUserFromVerifiedToken(request);
       userDetails = userDetailsRepository.findByUser_id(user.getId());
       profileVideo = profileVideoRepository.findByUser_id(user.getId());
       dashboardResponse =
@@ -341,11 +339,12 @@ public class UserServiceImpl implements UserService {
 
   @Transactional
   @Override
-  public User getUserFromTokenWithoutValidation(HttpServletRequest request) {
+  public User getUserFromVerifiedToken(HttpServletRequest request) {
     User user = null;
     try {
       String jwt = jwtAuthTokenFilter.getToken(request);
-      String username = jwtProvider.getUserNameFromJwtToken(jwt);
+      // Token is parsed and its signature verified in a single call before any claim is used.
+      String username = jwtProvider.verifyAndGetClaims(jwt).getSubject();
       if (username != null && !username.equalsIgnoreCase(EStatus.INVALID.toString())) {
         user = userRepository.findByEmail(username);
       }

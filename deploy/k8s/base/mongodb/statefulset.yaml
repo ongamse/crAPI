@@ -17,6 +17,12 @@ spec:
         - name: mongodb
           image: mongo:4.4
           imagePullPolicy: "IfNotPresent"
+          env:
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: MONGO_INITDB_ROOT_PASSWORD
           envFrom:
             - configMapRef:
                 name: mongodb-config

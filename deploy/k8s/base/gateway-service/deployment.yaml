@@ -16,6 +16,12 @@ spec:
       - name: gateway-service
         image: crapi/gateway-service:latest
         imagePullPolicy: Always
+        env:
+        - name: API_GATEWAY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: crapi-credentials
+              key: API_GATEWAY_PASSWORD
         ports:
         - containerPort: 8087
         resources:

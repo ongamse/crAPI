@@ -33,6 +33,17 @@ spec:
           imagePullPolicy: Always
           ports:
           - containerPort: 8080
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: DB_PASSWORD
+            - name: API_GATEWAY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: API_GATEWAY_PASSWORD
           envFrom:
               - configMapRef:
                   name: crapi-identity-configmap

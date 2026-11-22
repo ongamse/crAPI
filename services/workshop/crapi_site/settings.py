@@ -25,6 +25,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
+import re
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -61,11 +62,61 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Explicit Host header allowlist (comma separated hostnames, no wildcards) to
+# prevent DNS rebinding / Host header attacks. Defaults cover direct local
+# access, the container health check (0.0.0.0) and the internal service names
+# used by the docker-compose / k8s / helm deployments (the web proxy forwards
+# Host: crapi-workshop:<port>). Override with ALLOWED_HOSTS for other hostnames.
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,[::1],0.0.0.0,crapi-workshop,crapi-web",
+    ).split(",")
+    if host.strip() and "*" not in host
+]
+
+# Hosts (hostname or hostname:port) the contact mechanic feature may call.
+MECHANIC_API_ALLOWED_HOSTS = [
+    host.strip().lower()
+    for host in os.environ.get(
+        "MECHANIC_API_ALLOWED_HOSTS",
+        "localhost,127.0.0.1,crapi-web,crapi-workshop",
+    ).split(",")
+    if host.strip()
+]
+
+# Server-side map of the base URLs (scheme://host[:port]) the contact mechanic
+# feature may call. The requested origin is only used as a lookup key; the URL
+# that is actually requested is always the value held here. A bare allowlisted
+# host is expanded to the default / deployment ports of the web proxy and the
+# workshop service; an allowlisted "host:port" entry is used as is.
+_MECHANIC_API_PORTS = {
+    "http": ["", ":80", ":8888", ":30080", ":" + os.environ.get("SERVER_PORT", "8000")],
+    "https": [
+        "",
+        ":443",
+        ":8443",
+        ":30443",
+        ":" + os.environ.get("SERVER_PORT", "8000"),
+    ],
+}
+MECHANIC_API_BASE_URLS = {}
+for _host in MECHANIC_API_ALLOWED_HOSTS:
+    for _scheme, _ports in _MECHANIC_API_PORTS.items():
+        _suffixes = [""] if re.search(r":\d+$", _host) else _ports
+        for _suffix in _suffixes:
+            _base_url = f"{_scheme}://{_host}{_suffix}"
+            MECHANIC_API_BASE_URLS[_base_url] = _base_url
+
+# TLS certificate verification for outbound requests. Defaults to the system /
+# certifi trust store; set TLS_CA_BUNDLE to a CA bundle path to trust a private CA.
+TLS_CA_BUNDLE = os.environ.get("TLS_CA_BUNDLE")
+REQUESTS_VERIFY = TLS_CA_BUNDLE if TLS_CA_BUNDLE else True
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
 
 # Application definition
 
@@ -99,7 +150,18 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Explicit CORS origin allowlist (comma separated scheme://host[:port], no wildcards).
+# Set CORS_ALLOWED_ORIGINS to where the crAPI web UI is served from.
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,"
+        "https://127.0.0.1:8443,http://localhost:30080,https://localhost:30443",
+    ).split(",")
+    if origin.strip() and "*" not in origin
+]
 
 ROOT_URLCONF = "crapi_site.urls"
 

@@ -22,13 +22,14 @@ from urllib.parse import unquote
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db import models
 from django.http import FileResponse
+from django.core.exceptions import SuspiciousFileOperation
+from django.core.files.storage import FileSystemStorage
 from crapi_site import settings
 from utils.jwt import jwt_auth_required
 from utils import messages
@@ -51,7 +52,6 @@ class SignUpView(APIView):
     Used to add a new mechanic
     """
 
-    @csrf_exempt
     def post(self, request):
         """
         creates a new Mechanic in the db
@@ -393,19 +393,64 @@ class DownloadReportView(APIView):
             )
 
         filename_from_user = unquote(filename_from_user)
-        full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
-        if os.path.exists(full_path) and os.path.isfile(full_path):
-            return FileResponse(open(full_path, 'rb'))
-        elif not os.path.exists(full_path):
+        if not is_valid_report_name(filename_from_user):
             return Response(
-                {"message": f"File not found at '{full_path}'."},
-                status=status.HTTP_404_NOT_FOUND
+                {"message": "Invalid input."},
+                status=status.HTTP_400_BAD_REQUEST
             )
-        else:
+        storage = get_reports_storage()
+        try:
+            if not storage.exists(filename_from_user):
+                return Response(
+                    {"message": f"File not found at '{filename_from_user}'."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            try:
+                report_file = storage.open(filename_from_user, 'rb')
+            except (IsADirectoryError, PermissionError):
+                return Response(
+                    {"message": f"'{filename_from_user}' is not a file."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except SuspiciousFileOperation:
             return Response(
-                {"message": f"'{full_path}' is not a file."},
-                status=status.HTTP_403_FORBIDDEN
+                {"message": "Invalid input."},
+                status=status.HTTP_400_BAD_REQUEST
             )
+        return FileResponse(report_file)
+
+
+def get_reports_storage():
+    """
+    Returns a FileSystemStorage rooted at the canonical reports directory.
+    The storage refuses any name that resolves outside of that directory.
+    """
+    reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, "reports"))
+    return FileSystemStorage(location=reports_dir)
+
+
+REPORT_NAME_PATTERN = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:-]*")
+
+
+def is_valid_report_name(filename) -> bool:
+    """
+    Pure name check (no filesystem access): True only for a plain file name
+    made of allowlisted characters. Containment inside the reports directory
+    is enforced separately by the FileSystemStorage from get_reports_storage().
+    """
+    if not isinstance(filename, str) or not filename or len(filename) > 255:
+        return False
+    if (
+        "\x00" in filename
+        or "/" in filename
+        or "\\" in filename
+        or filename in (".", "..")
+    ):
+        return False
+    if os.path.basename(filename) != filename:
+        return False
+    return REPORT_NAME_PATTERN.fullmatch(filename) is not None
+
 
 def validate_filename(input: str) -> bool:
     """
@@ -421,11 +466,13 @@ def service_report_pdf(response_data, report_id):
     """
     reports_dir = os.path.join(settings.BASE_DIR, 'reports')
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = os.path.join(reports_dir, f"report_{report_id}")
+    report_name = f"report_{int(str(report_id))}"
+    if not is_valid_report_name(report_name):
+        raise ValueError("Invalid report id")
 
     template = get_template('service_report.html')
     html_string = template.render({'service': response_data})
-    with open(report_filepath, "w+b") as pdf_file:
+    with get_reports_storage().open(report_name, "w+b") as pdf_file:
         pisa.CreatePDF(src=html_string, dest=pdf_file)
 
     manage_reports_directory()

@@ -15,8 +15,12 @@
 package com.crapi.config;
 
 import com.crapi.service.Impl.UserDetailsServiceImpl;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -31,6 +35,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -41,6 +48,34 @@ public class WebSecurityConfig {
   @Autowired UserDetailsServiceImpl userDetailsService;
 
   @Autowired JwtAuthEntryPoint jwtUnauthorizedHandler;
+
+  /**
+   * Comma separated list of explicit origins (scheme://host[:port]) allowed to make cross-origin
+   * requests to the identity service. Wildcards are not supported. Set CORS_ALLOWED_ORIGINS to
+   * match where the crAPI web UI is served from.
+   */
+  @Value("${app.cors.allowed-origins}")
+  private String corsAllowedOrigins;
+
+  @Bean
+  public CorsConfigurationSource corsConfigurationSource() {
+    List<String> origins =
+        Arrays.stream(corsAllowedOrigins.split(","))
+            .map(String::trim)
+            .filter(origin -> !origin.isEmpty() && !origin.contains("*"))
+            .collect(Collectors.toList());
+    CorsConfiguration configuration = new CorsConfiguration();
+    configuration.setAllowedOrigins(origins);
+    configuration.setAllowedMethods(
+        Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
+    configuration.setAllowedHeaders(
+        Arrays.asList("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
+    configuration.setAllowCredentials(false);
+    configuration.setMaxAge(3600L);
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", configuration);
+    return source;
+  }
 
   @Bean
   public JwtAuthTokenFilter authenticationJwtTokenFilter() {

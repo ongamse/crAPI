@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -151,10 +153,13 @@ func GetPayMentInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func checkCreds(user string, pass string) bool {
-	if user == "vendorcrapi" && pass == "Pa$$4Vendor_1" {
-		return true
+	expected := os.Getenv("API_GATEWAY_PASSWORD")
+	if expected == "" {
+		return false
 	}
-	return false
+	userOk := subtle.ConstantTimeCompare([]byte(user), []byte("vendorcrapi")) == 1
+	passOk := subtle.ConstantTimeCompare([]byte(pass), []byte(expected)) == 1
+	return userOk && passOk
 }
 
 func maskLeft(s string) string {
@@ -168,6 +173,9 @@ func maskLeft(s string) string {
 func main() {
 	port := flag.Int("port", 443, "port number")
 	flag.Parse()
+	if os.Getenv("API_GATEWAY_PASSWORD") == "" {
+		log.Fatal("API_GATEWAY_PASSWORD environment variable must be set")
+	}
 	http.HandleFunc("/", HelloServer)
 	http.HandleFunc("/v1/vin/ownership", GetOwners)
 	http.HandleFunc("/v1/payment", GetPayMentInfo)

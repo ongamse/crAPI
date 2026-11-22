@@ -16,6 +16,8 @@
 Configuration for crapi application
 """
 import django
+import os
+import secrets
 import sys
 from django.apps import AppConfig
 import bcrypt
@@ -52,19 +54,22 @@ def create_mechanics():
     from crapi.user.models import User, UserDetails
     from crapi.mechanic.models import Mechanic
 
+    # Seeded mechanic accounts use a password supplied at runtime (SEED_MECHANIC_PASSWORD);
+    # a random one is generated when it is not set.
+    mechanic_password = os.environ.get("SEED_MECHANIC_PASSWORD") or secrets.token_urlsafe(16)
     mechanic_details_all = [
         {
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": mechanic_password,
             "mechanic_code": "TRAC_JHN",
         },
         {
             "name": "James",
             "email": "james@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": mechanic_password,
             "mechanic_code": "TRAC_JME",
         },
     ]

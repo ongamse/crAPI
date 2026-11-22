@@ -45,12 +45,42 @@ spec:
           args:
             - "service"
             - {{ .Values.chromadb.service.name | quote }}
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-key
+          secret:
+            secretName: {{ .Values.tlsKeySecretName }}
+      {{- end }}
       containers:
         - name: {{ .Values.chatbot.name }}
           image: {{ .Values.chatbot.image }}:{{ .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - name: tls-key
+              mountPath: /app/certs/server.key
+              subPath: server.key
+              readOnly: true
+          {{- end }}
           ports:
             - containerPort: {{ .Values.chatbot.port }}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: DB_PASSWORD
+            - name: MONGO_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: MONGO_DB_PASSWORD
+            - name: API_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: API_PASSWORD
+                  optional: true
           envFrom:
             - configMapRef:
                 name: {{ .Values.chatbot.config.name }}
