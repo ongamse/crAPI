@@ -28,7 +28,11 @@ MONGO_CONNECTION_URI = (
 POSTGRES_HOST = os.environ.get("DB_HOST", "postgresdb")
 POSTGRES_PORT = os.environ.get("DB_PORT", "5432")
 POSTGRES_USER = os.environ.get("DB_USER", "admin")
-POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD", "crapisecretpassword")
+# The Postgres password must be supplied at runtime (env / secrets manager);
+# there is intentionally no hard-coded fallback.
+POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD")
+if not POSTGRES_PASSWORD:
+    raise RuntimeError("DB_PASSWORD environment variable must be set")
 POSTGRES_DB = os.environ.get("DB_NAME", "crapi")
 
 # Structured URL object (credentials are escaped by SQLAlchemy and are never
