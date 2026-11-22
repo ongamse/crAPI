@@ -117,19 +117,17 @@ public class JwtAuthTokenFilter extends OncePerRequestFilter {
   public String getUserFromToken(HttpServletRequest request) throws ParseException {
     ApiType apiType = getKeyType(request);
     String token = getToken(request);
-    String username = null;
     if (token != null) {
-      if (apiType == ApiType.APIKEY) {
-        log.debug("Token is api token");
-        username = tokenProvider.getUserNameFromJwtToken(token);
-      } else {
-        log.debug("Token is jwt token");
-        if (tokenProvider.validateJwtToken(token)) {
-          username = tokenProvider.getUserNameFromJwtToken(token);
-        }
+      log.debug("Token is {}", apiType == ApiType.APIKEY ? "api token" : "jwt token");
+      // Parse + signature verification happen in one call; claims are only read from a verified
+      // token. An invalid token raises ParseException and never reaches the SecurityContext.
+      try {
+        String username = tokenProvider.verifyAndGetClaims(token).getSubject();
+        // checking username from token
+        if (username != null) return username;
+      } catch (ParseException e) {
+        log.debug("Rejected unverifiable token -> Message: {}", e.getMessage());
       }
-      // checking username from token
-      if (username != null) return username;
     }
     return EStatus.INVALID.toString();
   }

@@ -25,6 +25,7 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
+import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
@@ -136,8 +137,8 @@ public class JwtProvider {
 
   /**
    * Verify the signature of a signed JWT against the server's own RSA public key. The algorithm is
-   * restricted to RSA signature algorithms (matching the RSA key) and is never taken from the token header; verification keys referenced by the
-   * token (jku/jwk/kid) are never used.
+   * restricted to RSA signature algorithms (matching the RSA key) and is never taken from the token
+   * header; verification keys referenced by the token (jku/jwk/kid) are never used.
    */
   private boolean hasValidSignature(SignedJWT signedJWT) throws JOSEException {
     JWSAlgorithm alg = signedJWT.getHeader().getAlgorithm();
@@ -151,11 +152,19 @@ public class JwtProvider {
   }
 
   /**
-   * @param token
-   * @return username from JWT Token, only after its signature has been verified
-   * @throws ParseException if the token is malformed or its signature is not valid
+   * Single entry point for consuming an untrusted token: parses the token and verifies its RSA
+   * signature in the same step. Claims are only ever returned for a token signed by this service;
+   * there is no parse-only accessor.
+   *
+   * @param token untrusted compact JWT (JWT or api key)
+   * @return the claims of the verified token
+   * @throws ParseException if the token is missing, malformed, unsigned, uses a non RSA algorithm
+   *     or its signature is not valid
    */
-  public String getUserNameFromJwtToken(String token) throws ParseException {
+  public JWTClaimsSet verifyAndGetClaims(String token) throws ParseException {
+    if (token == null || token.isBlank()) {
+      throw new ParseException("Missing JWT", 0);
+    }
     SignedJWT signedJWT = SignedJWT.parse(token);
     try {
       if (!hasValidSignature(signedJWT)) {
@@ -164,7 +173,7 @@ public class JwtProvider {
     } catch (JOSEException e) {
       throw new ParseException("JWT signature verification failed", 0);
     }
-    return signedJWT.getJWTClaimsSet().getSubject();
+    return signedJWT.getJWTClaimsSet();
   }
 
   /**
@@ -173,14 +182,10 @@ public class JwtProvider {
    */
   public boolean validateJwtToken(String authToken) {
     try {
-      SignedJWT signedJWT = SignedJWT.parse(authToken);
-      boolean valid = hasValidSignature(signedJWT);
-      log.debug("JWT valid?: " + valid);
-      return valid;
+      verifyAndGetClaims(authToken);
+      return true;
     } catch (ParseException e) {
-      log.error("Could not parse JWT Token -> Message: %d", e);
-    } catch (JOSEException e) {
-      log.error("JWT signature verification failed -> Message: %d", e);
+      log.error("Could not verify JWT Token -> Message: {}", e.getMessage());
     }
 
     return false;
