@@ -17,6 +17,7 @@ contains all the views related to Merchant
 """
 import logging
 import requests
+from urllib.parse import urlparse
 from requests.exceptions import MissingSchema, InvalidURL
 from rest_framework import status
 from rest_framework.response import Response
@@ -35,6 +36,31 @@ from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
 
 
 logger = logging.getLogger()
+
+
+def is_allowed_mechanic_api(url):
+    """
+    checks that the mechanic api url is http(s) and points to an allowlisted host
+    :param url: url supplied by the requester
+    :returns True if the url may be requested by the server, else False
+    """
+    if not isinstance(url, str):
+        return False
+    try:
+        parsed = urlparse(url.strip())
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https") or not hostname:
+        return False
+    if parsed.username is not None or parsed.password is not None:
+        return False
+    allowed_hosts = settings.MECHANIC_API_ALLOWED_HOSTS
+    hostname = hostname.lower()
+    return hostname in allowed_hosts or (
+        port is not None and f"{hostname}:{port}" in allowed_hosts
+    )
 
 
 class ContactMechanicView(APIView):
@@ -79,9 +105,21 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        request_url = request_data["mechanic_api"]
+        if not is_allowed_mechanic_api(request_url):
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.MECHANIC_API_NOT_ALLOWED,
+            )
+            return Response(
+                {"message": messages.MECHANIC_API_NOT_ALLOWED},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         repeat_count = 0
         while True:
-            request_url = request_data["mechanic_api"]
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
             try:
                 mechanic_response = requests.get(
@@ -89,6 +127,7 @@ class ContactMechanicView(APIView):
                     params=request_data,
                     headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
                     verify=False,
+                    allow_redirects=False,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")
