@@ -16,7 +16,13 @@
 cd "$(dirname $0)"
 kubectl create namespace crapi
 
-kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
+# Optional: a full RSA JWKS (with private parts) in ../keys/jwks.json gives a stable signing key;
+# otherwise the identity service generates an ephemeral key at startup.
+if [ -d ../keys ]; then
+  kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
+else
+  kubectl create -n crapi secret generic jwt-key-secret
+fi
 kubectl apply -n crapi -f ../base/rbac
 kubectl apply -n crapi -f ../base/mongodb
 kubectl apply -n crapi -f ../base/postgres

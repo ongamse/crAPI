@@ -8,3 +8,7 @@ services/certs/
 docker-compose.local.yml
 services/**/server.key
 services/**/private.key
+
+# Local JWKS signing keys (contain private key material; never commit)
+deploy/**/keys/jwks.json
+services/identity/jwks.json

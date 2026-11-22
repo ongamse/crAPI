@@ -3,7 +3,13 @@ cd "$(dirname $0)"
 kubectl create namespace crapi
 #kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 
-kubectl create -n secret generic jwt-key-secret --from-file=../keys
+# Optional: a full RSA JWKS (with private parts) in ../keys/jwks.json gives a stable signing key;
+# otherwise the identity service generates an ephemeral key at startup.
+if [ -d ../keys ]; then
+  kubectl create -n secret secret generic jwt-key-secret --from-file=../keys
+else
+  kubectl create -n secret secret generic jwt-key-secret
+fi
 kubectl apply -n crapi -f ./rbac
 # Credentials are never stored in git: export these before running this script.
 : "${DB_PASSWORD:?Set DB_PASSWORD in the environment}"

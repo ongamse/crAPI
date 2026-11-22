@@ -1,7 +1,7 @@
 Setup | crAPI
 =============
 
-> **Note**: Custom jwks key can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys`
+> **Note**: A custom jwks key (full RSA JWKS including private components, never committed) can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys`. When none is provided, the identity service generates an ephemeral signing key at startup.
 
 ## Docker and docker compose
 
@@ -12,6 +12,10 @@ Setup | crAPI
 > For Kubernetes manifests, `deploy/k8s/base/deploy.sh` creates the `crapi-credentials` secret from the same variables; the Helm
 > chart generates a `<release>-credentials` secret (random values unless `postgresdb.config.postgresPassword`,
 > `mongodb.config.mongoPassword`, `workshop.config.secretKey` or `apiGatewayPassword` are set; use URL-safe values).
+> When TLS is enabled, run `services/gencert.sh` (it writes the generated keystore password to the git-ignored
+> `services/certs/keystore.password`) and provide it as `TLS_KEYSTORE_PASSWORD` (compose) or
+> `identity.config.keyStorePassword` (Helm). `chatbot.config.apiPassword` (Helm) / `API_PASSWORD` (local) optionally
+> override the chatbot's login password.
 
 You'll need to have Docker and docker-compose installed and running on your host system. Also, the version of docker-compose should be `1.27.0` or above. Check your docker-compose version using:
 ```

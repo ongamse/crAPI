@@ -56,22 +56,26 @@ public class JwtProvider {
 
   public JwtProvider(@Value("${app.jwksJson}") String jwksJson) {
     try {
-      Base64.Decoder decoder = Base64.getDecoder();
-      InputStream jwksStream = new ByteArrayInputStream(decoder.decode(jwksJson));
-      JWKSet jwkSet = JWKSet.load(jwksStream);
-      jwksStream.close();
-      List<JWK> keys = jwkSet.getKeys();
-      if (keys.size() != 1 || !Objects.equals(keys.get(0).getAlgorithm().getName(), "RS256")) {
-        throw new RuntimeException("Invalid JWKS key passed!!!");
+      JWKSet jwkSet = null;
+      RSAKey rsaKey = null;
+      if (jwksJson != null && !jwksJson.isBlank()) {
+        Base64.Decoder decoder = Base64.getDecoder();
+        InputStream jwksStream = new ByteArrayInputStream(decoder.decode(jwksJson));
+        jwkSet = JWKSet.load(jwksStream);
+        jwksStream.close();
+        List<JWK> keys = jwkSet.getKeys();
+        if (keys.size() != 1 || !Objects.equals(keys.get(0).getAlgorithm().getName(), "RS256")) {
+          throw new RuntimeException("Invalid JWKS key passed!!!");
+        }
+        rsaKey = keys.get(0).toRSAKey();
       }
 
-      RSAKey rsaKey = keys.get(0).toRSAKey();
-      if (!rsaKey.isPrivate()) {
-        // No private key material was supplied (none is committed to the repository).
+      if (rsaKey == null || !rsaKey.isPrivate()) {
+        // No private key material was supplied (no key is committed to the repository).
         // Provide a complete JWKS (including private components) through the JWKS
         // environment variable or a mounted keys/jwks.json for a stable signing key;
         // otherwise generate an ephemeral signing key for this process.
-        log.warn("JWKS has no private key; generating an ephemeral RSA signing key");
+        log.warn("No JWKS private key supplied; generating an ephemeral RSA signing key");
         rsaKey = generateEphemeralKey();
         jwkSet = new JWKSet(rsaKey);
       }
