@@ -42,8 +42,20 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
+      if (containsControlCharacters(sendMail) || containsControlCharacters(subject)) {
+        log.error("Refusing to send mail: recipient or subject contains control characters");
+        return;
+      }
+      // Strict parsing and validation reject malformed addresses and header injection attempts.
+      InternetAddress[] emails = InternetAddress.parse(sendMail, true);
+      if (emails.length == 0) {
+        log.error("Refusing to send mail: no recipient address");
+        return;
+      }
+      for (InternetAddress emailAddress : emails) {
+        emailAddress.validate();
+      }
       log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -69,17 +81,27 @@ public class SMTPMailServer {
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
+      msg.setRecipients(Message.RecipientType.TO, emails);
       msg.setSubject(subject);
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
-
-      MimeBodyPart messageBodyPart = new MimeBodyPart();
-      messageBodyPart.setContent(body, "text/html");
 
       Transport.send(msg);
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  /** Returns true when the value has CR, LF or any other ISO control character. */
+  private static boolean containsControlCharacters(String value) {
+    if (value == null) {
+      return false;
+    }
+    for (int i = 0; i < value.length(); i++) {
+      if (Character.isISOControl(value.charAt(i))) {
+        return true;
+      }
+    }
+    return false;
   }
 }
