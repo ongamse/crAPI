@@ -16,6 +16,7 @@
 contains all the views related to Merchant
 """
 import logging
+import re
 import requests
 from urllib.parse import urlparse
 from requests.exceptions import MissingSchema, InvalidURL
@@ -85,18 +86,27 @@ def resolve_mechanic_api_url(url):
     return base_url + MECHANIC_API_RECEIVE_REPORT_PATH
 
 
-def is_safe_header_value(value):
+# strict shape of the Authorization header the workshop accepts: a Bearer token
+# made only of JWT (base64url + dot separated) characters, plus '@' and '+' so
+# that the email based mock tokens used by the test suite are accepted
+BEARER_AUTHORIZATION_PATTERN = re.compile(r"Bearer ([A-Za-z0-9._~+/=@-]{1,4096})")
+
+
+def build_authorization_header(value):
     """
-    checks that a value can be forwarded in an http header without
-    injecting CR/LF or other control characters
-    :param value: header value taken from the incoming request (or None)
-    :returns True if the value is None or a string free of control characters
+    rebuilds the Authorization header value to forward from the validated
+    token part of the incoming header, so the raw request value is never
+    forwarded (no CR/LF or other control characters can pass through)
+    :param value: Authorization header value taken from the incoming request
+    :returns "Bearer <token>" built from the matched token, or None if the
+        value is not a well formed Bearer authorization header
     """
-    if value is None:
-        return True
     if not isinstance(value, str):
-        return False
-    return not any(ord(ch) < 32 or ord(ch) == 127 for ch in value)
+        return None
+    match = BEARER_AUTHORIZATION_PATTERN.fullmatch(value)
+    if match is None:
+        return None
+    return "Bearer " + match.group(1)
 
 
 class ContactMechanicView(APIView):
@@ -154,8 +164,10 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        authorization = request.META.get("HTTP_AUTHORIZATION")
-        if not is_safe_header_value(authorization):
+        authorization = build_authorization_header(
+            request.META.get("HTTP_AUTHORIZATION")
+        )
+        if authorization is None:
             log_error(
                 request.path,
                 request.data,

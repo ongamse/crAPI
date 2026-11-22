@@ -170,16 +170,29 @@ class MerchantTestCase(TestCase):
         should get a 400 and no outbound request should be made
         :return: None
         """
-        from crapi.merchant.views import is_safe_header_value
+        from crapi.merchant.views import build_authorization_header
 
-        self.assertTrue(is_safe_header_value(None))
-        self.assertTrue(is_safe_header_value("Bearer abc.def.ghi"))
-        self.assertFalse(is_safe_header_value("Bearer abc\r\nX-Injected: 1"))
-        self.assertFalse(is_safe_header_value("Bearer abc\nX-Injected: 1"))
-        self.assertFalse(is_safe_header_value("Bearer abc\x00"))
+        self.assertEqual(
+            build_authorization_header("Bearer abc.def-ghi_1=="),
+            "Bearer abc.def-ghi_1==",
+        )
+        self.assertEqual(
+            build_authorization_header("Bearer user@crapi.com"),
+            "Bearer user@crapi.com",
+        )
+        self.assertIsNone(build_authorization_header(None))
+        self.assertIsNone(build_authorization_header(""))
+        self.assertIsNone(build_authorization_header("Bearer "))
+        self.assertIsNone(build_authorization_header("Basic abc"))
+        self.assertIsNone(build_authorization_header("Bearer abc\r\nX-Injected: 1"))
+        self.assertIsNone(build_authorization_header("Bearer abc\nX-Injected: 1"))
+        self.assertIsNone(build_authorization_header("Bearer abc\n"))
+        self.assertIsNone(build_authorization_header("Bearer abc\x00"))
+        self.assertIsNone(build_authorization_header("Bearer abc def"))
+        self.assertIsNone(build_authorization_header("Bearer " + "a" * 4097))
 
         with patch("crapi.merchant.views.requests.get") as mock_get, patch(
-            "crapi.merchant.views.is_safe_header_value", return_value=False
+            "crapi.merchant.views.build_authorization_header", return_value=None
         ):
             res = self.client.post(
                 "/workshop/api/merchant/contact_mechanic",
@@ -211,6 +224,10 @@ class MerchantTestCase(TestCase):
             self.assertEqual(mock_get.call_count, 1)
             self.assertFalse(mock_get.call_args.kwargs["allow_redirects"])
             self.assertIsNot(mock_get.call_args.kwargs["verify"], False)
+            self.assertEqual(
+                mock_get.call_args.kwargs["headers"],
+                {"Authorization": self.user_auth_headers["HTTP_AUTHORIZATION"]},
+            )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["response_from_mechanic_api"], {"sent": True})
 
