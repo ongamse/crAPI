@@ -19,6 +19,7 @@ import logging
 import re
 import requests
 from urllib.parse import urlparse
+from requests.auth import AuthBase
 from requests.exceptions import MissingSchema, InvalidURL
 from rest_framework import status
 from rest_framework.response import Response
@@ -92,21 +93,54 @@ def resolve_mechanic_api_url(url):
 BEARER_AUTHORIZATION_PATTERN = re.compile(r"Bearer ([A-Za-z0-9._~+/=@-]{1,4096})")
 
 
-def build_authorization_header(value):
+def extract_bearer_token(value):
     """
-    rebuilds the Authorization header value to forward from the validated
-    token part of the incoming header, so the raw request value is never
-    forwarded (no CR/LF or other control characters can pass through)
+    extracts the validated token part of the incoming Authorization header,
+    so the raw request value is never forwarded (no CR/LF or other control
+    characters can pass through)
     :param value: Authorization header value taken from the incoming request
-    :returns "Bearer <token>" built from the matched token, or None if the
-        value is not a well formed Bearer authorization header
+    :returns the matched token, or None if the value is not a well formed
+        Bearer authorization header
     """
     if not isinstance(value, str):
         return None
     match = BEARER_AUTHORIZATION_PATTERN.fullmatch(value)
     if match is None:
         return None
-    return "Bearer " + match.group(1)
+    return match.group(1)
+
+
+class BearerTokenAuth(AuthBase):
+    """
+    requests auth handler that sets the Authorization header of the outbound
+    request from an already validated bearer token
+    """
+
+    def __init__(self, token):
+        self.token = token
+
+    def __call__(self, r):
+        r.headers["Authorization"] = "Bearer " + self.token
+        return r
+
+
+# the only fields the mechanic receive_report endpoint reads
+# (see crapi.mechanic.serializers.ReceiveReportSerializer)
+RECEIVE_REPORT_FIELDS = ("mechanic_code", "problem_details", "vin", "owner_id")
+
+
+def build_receive_report_params(data):
+    """
+    builds the query params forwarded to the mechanic receive_report endpoint
+    from the allowlisted fields only
+    :param data: request body of the contact mechanic request
+    :returns dict of allowlisted field names to str values
+    """
+    return {
+        field: str(data[field])
+        for field in RECEIVE_REPORT_FIELDS
+        if field in data and data[field] is not None
+    }
 
 
 class ContactMechanicView(APIView):
@@ -164,10 +198,8 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        authorization = build_authorization_header(
-            request.META.get("HTTP_AUTHORIZATION")
-        )
-        if authorization is None:
+        token = extract_bearer_token(request.META.get("HTTP_AUTHORIZATION"))
+        if token is None:
             log_error(
                 request.path,
                 request.data,
@@ -179,14 +211,15 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        report_params = build_receive_report_params(request_data)
         repeat_count = 0
         while True:
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
             try:
                 mechanic_response = requests.get(
                     request_url,
-                    params=request_data,
-                    headers={"Authorization": authorization},
+                    params=report_params,
+                    auth=BearerTokenAuth(token),
                     verify=settings.REQUESTS_VERIFY,
                     allow_redirects=False,
                 )

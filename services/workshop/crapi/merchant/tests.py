@@ -170,29 +170,27 @@ class MerchantTestCase(TestCase):
         should get a 400 and no outbound request should be made
         :return: None
         """
-        from crapi.merchant.views import build_authorization_header
+        from crapi.merchant.views import extract_bearer_token
 
         self.assertEqual(
-            build_authorization_header("Bearer abc.def-ghi_1=="),
-            "Bearer abc.def-ghi_1==",
+            extract_bearer_token("Bearer abc.def-ghi_1=="), "abc.def-ghi_1=="
         )
         self.assertEqual(
-            build_authorization_header("Bearer user@crapi.com"),
-            "Bearer user@crapi.com",
+            extract_bearer_token("Bearer user@crapi.com"), "user@crapi.com"
         )
-        self.assertIsNone(build_authorization_header(None))
-        self.assertIsNone(build_authorization_header(""))
-        self.assertIsNone(build_authorization_header("Bearer "))
-        self.assertIsNone(build_authorization_header("Basic abc"))
-        self.assertIsNone(build_authorization_header("Bearer abc\r\nX-Injected: 1"))
-        self.assertIsNone(build_authorization_header("Bearer abc\nX-Injected: 1"))
-        self.assertIsNone(build_authorization_header("Bearer abc\n"))
-        self.assertIsNone(build_authorization_header("Bearer abc\x00"))
-        self.assertIsNone(build_authorization_header("Bearer abc def"))
-        self.assertIsNone(build_authorization_header("Bearer " + "a" * 4097))
+        self.assertIsNone(extract_bearer_token(None))
+        self.assertIsNone(extract_bearer_token(""))
+        self.assertIsNone(extract_bearer_token("Bearer "))
+        self.assertIsNone(extract_bearer_token("Basic abc"))
+        self.assertIsNone(extract_bearer_token("Bearer abc\r\nX-Injected: 1"))
+        self.assertIsNone(extract_bearer_token("Bearer abc\nX-Injected: 1"))
+        self.assertIsNone(extract_bearer_token("Bearer abc\n"))
+        self.assertIsNone(extract_bearer_token("Bearer abc\x00"))
+        self.assertIsNone(extract_bearer_token("Bearer abc def"))
+        self.assertIsNone(extract_bearer_token("Bearer " + "a" * 4097))
 
         with patch("crapi.merchant.views.requests.get") as mock_get, patch(
-            "crapi.merchant.views.build_authorization_header", return_value=None
+            "crapi.merchant.views.extract_bearer_token", return_value=None
         ):
             res = self.client.post(
                 "/workshop/api/merchant/contact_mechanic",
@@ -205,6 +203,19 @@ class MerchantTestCase(TestCase):
                 res.json()["message"], messages.INVALID_AUTHORIZATION_HEADER
             )
             mock_get.assert_not_called()
+
+    def test_bearer_token_auth_sets_header(self):
+        """
+        BearerTokenAuth sets the Authorization header from the validated token
+        :return: None
+        """
+        from requests import Request
+        from crapi.merchant.views import BearerTokenAuth
+
+        prepared = Request(
+            "GET", "http://localhost:8000/", auth=BearerTokenAuth("abc.def")
+        ).prepare()
+        self.assertEqual(prepared.headers["Authorization"], "Bearer abc.def")
 
     def test_contact_mechanic(self):
         """
@@ -224,9 +235,19 @@ class MerchantTestCase(TestCase):
             self.assertEqual(mock_get.call_count, 1)
             self.assertFalse(mock_get.call_args.kwargs["allow_redirects"])
             self.assertIsNot(mock_get.call_args.kwargs["verify"], False)
+            self.assertNotIn("headers", mock_get.call_args.kwargs)
+            auth = mock_get.call_args.kwargs["auth"]
             self.assertEqual(
-                mock_get.call_args.kwargs["headers"],
-                {"Authorization": self.user_auth_headers["HTTP_AUTHORIZATION"]},
+                "Bearer " + auth.token,
+                self.user_auth_headers["HTTP_AUTHORIZATION"],
+            )
+            self.assertEqual(
+                mock_get.call_args.kwargs["params"],
+                {
+                    "mechanic_code": self.mechanic["mechanic_code"],
+                    "vin": self.vehicle.vin,
+                    "problem_details": "My Car is not working",
+                },
             )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["response_from_mechanic_api"], {"sent": True})
