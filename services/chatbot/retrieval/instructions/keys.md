@@ -1,18 +1,7 @@
 ## JWKS json file
 
-```
-# jwks key
-{
-    "keys": [
-        {
-            "kty": "RSA",
-            "e": "AQAB",
-            "use": "sig",
-            "kid": "MKMZkDenUfuDF2byYowDj7tW5Ox6XG4Y1THTEGScRg8",
-            "alg": "RS256",
-            "n": "sZKrGYja9S7BkO-waOcupoGY6BQjixJkg1Uitt278NbiCSnBRw5_cmfuWFFFPgRxabBZBJwJAujnQrlgTLXnRRItM9SRO884cEXn-s4Uc8qwk6pev63qb8no6aCVY0dFpthEGtOP-3KIJ2kx2i5HNzm8d7fG3ZswZrttDVbSSTy8UjPTOr4xVw1Yyh_GzGK9i_RYBWHftDsVfKrHcgGn1F_T6W0cgcnh4KFmbyOQ7dUy8Uc6Gu8JHeHJVt2vGcn50EDtUy2YN-UnZPjCSC7vYOfd5teUR_Bf4jg8GN6UnLbr_Et8HUnz9RFBLkPIf0NiY6iRjp9ooSDkml2OGql3ww"
-        }
-    ]
-}
+crAPI signs JWTs with an RS256 key held by the identity service. No key material is stored in the repository.
 
-```
+- The public JWK set used to verify tokens is served by the identity service at `/.well-known/jwks.json`.
+- To use a stable signing key, mount a complete RSA JWKS (including the private components) as `keys/jwks.json` in the deployment folder, or pass it base64 encoded in the `JWKS` environment variable.
+- When no key is supplied, the identity service generates an ephemeral RS256 key at startup.
