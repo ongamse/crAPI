@@ -22,7 +22,9 @@ import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.SignedJWT;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
@@ -64,12 +66,29 @@ public class JwtProvider {
       }
 
       RSAKey rsaKey = keys.get(0).toRSAKey();
+      if (!rsaKey.isPrivate()) {
+        // No private key material was supplied (none is committed to the repository).
+        // Provide a complete JWKS (including private components) through the JWKS
+        // environment variable or a mounted keys/jwks.json for a stable signing key;
+        // otherwise generate an ephemeral signing key for this process.
+        log.warn("JWKS has no private key; generating an ephemeral RSA signing key");
+        rsaKey = generateEphemeralKey();
+        jwkSet = new JWKSet(rsaKey);
+      }
       this.publicRSAKey = rsaKey.toPublicJWK();
       this.keyPair = rsaKey.toKeyPair();
       this.publicJwkSet = jwkSet.toJSONObject();
     } catch (IOException | ParseException | JOSEException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private static RSAKey generateEphemeralKey() throws JOSEException {
+    return new RSAKeyGenerator(2048)
+        .keyUse(KeyUse.SIGNATURE)
+        .algorithm(JWSAlgorithm.RS256)
+        .keyIDFromThumbprint(true)
+        .generate();
   }
 
   public String getPublicJwkSet() {
