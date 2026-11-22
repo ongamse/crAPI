@@ -142,14 +142,20 @@ public class VehicleServiceImpl implements VehicleService {
    */
   @Transactional
   @Override
-  public VehicleLocationResponse getVehicleLocation(UUID carId) {
+  public VehicleLocationResponse getVehicleLocation(UUID carId, HttpServletRequest request) {
     VehicleDetails vehicleDetails = null;
     VehicleLocationResponse vehicleLocationForm = null;
     UserDetails userDetails = null;
     Random random = new Random();
+    User user = userService.getUserFromToken(request);
     try {
       vehicleDetails = vehicleDetailsRepository.findByUuid(carId);
-      if (vehicleDetails != null) {
+      // The car id from the request path must belong to the authenticated user.
+      if (vehicleDetails != null
+          && vehicleDetails.getOwner() != null
+          && user != null
+          && user.getId() != null
+          && user.getId().equals(vehicleDetails.getOwner().getId())) {
         // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);
         // vehicleDetails.setVehicleLocation(getVehicleLocationList().get(random.nextInt(getVehicleLocationList().size())));
         if (vehicleDetails.getOwner() != null) {
