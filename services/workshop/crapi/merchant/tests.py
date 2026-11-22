@@ -214,6 +214,30 @@ class MerchantTestCase(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["response_from_mechanic_api"], {"sent": True})
 
+    def test_contact_mechanic_url_built_from_config(self):
+        """
+        sends an allowlisted origin with an arbitrary path / query / fragment
+        the requested url must be the configured base url + fixed path
+        :return: None
+        """
+        self.contact_mechanic_request_body["mechanic_api"] = (
+            "http://localhost:8000/other/path?x=1#frag"
+        )
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"sent": True}
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(
+                mock_get.call_args.args[0],
+                "http://localhost:8000/workshop/api/mechanic/receive_report",
+            )
+
     def test_repeat_missing_request(self):
         """
         deletes repeat_request_if_failed field from contact_mechanic request body

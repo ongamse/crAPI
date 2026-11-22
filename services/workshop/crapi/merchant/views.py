@@ -37,6 +37,9 @@ from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
 
 logger = logging.getLogger()
 
+# the only endpoint the contact mechanic feature calls on an allowlisted host
+MECHANIC_API_RECEIVE_REPORT_PATH = "/workshop/api/mechanic/receive_report"
+
 
 def is_allowed_mechanic_api(url):
     """
@@ -61,6 +64,25 @@ def is_allowed_mechanic_api(url):
     return hostname in allowed_hosts or (
         port is not None and f"{hostname}:{port}" in allowed_hosts
     )
+
+
+def resolve_mechanic_api_url(url):
+    """
+    resolves the url the server will call from the server-side configuration.
+    The client supplied url is only used to select an entry of
+    settings.MECHANIC_API_BASE_URLS (by its scheme://host[:port] origin); the
+    returned url is the configured base url plus the fixed receive_report path.
+    :param url: url supplied by the requester
+    :returns configured url to request, or None if the url is not allowed
+    """
+    if not is_allowed_mechanic_api(url):
+        return None
+    parsed = urlparse(url.strip())
+    origin = f"{parsed.scheme}://{parsed.netloc}".lower()
+    base_url = settings.MECHANIC_API_BASE_URLS.get(origin)
+    if base_url is None:
+        return None
+    return base_url + MECHANIC_API_RECEIVE_REPORT_PATH
 
 
 def is_safe_header_value(value):
@@ -119,8 +141,8 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        request_url = request_data["mechanic_api"]
-        if not is_allowed_mechanic_api(request_url):
+        request_url = resolve_mechanic_api_url(request_data["mechanic_api"])
+        if request_url is None:
             log_error(
                 request.path,
                 request.data,

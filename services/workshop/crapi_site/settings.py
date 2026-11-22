@@ -25,6 +25,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
+import re
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -84,6 +85,29 @@ MECHANIC_API_ALLOWED_HOSTS = [
     ).split(",")
     if host.strip()
 ]
+
+# Server-side map of the base URLs (scheme://host[:port]) the contact mechanic
+# feature may call. The requested origin is only used as a lookup key; the URL
+# that is actually requested is always the value held here. A bare allowlisted
+# host is expanded to the default / deployment ports of the web proxy and the
+# workshop service; an allowlisted "host:port" entry is used as is.
+_MECHANIC_API_PORTS = {
+    "http": ["", ":80", ":8888", ":30080", ":" + os.environ.get("SERVER_PORT", "8000")],
+    "https": [
+        "",
+        ":443",
+        ":8443",
+        ":30443",
+        ":" + os.environ.get("SERVER_PORT", "8000"),
+    ],
+}
+MECHANIC_API_BASE_URLS = {}
+for _host in MECHANIC_API_ALLOWED_HOSTS:
+    for _scheme, _ports in _MECHANIC_API_PORTS.items():
+        _suffixes = [""] if re.search(r":\d+$", _host) else _ports
+        for _suffix in _suffixes:
+            _base_url = f"{_scheme}://{_host}{_suffix}"
+            MECHANIC_API_BASE_URLS[_base_url] = _base_url
 
 # TLS certificate verification for outbound requests. Defaults to the system /
 # certifi trust store; set TLS_CA_BUNDLE to a CA bundle path to trust a private CA.
