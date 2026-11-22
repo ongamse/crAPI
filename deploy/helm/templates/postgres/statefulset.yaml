@@ -26,6 +26,12 @@ spec:
           args: ["-c", "max_connections=500"]
           ports:
             - containerPort: {{ .Values.postgresdb.port }}
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: POSTGRES_PASSWORD
           envFrom:
             - configMapRef:
                 name: {{ .Values.postgresdb.config.name }}

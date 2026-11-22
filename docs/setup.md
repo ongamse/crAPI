@@ -5,6 +5,14 @@ Setup | crAPI
 
 ## Docker and docker compose
 
+> **Credentials**: database, JWT/Django secret and API gateway passwords are not stored in the repository. Set
+> `DB_PASSWORD`, `MONGO_DB_PASSWORD`, `SECRET_KEY` and `API_GATEWAY_PASSWORD` in your shell (or in the **.env** file next to
+> `docker-compose.yml`) before starting crAPI, for example
+> `export DB_PASSWORD=$(openssl rand -hex 16)`. Use the same values when running the services locally from `services/*/.env`.
+> For Kubernetes manifests, `deploy/k8s/base/deploy.sh` creates the `crapi-credentials` secret from the same variables; the Helm
+> chart generates a `<release>-credentials` secret (random values unless `postgresdb.config.postgresPassword`,
+> `mongodb.config.mongoPassword`, `workshop.config.secretKey` or `apiGatewayPassword` are set; use URL-safe values).
+
 You'll need to have Docker and docker-compose installed and running on your host system. Also, the version of docker-compose should be `1.27.0` or above. Check your docker-compose version using:
 ```
 docker compose version

@@ -2,13 +2,14 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
-apiGatewayPassword:
+# Credentials are not stored in this file. Leave empty to auto-generate, or set via
+# --set / a private values file (use URL-safe values).
+apiGatewayPassword: ""
 tlsEnabled: false
 jwtExpiration: 604800000
 openAIApiKey: ""
@@ -125,7 +126,7 @@ workshop:
       app: crapi-workshop
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
+    secretKey: ""
     filesLimit: 1000
   deploymentLabels:
     app: crapi-workshop
@@ -155,6 +156,7 @@ chatbot:
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
+    # Login of the seeded crAPI demo admin user (see TestUsers); documented demo account, not a deployment secret.
     apiPassword: Admin!123
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
@@ -233,9 +235,8 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
+    mongoPassword: ""
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:
@@ -278,7 +279,7 @@ postgresdb:
     labels:
       app: postgresdb
     postgresUser: admin
-    postgresPassword: crapisecretpassword
+    postgresPassword: ""
     postgresDbName: crapi
   storage:
     # type: "manual"

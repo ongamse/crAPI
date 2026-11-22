@@ -41,6 +41,14 @@ spec:
           - containerPort: 1025
             name: smtp
             protocol: TCP
+          env:
+            - name: MONGO_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: MONGO_DB_PASSWORD
+            - name: MH_MONGO_URI
+              value: admin:$(MONGO_DB_PASSWORD)@mongodb:27017
           envFrom:
             - configMapRef:
                 name: mailhog-configmap

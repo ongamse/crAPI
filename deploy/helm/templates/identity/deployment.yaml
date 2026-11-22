@@ -47,6 +47,17 @@ spec:
               readOnly: true
           ports:
           - containerPort: {{ .Values.identity.port }}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: DB_PASSWORD
+            - name: API_GATEWAY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: API_GATEWAY_PASSWORD
           envFrom:
               - configMapRef:
                   name: {{ .Values.identity.config.name }}

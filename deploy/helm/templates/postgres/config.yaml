@@ -9,5 +9,4 @@ metadata:
     {{- end }}
 data:
   POSTGRES_USER: {{ .Values.postgresdb.config.postgresUser }}
-  POSTGRES_PASSWORD: {{ .Values.postgresdb.config.postgresPassword }}
   POSTGRES_DB: {{ .Values.postgresdb.config.postgresDbName }}
