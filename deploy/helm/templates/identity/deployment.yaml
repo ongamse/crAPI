@@ -58,6 +58,16 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-credentials
                   key: API_GATEWAY_PASSWORD
+            - name: TLS_KEYSTORE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: TLS_KEYSTORE_PASSWORD
+            - name: TLS_KEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-credentials
+                  key: TLS_KEY_PASSWORD
           envFrom:
               - configMapRef:
                   name: {{ .Values.identity.config.name }}

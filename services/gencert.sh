@@ -11,6 +11,14 @@ cp -v certs/server.crt community/certs
 cd ./identity/src/main/resources/certs/
 # keystore.sh needs the key temporarily to build the PKCS12 keystore
 cp -v ../../../../../certs/server.key server.key
+# The keystore password is random (or taken from TLS_KEYSTORE_PASSWORD) and kept only in the
+# git-ignored services/certs/ directory.
+if [ -z "${TLS_KEYSTORE_PASSWORD:-}" ]; then
+  TLS_KEYSTORE_PASSWORD="$(openssl rand -hex 16)"
+fi
+export TLS_KEYSTORE_PASSWORD
+(umask 077; printf '%s\n' "$TLS_KEYSTORE_PASSWORD" > ../../../../../certs/keystore.password)
 ./keystore.sh
 rm -f server.key
+echo "Set TLS_KEYSTORE_PASSWORD to the content of services/certs/keystore.password when running with TLS_ENABLED=true"
 echo "Set TLS_KEY_FILE to the absolute path of services/certs/server.key when running with TLS_ENABLED=true"
