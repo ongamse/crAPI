@@ -11,6 +11,9 @@ apiGatewayServiceInstall: true
 # --set / a private values file (use URL-safe values).
 apiGatewayPassword: ""
 tlsEnabled: false
+# Name of a pre-created Kubernetes Secret holding the TLS private key under the key
+# "server.key" (not stored in this repo). Only used when tlsEnabled is true.
+tlsKeySecretName: crapi-tls-key
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
