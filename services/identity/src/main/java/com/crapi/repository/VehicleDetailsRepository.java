@@ -26,6 +26,8 @@ public interface VehicleDetailsRepository extends JpaRepository<VehicleDetails, 
 
   VehicleDetails findByUuid(UUID uuid);
 
+  VehicleDetails findByUuidAndOwner_id(UUID uuid, Long ownerId);
+
   List<VehicleDetails> findAllByOwner_id(Long id);
 
   VehicleDetails findByVehicleLocation_id(Long carId);

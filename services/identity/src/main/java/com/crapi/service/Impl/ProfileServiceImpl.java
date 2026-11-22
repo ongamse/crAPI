@@ -145,9 +145,10 @@ public class ProfileServiceImpl implements ProfileService {
     User user;
     ProfileVideo profileVideo;
     user = userService.getUserFromToken(request);
-    profileVideo = profileVideoRepository.findByUser_id(user.getId());
-    // The video id from the request path must reference the authenticated user's own video.
-    if (profileVideo != null && videoId != null && profileVideo.getId() == videoId) {
+    // Only the path video id is used (any id in the body is ignored) and it must reference the
+    // authenticated user's own video.
+    profileVideo = findOwnedVideo(videoId, user).orElse(null);
+    if (profileVideo != null) {
       profileVideo.setVideo_name(videoForm.getVideoName());
       profileVideo.setConversion_params(
           (videoForm.getConversion_params() != null
@@ -167,12 +168,9 @@ public class ProfileServiceImpl implements ProfileService {
   @Transactional
   @Override
   public CRAPIResponse deleteProfileVideo(Long videoId, HttpServletRequest request) {
-    Optional<ProfileVideo> optionalProfileVideo;
-    ProfileVideo profileVideo;
     User user = userService.getUserFromToken(request);
-    optionalProfileVideo = profileVideoRepository.findById(videoId);
     // Only reveal the video to its owner; any other id is reported as not found.
-    if (optionalProfileVideo.isPresent() && isVideoOwner(optionalProfileVideo.get(), user)) {
+    if (findOwnedVideo(videoId, user).isPresent()) {
       return new CRAPIResponse(UserMessage.THIS_IS_ADMIN_FUNCTION, 403);
     }
     throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404);
@@ -186,14 +184,12 @@ public class ProfileServiceImpl implements ProfileService {
   @Transactional
   @Override
   public CRAPIResponse deleteAdminProfileVideo(Long videoId, HttpServletRequest request) {
-    Optional<ProfileVideo> optionalProfileVideo;
     ProfileVideo profileVideo;
-    optionalProfileVideo = profileVideoRepository.findById(videoId);
     User user = userService.getUserFromToken(request);
     // Only the owner of the video or an admin may delete it.
-    if (optionalProfileVideo.isPresent()
-        && (isVideoOwner(optionalProfileVideo.get(), user)
-            || (user != null && ERole.ROLE_ADMIN.equals(user.getRole())))) {
+    Optional<ProfileVideo> optionalProfileVideo =
+        isAdmin(user) ? profileVideoRepository.findById(videoId) : findOwnedVideo(videoId, user);
+    if (optionalProfileVideo.isPresent()) {
       profileVideo = optionalProfileVideo.get();
       profileVideo.setUser(null);
       profileVideoRepository.delete(profileVideo);
@@ -228,8 +224,7 @@ public class ProfileServiceImpl implements ProfileService {
       if (xForwardedHost == null) {
         if (videoId != null && videoId > 0) {
           User user = userService.getUserFromToken(request);
-          Optional<ProfileVideo> optionalProfileVideo =
-              profileVideoRepository.findById(videoId).filter(v -> isVideoOwner(v, user));
+          Optional<ProfileVideo> optionalProfileVideo = findOwnedVideo(videoId, user);
           if (optionalProfileVideo.isPresent() && !enable_shell_injection) {
             profileVideo = optionalProfileVideo.get();
             if (ProfileValidator.checkContains(profileVideo.getConversion_params())) {
@@ -263,6 +258,23 @@ public class ProfileServiceImpl implements ProfileService {
       log.error("unable to convert video -> Message: %d ", exception);
       throw new IOExceptionHandler(ProfileServiceImpl.class, UserMessage.ERROR);
     }
+  }
+
+  /**
+   * @param videoId id of the requested video (client supplied)
+   * @param user authenticated user making the request
+   * @return the video only when it exists and belongs to the user, otherwise empty (so callers do
+   *     not reveal whether the id exists)
+   */
+  private Optional<ProfileVideo> findOwnedVideo(Long videoId, User user) {
+    if (videoId == null || user == null || user.getId() == null) {
+      return Optional.empty();
+    }
+    return profileVideoRepository.findById(videoId).filter(v -> isVideoOwner(v, user));
+  }
+
+  private boolean isAdmin(User user) {
+    return user != null && ERole.ROLE_ADMIN.equals(user.getRole());
   }
 
   /**
