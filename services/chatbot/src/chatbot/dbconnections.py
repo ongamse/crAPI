@@ -35,8 +35,8 @@ if not POSTGRES_PASSWORD:
     raise RuntimeError("DB_PASSWORD environment variable must be set")
 POSTGRES_DB = os.environ.get("DB_NAME", "crapi")
 
-# Structured URL object (credentials are escaped by SQLAlchemy and are never
-# rendered into a scheme://user:pass@host string).
+# Structured URL object: credentials are passed as separate fields and escaped
+# by SQLAlchemy, never concatenated into a connection string.
 POSTGRES_URL = URL.create(
     "postgresql",
     username=POSTGRES_USER,
