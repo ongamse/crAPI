@@ -393,7 +393,12 @@ class DownloadReportView(APIView):
             )
 
         filename_from_user = unquote(filename_from_user)
-        full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
+        full_path = resolve_report_path(filename_from_user)
+        if full_path is None:
+            return Response(
+                {"message": "Invalid input."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         if os.path.exists(full_path) and os.path.isfile(full_path):
             return FileResponse(open(full_path, 'rb'))
         elif not os.path.exists(full_path):
@@ -406,6 +411,29 @@ class DownloadReportView(APIView):
                 {"message": f"'{full_path}' is not a file."},
                 status=status.HTTP_403_FORBIDDEN
             )
+
+def resolve_report_path(filename):
+    """
+    Resolves filename inside the reports directory. Returns the canonical
+    path, or None if it is not a plain file name that stays within the
+    reports directory.
+    """
+    if (
+        not filename
+        or "\x00" in filename
+        or "/" in filename
+        or "\\" in filename
+        or filename in (".", "..")
+    ):
+        return None
+    reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, "reports"))
+    candidate = os.path.realpath(os.path.join(reports_dir, filename))
+    if os.path.commonpath([reports_dir, candidate]) != reports_dir:
+        return None
+    if candidate == reports_dir:
+        return None
+    return candidate
+
 
 def validate_filename(input: str) -> bool:
     """
@@ -421,7 +449,9 @@ def service_report_pdf(response_data, report_id):
     """
     reports_dir = os.path.join(settings.BASE_DIR, 'reports')
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = os.path.join(reports_dir, f"report_{report_id}")
+    report_filepath = resolve_report_path(f"report_{int(str(report_id))}")
+    if report_filepath is None:
+        raise ValueError("Invalid report id")
 
     template = get_template('service_report.html')
     html_string = template.render({'service': response_data})
