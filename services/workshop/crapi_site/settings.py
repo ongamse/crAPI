@@ -61,7 +61,19 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Explicit Host header allowlist (comma separated hostnames, no wildcards) to
+# prevent DNS rebinding / Host header attacks. Defaults cover direct local
+# access, the container health check (0.0.0.0) and the internal service names
+# used by the docker-compose / k8s / helm deployments (the web proxy forwards
+# Host: crapi-workshop:<port>). Override with ALLOWED_HOSTS for other hostnames.
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,[::1],0.0.0.0,crapi-workshop,crapi-web",
+    ).split(",")
+    if host.strip() and "*" not in host
+]
 
 # Hosts (hostname or hostname:port) the contact mechanic feature may call.
 MECHANIC_API_ALLOWED_HOSTS = [
