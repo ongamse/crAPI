@@ -52,8 +52,11 @@ public class SMTPMailServer {
         log.error("Refusing to send mail: no recipient address");
         return;
       }
-      for (InternetAddress emailAddress : emails) {
-        emailAddress.validate();
+      // Rebuild the recipients only from the validated, parsed address objects.
+      InternetAddress[] recipients = new InternetAddress[emails.length];
+      for (int i = 0; i < emails.length; i++) {
+        emails[i].validate();
+        recipients[i] = new InternetAddress(emails[i].getAddress(), false);
       }
       log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
@@ -81,8 +84,8 @@ public class SMTPMailServer {
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, emails);
-      msg.setSubject(subject);
+      msg.setRecipients(Message.RecipientType.TO, recipients);
+      msg.setSubject(sanitizeHeaderValue(subject), "UTF-8");
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
 
@@ -90,6 +93,21 @@ public class SMTPMailServer {
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  /** Removes every ISO control character (CR, LF, ...) so a header value stays on one line. */
+  static String sanitizeHeaderValue(String value) {
+    if (value == null) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (!Character.isISOControl(c)) {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
   }
 
   /** Returns true when the value has CR, LF or any other ISO control character. */
