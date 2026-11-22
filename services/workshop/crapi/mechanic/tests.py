@@ -314,3 +314,43 @@ class MechanicServiceWorkFlowTestCase(TestCase):
         self.assertEqual(comments.status_code, 200)
         print(comments.json())
         self.assertEqual(len(comments.json()), comments_len + 1)
+
+
+class ReportNameValidationTestCase(TestCase):
+    """
+    is_valid_report_name must accept plain report names and reject anything
+    that could address a path outside the reports directory.
+    """
+
+    def test_valid_report_names(self):
+        from crapi.mechanic.views import is_valid_report_name
+
+        for name in ("report_12", "report_1", "report_12.pdf", "a:b-c_d"):
+            self.assertTrue(is_valid_report_name(name), name)
+
+    def test_traversal_names_rejected(self):
+        from crapi.mechanic.views import is_valid_report_name
+
+        for name in (
+            "",
+            None,
+            ".",
+            "..",
+            "../x",
+            "..%2f",
+            "..%2fx",
+            "/etc/passwd",
+            "..\\x",
+            "report_1\x00.pdf",
+            "sub/report_1",
+            ".hidden",
+            "a" * 256,
+        ):
+            self.assertFalse(is_valid_report_name(name), repr(name))
+
+    def test_download_rejects_traversal(self):
+        for name in ("../x", "..%2fx", "%2fetc%2fpasswd", "report_1%00", "..%5cx"):
+            res = self.client.get(
+                "/workshop/api/mechanic/download_report?filename=%s" % name
+            )
+            self.assertEqual(res.status_code, 400, name)

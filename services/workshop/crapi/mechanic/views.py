@@ -393,7 +393,7 @@ class DownloadReportView(APIView):
             )
 
         filename_from_user = unquote(filename_from_user)
-        if resolve_report_path(filename_from_user) is None:
+        if not is_valid_report_name(filename_from_user):
             return Response(
                 {"message": "Invalid input."},
                 status=status.HTTP_400_BAD_REQUEST
@@ -429,27 +429,27 @@ def get_reports_storage():
     return FileSystemStorage(location=reports_dir)
 
 
-def resolve_report_path(filename):
+REPORT_NAME_PATTERN = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:-]*")
+
+
+def is_valid_report_name(filename) -> bool:
     """
-    Resolves filename inside the reports directory. Returns the canonical
-    path, or None if it is not a plain file name that stays within the
-    reports directory.
+    Pure name check (no filesystem access): True only for a plain file name
+    made of allowlisted characters. Containment inside the reports directory
+    is enforced separately by the FileSystemStorage from get_reports_storage().
     """
+    if not isinstance(filename, str) or not filename or len(filename) > 255:
+        return False
     if (
-        not filename
-        or "\x00" in filename
+        "\x00" in filename
         or "/" in filename
         or "\\" in filename
         or filename in (".", "..")
     ):
-        return None
-    reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, "reports"))
-    candidate = os.path.realpath(os.path.join(reports_dir, filename))
-    if os.path.commonpath([reports_dir, candidate]) != reports_dir:
-        return None
-    if candidate == reports_dir:
-        return None
-    return candidate
+        return False
+    if os.path.basename(filename) != filename:
+        return False
+    return REPORT_NAME_PATTERN.fullmatch(filename) is not None
 
 
 def validate_filename(input: str) -> bool:
@@ -467,7 +467,7 @@ def service_report_pdf(response_data, report_id):
     reports_dir = os.path.join(settings.BASE_DIR, 'reports')
     os.makedirs(reports_dir, exist_ok=True)
     report_name = f"report_{int(str(report_id))}"
-    if resolve_report_path(report_name) is None:
+    if not is_valid_report_name(report_name):
         raise ValueError("Invalid report id")
 
     template = get_template('service_report.html')
