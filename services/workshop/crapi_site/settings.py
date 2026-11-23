@@ -71,6 +71,12 @@ MECHANIC_API_ALLOWED_HOSTS = [
 ]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
+
+# TLS certificate verification for outbound HTTPS calls (always on). To trust
+# internal / self-signed certificates set TLS_CA_BUNDLE to the path of a CA
+# bundle (PEM) that contains the issuing CA; the system trust store is used
+# otherwise.
+TLS_CA_BUNDLE = os.environ.get("TLS_CA_BUNDLE") or True
 API_GATEWAY_USERNAME = "vendorcrapi"
 API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
 
