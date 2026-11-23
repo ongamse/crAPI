@@ -150,7 +150,17 @@ public class VehicleServiceImpl implements VehicleService {
     User requestUser = userService.getUserFromToken(request);
     try {
       if (requestUser != null && requestUser.getId() != null) {
-        vehicleDetails = vehicleDetailsRepository.findByUuidAndOwner_id(carId, requestUser.getId());
+        // Resolve the vehicle from the authenticated user's own vehicles; the requested carId is
+        // only matched in memory and never used to look up a record.
+        List<VehicleDetails> ownedVehicles =
+            vehicleDetailsRepository.findAllByOwner_id(requestUser.getId());
+        if (ownedVehicles != null) {
+          vehicleDetails =
+              ownedVehicles.stream()
+                  .filter(ownedVehicle -> Objects.equals(ownedVehicle.getUuid(), carId))
+                  .findFirst()
+                  .orElse(null);
+        }
       }
       if (vehicleDetails != null && vehicleDetails.getOwner() != null) {
         // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);

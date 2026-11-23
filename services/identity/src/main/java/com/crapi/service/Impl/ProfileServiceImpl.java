@@ -32,6 +32,7 @@ import com.crapi.utils.ProfileValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -121,19 +122,16 @@ public class ProfileServiceImpl implements ProfileService {
   @Transactional
   @Override
   public ProfileVideo getProfileVideo(Long videoId, HttpServletRequest request) {
-    User user;
-    ProfileVideo profileVideo;
-    user = userService.getUserFromToken(request);
-    profileVideo = profileVideoRepository.findByUser_id(user.getId());
-    if (profileVideo != null) {
-      if (profileVideo.getId() == videoId) {
-        return profileVideo;
-      }
-    }
-    throw new CRAPIExceptionHandler(UserMessage.VIDEO_NOT_FOUND, 404);
+    User user = userService.getUserFromToken(request);
+    return findOwnedVideo(videoId, user)
+        .orElseThrow(() -> new CRAPIExceptionHandler(UserMessage.VIDEO_NOT_FOUND, 404));
   }
 
   /**
+   * Resolves the video from the authenticated user's own record (the user id comes from the
+   * token) and only returns it when it is the video the caller asked for. The requested id is
+   * never used to look up a record.
+   *
    * @param videoId id of the video that the caller wants to access
    * @param user authenticated user
    * @return the video only when it exists and is owned by the given user
@@ -142,7 +140,8 @@ public class ProfileServiceImpl implements ProfileService {
     if (videoId == null || user == null) {
       return Optional.empty();
     }
-    return profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
+    return Optional.ofNullable(profileVideoRepository.findByUser_id(user.getId()))
+        .filter(ownVideo -> Objects.equals(ownVideo.getId(), videoId));
   }
 
   /**
