@@ -32,7 +32,12 @@ kubectl create -n crapi secret generic crapi-credentials \
   --from-literal=TLS_KEYSTORE_PASSWORD="${TLS_KEYSTORE_PASSWORD:-}" \
   --from-literal=TLS_KEY_PASSWORD="${TLS_KEY_PASSWORD:-}"
 
-kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
+# Optional: supply your own (uncommitted) keys/jwks.json; otherwise identity generates an ephemeral key.
+if [ -f ../keys/jwks.json ]; then
+  kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
+else
+  kubectl create -n crapi secret generic jwt-key-secret
+fi
 kubectl apply -n crapi -f ../base/rbac
 kubectl apply -n crapi -f ../base/mongodb
 kubectl apply -n crapi -f ../base/postgres

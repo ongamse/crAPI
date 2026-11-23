@@ -8,3 +8,7 @@ services/certs/
 docker-compose.local.yml
 services/**/certs/server.key
 services/gateway-service/server.key
+
+# Runtime-provided JWKS private keys must never be committed
+deploy/*/keys/jwks.json
+services/identity/jwks.json
