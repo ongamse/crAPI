@@ -24,7 +24,7 @@ import org.springframework.stereotype.Repository;
 public interface VehicleDetailsRepository extends JpaRepository<VehicleDetails, Long> {
   VehicleDetails findByVin(String vin);
 
-  VehicleDetails findByUuid(UUID uuid);
+  VehicleDetails findByUuidAndOwner_id(UUID uuid, Long ownerId);
 
   List<VehicleDetails> findAllByOwner_id(Long id);
 

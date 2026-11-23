@@ -149,12 +149,10 @@ public class VehicleServiceImpl implements VehicleService {
     Random random = new Random();
     User requestUser = userService.getUserFromToken(request);
     try {
-      vehicleDetails = vehicleDetailsRepository.findByUuid(carId);
-      if (vehicleDetails != null
-          && vehicleDetails.getOwner() != null
-          && requestUser != null
-          && vehicleDetails.getOwner().getId() != null
-          && vehicleDetails.getOwner().getId().equals(requestUser.getId())) {
+      if (requestUser != null && requestUser.getId() != null) {
+        vehicleDetails = vehicleDetailsRepository.findByUuidAndOwner_id(carId, requestUser.getId());
+      }
+      if (vehicleDetails != null && vehicleDetails.getOwner() != null) {
         // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);
         // vehicleDetails.setVehicleLocation(getVehicleLocationList().get(random.nextInt(getVehicleLocationList().size())));
         if (vehicleDetails.getOwner() != null) {

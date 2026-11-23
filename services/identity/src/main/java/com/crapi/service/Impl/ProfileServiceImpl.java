@@ -142,11 +142,7 @@ public class ProfileServiceImpl implements ProfileService {
     if (videoId == null || user == null) {
       return Optional.empty();
     }
-    ProfileVideo ownedVideo = profileVideoRepository.findByUser_id(user.getId());
-    if (ownedVideo != null && ownedVideo.getId() == videoId.longValue()) {
-      return Optional.of(ownedVideo);
-    }
-    return Optional.empty();
+    return profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
   }
 
   /**
