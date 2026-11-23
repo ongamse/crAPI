@@ -18,6 +18,7 @@ contains all the views related to Mechanic
 import os
 import bcrypt
 import re
+import stat
 from urllib.parse import unquote
 from django.template.loader import get_template
 from xhtml2pdf import pisa
@@ -400,12 +401,33 @@ class DownloadReportView(APIView):
             )
         # entry_name comes from the directory listing, not from the request.
         report_path = os.path.join(reports_dir, entry_name)
-        if os.path.isfile(report_path) and not os.path.islink(report_path):
-            return FileResponse(open(report_path, 'rb'))
-        return Response(
-            {"message": "Requested entry is not a file."},
-            status=status.HTTP_403_FORBIDDEN
-        )
+        # Open once (refusing symlinks) and validate the open descriptor, so
+        # there is no gap between the check and the use of the file.
+        try:
+            fd = os.open(
+                report_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+            )
+        except FileNotFoundError:
+            return Response(
+                {"message": "File not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except OSError:
+            return Response(
+                {"message": "Requested entry is not a file."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        try:
+            is_regular = stat.S_ISREG(os.fstat(fd).st_mode)
+        except OSError:
+            is_regular = False
+        if not is_regular:
+            os.close(fd)
+            return Response(
+                {"message": "Requested entry is not a file."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return FileResponse(os.fdopen(fd, 'rb'))
 
 
 def find_report_entry(reports_dir: str, requested_name: str):
