@@ -127,6 +127,7 @@ services:
       - MONGO_DB_PASSWORD=crapisecretpassword
       - MONGO_DB_NAME=crapi
       - SECRET_KEY=crapi
+      - ALLOWED_HOSTS=${WORKSHOP_ALLOWED_HOSTS:-}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
       - API_GATEWAY_URL=https://api.mypremiumdealership.com
       - TLS_ENABLED=${TLS_ENABLED:-false}

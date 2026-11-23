@@ -61,7 +61,22 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Host names (comma separated, without port) this service may be served as.
+# Defaults cover local access, the container health check and the default
+# compose / k8s / helm service name used by the web proxy. Extend with the
+# ALLOWED_HOSTS environment variable; a wildcard ("*") is ignored.
+DEFAULT_ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "0.0.0.0",
+    "crapi-workshop",
+]
+ALLOWED_HOSTS = DEFAULT_ALLOWED_HOSTS + [
+    host.strip()
+    for host in os.environ.get("ALLOWED_HOSTS", "").split(",")
+    if host.strip() and host.strip() != "*"
+]
 
 # Hostnames (comma separated) that the contact mechanic feature may call.
 MECHANIC_API_ALLOWED_HOSTS = [
