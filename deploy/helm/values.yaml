@@ -2,13 +2,19 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
+# Name of the Secret rendered from the credential values below. All
+# credential values default to empty and MUST be supplied at install time
+# (for example `helm install --set postgresdb.config.postgresPassword=...`
+# or a private values file); the chart refuses to render without them.
+credentialsSecretName: crapi-credentials
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
-apiGatewayPassword:
+# Basic-auth password shared by identity, workshop and the gateway service;
+# supply at install time.
+apiGatewayPassword: ""
 tlsEnabled: false
 jwtExpiration: 604800000
 openAIApiKey: ""
@@ -74,8 +80,9 @@ identity:
     smtpStartTLS: true
     keyStoreType: PKCS12
     keyStore: classpath:certs/server.p12
-    keyStorePassword: passw0rd
-    keyPassword: passw0rd
+    # Supply at install time when TLS is enabled (password of the keystore).
+    keyStorePassword: ""
+    keyPassword: ""
     keyAlias: identity
   deploymentLabels:
     app: crapi-identity
@@ -125,7 +132,8 @@ workshop:
       app: crapi-workshop
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
+    # Django SECRET_KEY; supply at install time.
+    secretKey: ""
     filesLimit: 1000
   deploymentLabels:
     app: crapi-workshop
@@ -151,11 +159,12 @@ chatbot:
       app: crapi-chatbot
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    apiPassword: Admin!123
+    # Optional; when empty the chatbot uses its built-in default for the
+    # seeded admin account. Supply at install time to override.
+    apiPassword: ""
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"
@@ -233,9 +242,9 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
+    # Supply at install time.
+    mongoPassword: ""
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:
@@ -278,7 +287,8 @@ postgresdb:
     labels:
       app: postgresdb
     postgresUser: admin
-    postgresPassword: crapisecretpassword
+    # Supply at install time.
+    postgresPassword: ""
     postgresDbName: crapi
   storage:
     # type: "manual"

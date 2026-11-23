@@ -93,7 +93,7 @@ API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 # otherwise.
 TLS_CA_BUNDLE = os.environ.get("TLS_CA_BUNDLE") or True
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
 
 # Application definition
 

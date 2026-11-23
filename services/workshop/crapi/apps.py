@@ -57,6 +57,7 @@ def create_mechanics():
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
+            # Documented demo-account seed password; not a deployment secret.
             "password": "Admin1@#",
             "mechanic_code": "TRAC_JHN",
         },
@@ -64,6 +65,7 @@ def create_mechanics():
             "name": "James",
             "email": "james@example.com",
             "number": "",
+            # Documented demo-account seed password; not a deployment secret.
             "password": "Admin1@#",
             "mechanic_code": "TRAC_JME",
         },

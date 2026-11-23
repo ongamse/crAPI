@@ -29,6 +29,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Generate ephemeral CI credentials
+        run: |
+          for name in DB_PASSWORD MONGO_DB_PASSWORD SECRET_KEY API_GATEWAY_PASSWORD; do
+            value=$(openssl rand -hex 24)
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+          # TLS keystore password belongs to the keystore operators supply; CI runs plain HTTP.
+          echo "TLS_ENABLED=false" >> "$GITHUB_ENV"
+
       - name: Env seen prerun
         run: env
 
@@ -199,6 +209,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Generate ephemeral CI credentials
+        run: |
+          for name in DB_PASSWORD MONGO_DB_PASSWORD SECRET_KEY API_GATEWAY_PASSWORD; do
+            value=$(openssl rand -hex 24)
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+          # TLS keystore password belongs to the keystore operators supply; CI runs plain HTTP.
+          echo "TLS_ENABLED=false" >> "$GITHUB_ENV"
 
       - name: Setup Python
         uses: actions/setup-python@v5

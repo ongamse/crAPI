@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -151,11 +152,17 @@ func GetPayMentInfo(w http.ResponseWriter, r *http.Request) {
 	w.Write(response_body)
 }
 
+// checkCreds validates the basic-auth pair. The password is supplied at
+// runtime through API_GATEWAY_PASSWORD; when it is unset every request is
+// rejected (fail closed).
 func checkCreds(user string, pass string) bool {
-	if user == "vendorcrapi" && pass == "Pa$$4Vendor_1" {
-		return true
+	expectedPass := os.Getenv("API_GATEWAY_PASSWORD")
+	if expectedPass == "" {
+		return false
 	}
-	return false
+	userOK := subtle.ConstantTimeCompare([]byte(user), []byte("vendorcrapi"))
+	passOK := subtle.ConstantTimeCompare([]byte(pass), []byte(expectedPass))
+	return userOK&passOK == 1
 }
 
 func maskLeft(s string) string {
