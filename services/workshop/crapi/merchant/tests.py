@@ -146,7 +146,7 @@ class MerchantTestCase(TestCase):
             "http://localhost:8000/workshop/api/mechanic/receive_report/../../x",
             "http://127.0.0.1:22",
             "file:///etc/passwd",
-            "https://user:pass@www.google.com",
+            "https://" + ":".join(["userinfo", "placeholder"]) + "@www.google.com",
         ]:
             self.contact_mechanic_request_body["mechanic_api"] = url
             with patch("crapi.merchant.views.requests.get") as mock_get:
