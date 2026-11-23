@@ -28,6 +28,7 @@ services:
       - DB_PORT=5432
       - SERVER_PORT=${IDENTITY_SERVER_PORT:-8080}
       - ENABLE_SHELL_INJECTION=${ENABLE_SHELL_INJECTION:-false}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
       - JWT_SECRET=crapi
       - MAILHOG_HOST=mailhog
       - MAILHOG_PORT=1025
@@ -126,6 +127,7 @@ services:
       - MONGO_DB_PASSWORD=crapisecretpassword
       - MONGO_DB_NAME=crapi
       - SECRET_KEY=crapi
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
       - API_GATEWAY_URL=https://api.mypremiumdealership.com
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - TLS_CERTIFICATE=certs/server.crt

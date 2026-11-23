@@ -112,7 +112,15 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Exact origins (comma separated, scheme://host[:port]) allowed to call this
+# service cross-origin. Empty (default) disables cross-origin access; requests
+# made through the gateway from the web UI are same-origin and unaffected.
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip() and origin.strip() != "*"
+]
 
 ROOT_URLCONF = "crapi_site.urls"
 

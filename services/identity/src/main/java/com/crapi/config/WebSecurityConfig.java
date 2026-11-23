@@ -15,8 +15,12 @@
 package com.crapi.config;
 
 import com.crapi.service.Impl.UserDetailsServiceImpl;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -31,6 +35,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -71,6 +78,33 @@ public class WebSecurityConfig {
   @Bean
   public PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
+  }
+
+  /**
+   * CORS allowlist. Comma separated list of exact origins (scheme://host[:port]) that may call this
+   * service cross-origin. Empty (default) means no cross-origin access; same-origin requests (the
+   * web UI served through the gateway) are unaffected. A wildcard entry is ignored.
+   */
+  @Value("${app.cors.allowed-origins:}")
+  private String corsAllowedOrigins;
+
+  @Bean
+  public CorsConfigurationSource corsConfigurationSource() {
+    List<String> origins =
+        Arrays.stream(corsAllowedOrigins.split(","))
+            .map(String::trim)
+            .filter(origin -> !origin.isEmpty() && !"*".equals(origin))
+            .collect(Collectors.toList());
+    CorsConfiguration configuration = new CorsConfiguration();
+    configuration.setAllowedOrigins(origins);
+    configuration.setAllowedMethods(
+        Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"));
+    configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
+    configuration.setAllowCredentials(false);
+    configuration.setMaxAge(3600L);
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", configuration);
+    return source;
   }
 
   @Bean
