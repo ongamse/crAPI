@@ -42,8 +42,15 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
-      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
+      if (containsLineBreak(sendMail) || containsLineBreak(subject)) {
+        log.error("sendMail rejected: CR/LF characters are not allowed in recipient or subject");
+        return;
+      }
       InternetAddress[] emails = InternetAddress.parse(sendMail);
+      for (InternetAddress address : emails) {
+        address.validate();
+      }
+      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -69,8 +76,8 @@ public class SMTPMailServer {
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
-      msg.setSubject(subject);
+      msg.setRecipients(Message.RecipientType.TO, emails);
+      msg.setSubject(subject, "UTF-8");
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
 
@@ -81,5 +88,9 @@ public class SMTPMailServer {
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  private static boolean containsLineBreak(String value) {
+    return value != null && (value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0);
   }
 }
