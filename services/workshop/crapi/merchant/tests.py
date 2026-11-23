@@ -24,7 +24,7 @@ from crapi.mechanic.models import ServiceRequest, Mechanic
 patch("utils.jwt.jwt_auth_required", mock_jwt_auth_required).start()
 
 import bcrypt
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.utils import timezone
 from utils import messages
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
@@ -134,6 +134,32 @@ class MerchantTestCase(TestCase):
         )
         self.assertNotEqual(res.status_code, 200)
 
+    def test_disallowed_mechanic_api_hosts(self):
+        """
+        mechanic_api pointing at hosts that are not allowlisted, metadata
+        addresses, or non http(s) schemes should be rejected without a request
+        :return: None
+        """
+        for url in [
+            "http://169.254.169.254/latest/meta-data/",
+            "http://localhost:8000/workshop/api/mechanic/receive_report/../../x",
+            "http://127.0.0.1:22",
+            "file:///etc/passwd",
+            "https://user:pass@www.google.com",
+        ]:
+            self.contact_mechanic_request_body["mechanic_api"] = url
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+                mock_get.assert_not_called()
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(res.json()["message"], messages.COULD_NOT_CONNECT)
+
+    @override_settings(MECHANIC_API_ALLOWED_HOSTS=["www.google.com"])
     def test_contact_mechanic(self):
         """
         gives all correct field for contact mechanic
@@ -149,6 +175,7 @@ class MerchantTestCase(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertIn("<title>Google</title>", res.json()["response_from_mechanic_api"])
 
+    @override_settings(MECHANIC_API_ALLOWED_HOSTS=["www.google.com"])
     def test_repeat_missing_request(self):
         """
         deletes repeat_request_if_failed field from contact_mechanic request body
