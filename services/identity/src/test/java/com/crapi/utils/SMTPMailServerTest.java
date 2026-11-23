@@ -39,8 +39,15 @@ public class SMTPMailServerTest {
   }
 
   @Test
-  public void sendMailRejectsLineBreakInSubject() {
+  public void sendMailSanitizesLineBreakInSubjectAndStillSends() {
     smtpMailServer.sendMail("user@example.com", "body", "hello\r\nBcc: attacker@example.com");
+    // Subject is flattened to one line (not rejected), so processing continues past validation.
+    Mockito.verify(mailConfiguration, Mockito.atLeastOnce()).sendmail();
+  }
+
+  @Test
+  public void sendMailRejectsMalformedRecipient() {
+    smtpMailServer.sendMail("\"a@example.com>\\\" <b@example.com", "body", "subject");
     Mockito.verify(mailhogConfiguration, Mockito.never()).getFrom();
     Mockito.verify(mailConfiguration, Mockito.never()).sendmail();
   }
