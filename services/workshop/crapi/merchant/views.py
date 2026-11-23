@@ -18,7 +18,7 @@ contains all the views related to Merchant
 import ipaddress
 import logging
 import socket
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse, urlunsplit
 import requests
 from requests.exceptions import MissingSchema, InvalidURL
 from rest_framework import status
@@ -74,50 +74,75 @@ def is_safe_header_value(value):
     return True
 
 
-def is_allowed_mechanic_api_url(url, request_host):
+ALLOWED_SCHEMES = {"http": "http", "https": "https"}
+# characters kept as-is when re-encoding the path / query of the outbound url
+URL_SAFE_CHARS = "/%:@!$&'()*+,;=-._~"
+
+
+def build_mechanic_api_url(url, request_host):
     """
-    validates the user supplied mechanic_api url
-    allowed: http/https urls without embedded credentials whose host is either
-        in settings.MECHANIC_API_ALLOWED_HOSTS or is this server (the
-        host the request was made to) calling its own receive_report endpoint
-    never allowed: hosts resolving to link-local / metadata / reserved addresses
+    validates the user supplied mechanic_api url and rebuilds the outbound
+    url from validated components, so the raw user string is never requested:
+        scheme: taken from a fixed allowed set (http / https)
+        host: taken from the matching settings.MECHANIC_API_ALLOWED_HOSTS entry,
+            or the host this server was addressed with (its own receive_report
+            endpoint only)
+        port: validated integer
+        path / query: parsed, '..' segments rejected, re-encoded
+    never allowed: embedded credentials, hosts resolving to link-local /
+        metadata / reserved addresses
     :param url: url supplied by the user
     :param request_host: host (with port, if any) the current request was sent to
-    :returns bool
+    :returns rebuilt url string, or None when the url is not allowed
     """
     try:
         parsed = urlparse(url)
         hostname = parsed.hostname
         port = parsed.port  # raises ValueError for an invalid port
     except ValueError:
-        return False
-    if parsed.scheme not in ("http", "https") or not hostname:
-        return False
+        return None
+    scheme = ALLOWED_SCHEMES.get(parsed.scheme)
+    if scheme is None or not hostname:
+        return None
     if parsed.username or parsed.password:
-        return False
+        return None
     hostname = hostname.lower()
+    path_segments = parsed.path.split("/")
+    if ".." in path_segments or "." in path_segments:
+        return None
+
     allowed_hosts = getattr(settings, "MECHANIC_API_ALLOWED_HOSTS", [])
-    is_configured_host = hostname in allowed_hosts
-    is_own_report_endpoint = (
-        bool(request_host)
+    matched_host = next((host for host in allowed_hosts if host == hostname), None)
+    if matched_host is not None:
+        netloc_host = f"[{matched_host}]" if ":" in matched_host else matched_host
+        netloc = netloc_host if port is None else f"{netloc_host}:{port}"
+    elif (
+        request_host
         and parsed.netloc.lower() == request_host.lower()
         and parsed.path.rstrip("/").endswith(RECEIVE_REPORT_PATH_SUFFIX)
-    )
-    if not (is_configured_host or is_own_report_endpoint):
-        return False
+    ):
+        # own receive_report endpoint: host already validated by Django
+        # against ALLOWED_HOSTS when request.get_host() was evaluated
+        netloc = request_host
+    else:
+        return None
+
     try:
         addr_infos = socket.getaddrinfo(hostname, port)
     except (socket.gaierror, UnicodeError):
         # unresolvable: let the request fail with a connection error
-        return True
+        addr_infos = []
     for addr_info in addr_infos:
         try:
             address = ipaddress.ip_address(addr_info[4][0].split("%")[0])
         except ValueError:
-            return False
+            return None
         if _is_blocked_address(address):
-            return False
-    return True
+            return None
+
+    safe_path = quote(parsed.path, safe=URL_SAFE_CHARS)
+    safe_query = quote(parsed.query, safe=URL_SAFE_CHARS + "?")
+    return urlunsplit((scheme, netloc, safe_path, safe_query, ""))
 
 
 class ContactMechanicView(APIView):
@@ -162,8 +187,10 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        request_url = request_data["mechanic_api"]
-        if not is_allowed_mechanic_api_url(request_url, request.get_host()):
+        outbound_url = build_mechanic_api_url(
+            request_data["mechanic_api"], request.get_host()
+        )
+        if outbound_url is None:
             log_error(
                 request.path,
                 request.data,
@@ -190,10 +217,10 @@ class ContactMechanicView(APIView):
 
         repeat_count = 0
         while True:
-            logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
+            logger.info(f"Repeat count: {repeat_count}, mechanic_api: {outbound_url}")
             try:
                 mechanic_response = requests.get(
-                    request_url,
+                    outbound_url,
                     params=request_data,
                     headers={"Authorization": authorization_header},
                     verify=settings.TLS_CA_BUNDLE,

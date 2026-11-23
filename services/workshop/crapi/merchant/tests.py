@@ -28,7 +28,7 @@ from django.test import TestCase, Client, override_settings
 from django.utils import timezone
 from utils import messages
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
-from crapi.merchant.views import is_safe_header_value
+from crapi.merchant.views import is_safe_header_value, build_mechanic_api_url
 
 
 class MerchantTestCase(TestCase):
@@ -159,6 +159,44 @@ class MerchantTestCase(TestCase):
                 mock_get.assert_not_called()
             self.assertEqual(res.status_code, 400)
             self.assertEqual(res.json()["message"], messages.COULD_NOT_CONNECT)
+
+    @override_settings(MECHANIC_API_ALLOWED_HOSTS=["mechanic.example.com"])
+    def test_build_mechanic_api_url(self):
+        """
+        the outbound url is rebuilt from validated components
+        :return: None
+        """
+        with patch(
+            "crapi.merchant.views.socket.getaddrinfo",
+            return_value=[(2, 1, 6, "", ("93.184.216.34", 0))],
+        ):
+            self.assertEqual(
+                build_mechanic_api_url(
+                    "HTTPS://Mechanic.Example.com:8443/api/x?a=b c", "testserver"
+                ),
+                "https://mechanic.example.com:8443/api/x?a=b%20c",
+            )
+            self.assertEqual(
+                build_mechanic_api_url(
+                    "http://testserver/workshop/api/mechanic/receive_report/",
+                    "testserver",
+                ),
+                "http://testserver/workshop/api/mechanic/receive_report/",
+            )
+            for url in [
+                "http://mechanic.example.com/a/../b",
+                "http://other.example.com/",
+                "ftp://mechanic.example.com/",
+                "http://mechanic.example.com:badport/",
+            ]:
+                self.assertIsNone(build_mechanic_api_url(url, "testserver"))
+        with patch(
+            "crapi.merchant.views.socket.getaddrinfo",
+            return_value=[(2, 1, 6, "", ("169.254.169.254", 0))],
+        ):
+            self.assertIsNone(
+                build_mechanic_api_url("http://mechanic.example.com/", "testserver")
+            )
 
     def test_is_safe_header_value(self):
         """
