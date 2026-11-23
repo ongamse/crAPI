@@ -1,5 +1,7 @@
 import os
 
+from sqlalchemy.engine import URL
+
 MONGO_USER = os.environ.get("MONGO_DB_USER", "admin")
 # Required: no hard-coded default. The previous default credential remains in
 # git history and must be rotated.
@@ -27,15 +29,21 @@ MONGO_CLIENT_KWARGS = {
 POSTGRES_HOST = os.environ.get("DB_HOST", "postgresdb")
 POSTGRES_PORT = os.environ.get("DB_PORT", "5432")
 POSTGRES_USER = os.environ.get("DB_USER", "admin")
-POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD", "crapisecretpassword")
+# Required: no hard-coded default. The previous default credential remains in
+# git history and must be rotated.
+POSTGRES_PASSWORD = os.environ["DB_PASSWORD"]
 POSTGRES_DB = os.environ.get("DB_NAME", "crapi")
 
-POSTGRES_URI = "postgresql://%s:%s@%s:%s/%s?sslmode=disable" % (
-    POSTGRES_USER,
-    POSTGRES_PASSWORD,
-    POSTGRES_HOST,
-    POSTGRES_PORT,
-    POSTGRES_DB,
+# Built from separate parameters (SQLAlchemy URL object) so the password is
+# never interpolated into a URI string literal and is escaped correctly.
+POSTGRES_URI = URL.create(
+    "postgresql",
+    username=POSTGRES_USER,
+    password=POSTGRES_PASSWORD,
+    host=POSTGRES_HOST,
+    port=int(POSTGRES_PORT),
+    database=POSTGRES_DB,
+    query={"sslmode": "disable"},
 )
 
 CHROMA_HOST = os.environ.get("CHROMA_HOST", "chromadb")
