@@ -28,6 +28,7 @@ from django.test import TestCase, Client, override_settings
 from django.utils import timezone
 from utils import messages
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
+from crapi.merchant.views import is_safe_header_value
 
 
 class MerchantTestCase(TestCase):
@@ -158,6 +159,36 @@ class MerchantTestCase(TestCase):
                 mock_get.assert_not_called()
             self.assertEqual(res.status_code, 400)
             self.assertEqual(res.json()["message"], messages.COULD_NOT_CONNECT)
+
+    def test_is_safe_header_value(self):
+        """
+        header values containing CR/LF or other control characters are rejected
+        :return: None
+        """
+        self.assertTrue(is_safe_header_value(None))
+        self.assertTrue(is_safe_header_value("Bearer abc.def.ghi"))
+        for value in ["Bearer a\r\nX-Injected: 1", "Bearer a\nb", "a\rb", "a\x00b", 5]:
+            self.assertFalse(is_safe_header_value(value))
+
+    @override_settings(MECHANIC_API_ALLOWED_HOSTS=["www.google.com"])
+    def test_contact_mechanic_rejects_header_injection(self):
+        """
+        an Authorization header carrying CR/LF must not be forwarded
+        :return: None
+        """
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            with patch(
+                "crapi.merchant.views.is_safe_header_value", return_value=False
+            ):
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+            mock_get.assert_not_called()
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["message"], messages.COULD_NOT_CONNECT)
 
     @override_settings(MECHANIC_API_ALLOWED_HOSTS=["www.google.com"])
     def test_contact_mechanic(self):
