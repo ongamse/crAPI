@@ -150,6 +150,43 @@ def build_mechanic_api_url(url, request_host):
     return urlunsplit((scheme, netloc, safe_path, safe_query, ""))
 
 
+# the only fields of the contact mechanic request that are sent on to the
+# mechanic api (they match what ReceiveReportSerializer reads)
+MECHANIC_API_FORWARDED_PARAMS = ("mechanic_code", "problem_details", "vin", "owner_id")
+
+
+def build_mechanic_api_query(validated_data):
+    """
+    builds the outbound query parameters from an explicit allowlist of
+    serializer validated fields; control fields (mechanic_api,
+    repeat_request_if_failed, number_of_repeats) and unknown keys are never sent
+    :param validated_data: validated data of ContactMechanicSerializer
+    :returns new dict of allowlisted query parameters
+    """
+    return {
+        key: str(validated_data[key])
+        for key in MECHANIC_API_FORWARDED_PARAMS
+        if key in validated_data
+    }
+
+
+def call_mechanic_api(outbound_url, query, authorization_header):
+    """
+    single place that performs the outbound mechanic api call
+    :param outbound_url: url rebuilt by build_mechanic_api_url
+    :param query: query parameters built by build_mechanic_api_query
+    :param authorization_header: header value built by build_authorization_header
+    :returns requests response; redirects are never followed and TLS is verified
+    """
+    return requests.get(
+        outbound_url,
+        params=query,
+        headers={"Authorization": authorization_header},
+        verify=settings.TLS_CA_BUNDLE,
+        allow_redirects=False,
+    )
+
+
 class ContactMechanicView(APIView):
     """
     View for contact mechanic feature
@@ -222,16 +259,13 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        outbound_query = build_mechanic_api_query(serializer.validated_data)
         repeat_count = 0
         while True:
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {outbound_url}")
             try:
-                mechanic_response = requests.get(
-                    outbound_url,
-                    params=request_data,
-                    headers={"Authorization": authorization_header},
-                    verify=settings.TLS_CA_BUNDLE,
-                    allow_redirects=False,
+                mechanic_response = call_mechanic_api(
+                    outbound_url, outbound_query, authorization_header
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")

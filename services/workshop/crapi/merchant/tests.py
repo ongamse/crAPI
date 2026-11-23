@@ -30,6 +30,7 @@ from utils import messages
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
 from crapi.merchant.views import (
     build_authorization_header,
+    build_mechanic_api_query,
     build_mechanic_api_url,
 )
 
@@ -225,6 +226,62 @@ class MerchantTestCase(TestCase):
             "Bearer a.b.c\x00",
         ]:
             self.assertIsNone(build_authorization_header(value))
+
+    def test_build_mechanic_api_query(self):
+        """
+        only the allowlisted report fields are forwarded as query params
+        :return: None
+        """
+        self.assertEqual(
+            build_mechanic_api_query(
+                {
+                    "mechanic_api": "https://www.google.com",
+                    "repeat_request_if_failed": True,
+                    "number_of_repeats": 5,
+                    "mechanic_code": "TRAC_JHN",
+                    "vin": "9NFXO86WBWA082766",
+                    "problem_details": "My Car is not working",
+                    "attacker": "x",
+                }
+            ),
+            {
+                "mechanic_code": "TRAC_JHN",
+                "vin": "9NFXO86WBWA082766",
+                "problem_details": "My Car is not working",
+            },
+        )
+        self.assertEqual(build_mechanic_api_query({"mechanic_api": "x"}), {})
+
+    @override_settings(MECHANIC_API_ALLOWED_HOSTS=["www.google.com"])
+    def test_contact_mechanic_forwards_only_allowlisted_params(self):
+        """
+        control fields and unknown keys of the request body are not sent
+        to the mechanic api
+        :return: None
+        """
+        self.contact_mechanic_request_body["attacker"] = "x"
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {}
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+            mock_get.assert_called_once()
+            self.assertEqual(
+                mock_get.call_args.kwargs["params"],
+                {
+                    "mechanic_code": self.contact_mechanic_request_body[
+                        "mechanic_code"
+                    ],
+                    "vin": self.vehicle.vin,
+                    "problem_details": "My Car is not working",
+                },
+            )
+            self.assertFalse(mock_get.call_args.kwargs["allow_redirects"])
+        self.assertEqual(res.status_code, 200)
 
     @override_settings(MECHANIC_API_ALLOWED_HOSTS=["www.google.com"])
     def test_contact_mechanic_rejects_header_injection(self):
