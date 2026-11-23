@@ -19,13 +19,18 @@ import com.crapi.repository.UserRepository;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
-import com.nimbusds.jwt.SignedJWT;
+import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
+import com.nimbusds.jose.proc.BadJOSEException;
+import com.nimbusds.jose.proc.JWSVerificationKeySelector;
+import com.nimbusds.jose.proc.SecurityContext;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
+import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -53,6 +58,8 @@ public class JwtProvider {
   private RSAKey publicRSAKey;
 
   private Map<String, Object> publicJwkSet;
+
+  private ConfigurableJWTProcessor<SecurityContext> jwtProcessor;
 
   public JwtProvider(@Value("${app.jwksJson:}") String jwksJson) {
     try {
@@ -83,6 +90,14 @@ public class JwtProvider {
       RSAKey rsaKey = keys.get(0).toRSAKey();
       this.publicRSAKey = rsaKey.toPublicJWK();
       this.keyPair = rsaKey.toKeyPair();
+      DefaultJWTProcessor<SecurityContext> processor = new DefaultJWTProcessor<>();
+      processor.setJWSKeySelector(
+          new JWSVerificationKeySelector<>(
+              JWSAlgorithm.RS256, new ImmutableJWKSet<>(new JWKSet(this.publicRSAKey))));
+      // Signature verification only (existing behaviour): claim validation such as exp is not
+      // enforced here, as before; API keys intentionally carry no expiry.
+      processor.setJWTClaimsSetVerifier((claims, context) -> {});
+      this.jwtProcessor = processor;
       this.publicJwkSet = jwkSet.toJSONObject();
     } catch (IOException | ParseException | JOSEException e) {
       throw new RuntimeException(e);
@@ -133,29 +148,23 @@ public class JwtProvider {
    * @return username from JWT Token
    */
   public String getUserNameFromJwtToken(String token) throws ParseException {
-    SignedJWT signedJWT = SignedJWT.parse(token);
-    if (!verifySignature(signedJWT)) {
-      throw new ParseException("JWT signature verification failed", 0);
-    }
-    return signedJWT.getJWTClaimsSet().getSubject();
+    return parseVerifiedClaims(token).getSubject();
   }
 
   /**
-   * Verify the token signature using only the server's own RSA public key. The algorithm is pinned
-   * to RS256; attacker-controlled header values (alg, jku, kid) never select the verification key.
+   * Single entry point for token handling: parsing and signature verification happen in one
+   * processor call and only the verified claims set is returned. The key selector only offers the
+   * server's own RS256 public key, so attacker-controlled header values (alg, jku, kid) never
+   * select the verification key; unsecured (alg=none) and non-RS256 tokens are rejected.
    */
-  private boolean verifySignature(SignedJWT signedJWT) {
+  private JWTClaimsSet parseVerifiedClaims(String token) throws ParseException {
     try {
-      if (!JWSAlgorithm.RS256.equals(signedJWT.getHeader().getAlgorithm())) {
-        log.debug("Unsupported JWT algorithm");
-        return false;
-      }
-      boolean valid = signedJWT.verify(new RSASSAVerifier(this.publicRSAKey));
-      log.debug("JWT valid?: " + valid);
-      return valid;
-    } catch (JOSEException e) {
-      log.error("JWT signature verification failed -> Message: %d", e);
-      return false;
+      return this.jwtProcessor.process(token, null);
+    } catch (BadJOSEException | JOSEException e) {
+      log.debug("JWT verification failed: {}", e.getMessage());
+      ParseException parseException = new ParseException("JWT signature verification failed", 0);
+      parseException.initCause(e);
+      throw parseException;
     }
   }
 
@@ -165,9 +174,10 @@ public class JwtProvider {
    */
   public boolean validateJwtToken(String authToken) {
     try {
-      return verifySignature(SignedJWT.parse(authToken));
+      parseVerifiedClaims(authToken);
+      return true;
     } catch (ParseException e) {
-      log.error("Could not parse JWT Token -> Message: %d", e);
+      log.error("Could not verify JWT Token -> Message: {}", e.getMessage());
     }
 
     return false;
