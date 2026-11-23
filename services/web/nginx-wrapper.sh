@@ -13,6 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# The private key is not committed; mount it at /app/certs/server.key to use TLS.
+if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
+    if [ ! -f /app/certs/server.key ] || [ ! -f /app/certs/server.crt ]; then
+        echo "TLS key/certificate not found in /app/certs, falling back to plain HTTP"
+        TLS_ENABLED=false
+    fi
+fi
 # if TLS_ENABLED is true or 1 then use https, otherwise use http
 if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
     export HTTP_PROTOCOL=https

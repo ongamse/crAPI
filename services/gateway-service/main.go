@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -173,7 +174,14 @@ func main() {
 	http.HandleFunc("/v1/payment", GetPayMentInfo)
 	listen_addr := fmt.Sprintf(":%d", *port)
 	log.Printf("Listening on %s", listen_addr)
-	err := http.ListenAndServeTLS(listen_addr, "server.crt", "server.key", nil)
+	// The private key is not committed; it is generated at image build time or mounted at runtime.
+	var err error
+	if _, statErr := os.Stat("server.key"); statErr != nil {
+		log.Printf("TLS key not found, falling back to plain HTTP: %v", statErr)
+		err = http.ListenAndServe(listen_addr, nil)
+	} else {
+		err = http.ListenAndServeTLS(listen_addr, "server.crt", "server.key", nil)
+	}
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
