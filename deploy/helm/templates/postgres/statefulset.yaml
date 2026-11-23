@@ -30,7 +30,7 @@ spec:
             - configMapRef:
                 name: {{ .Values.postgresdb.config.name }}
             - secretRef:
-                name: {{ .Values.credentialsSecretName }}
+                name: {{ .Values.sharedEnvSourceName }}
 
           volumeMounts:
             - mountPath: /var/lib/postgresql/data

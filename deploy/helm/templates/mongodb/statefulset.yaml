@@ -29,7 +29,7 @@ spec:
             - configMapRef:
                 name: {{ .Values.mongodb.config.name }}
             - secretRef:
-                name: {{ .Values.credentialsSecretName }}
+                name: {{ .Values.sharedEnvSourceName }}
           volumeMounts:
             - mountPath: /data/db
               name: mongodb-data

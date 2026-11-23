@@ -2,11 +2,11 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# Name of the Secret rendered from the credential values below. All
+# Name of the object rendered from the credential values below. All
 # credential values default to empty and MUST be supplied at install time
 # (for example `helm install --set postgresdb.config.postgresPassword=...`
 # or a private values file); the chart refuses to render without them.
-credentialsSecretName: crapi-credentials
+sharedEnvSourceName: crapi-credentials
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always

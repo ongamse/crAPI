@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import logging
+import secrets
 import jwt
 from functools import wraps
 from rest_framework import status
@@ -30,6 +31,11 @@ which can be used during testing
 
 logger = logging.getLogger()
 
+# Test passwords are generated once per process rather than stored in source.
+_MECHANIC_TEST_PASSWORD = secrets.token_urlsafe(12)
+_USER_TEST_PASSWORD = secrets.token_urlsafe(12)
+_ADMIN_TEST_PASSWORD = secrets.token_urlsafe(12)
+
 
 def get_sample_mechanic_data():
     """
@@ -41,8 +47,7 @@ def get_sample_mechanic_data():
         "email": "mechraju@crapi.com",
         "mechanic_code": "TRAC_MEC_3",
         "number": "9123456708",
-        # Unit-test fixture only; not a real credential.
-        "password": "admin",
+        "password": _MECHANIC_TEST_PASSWORD,
     }
 
 
@@ -55,8 +60,7 @@ def get_sample_user_data():
         "name": "TestUser",
         "email": "test@crapi.com",
         "number": "9123456708",
-        # Unit-test fixture only; not a real credential.
-        "password": "password",
+        "password": _USER_TEST_PASSWORD,
     }
 
 
@@ -91,8 +95,7 @@ def get_sample_admin_user():
         "name": "Admin 1",
         "email": "admin1@crapi.com",
         "number": "9123456700",
-        # Unit-test fixture only; not a real credential.
-        "password": "password1",
+        "password": _ADMIN_TEST_PASSWORD,
         "role": User.ROLE_CHOICES.ADMIN,
     }
 

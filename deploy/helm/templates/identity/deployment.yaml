@@ -51,7 +51,7 @@ spec:
               - configMapRef:
                   name: {{ .Values.identity.config.name }}
               - secretRef:
-                  name: {{ .Values.credentialsSecretName }}
+                  name: {{ .Values.sharedEnvSourceName }}
           {{- if .Values.identity.resources }}
           resources:
             {{- toYaml .Values.identity.resources | nindent 12 }}

@@ -52,7 +52,7 @@ spec:
             - configMapRef:
                 name: {{ .Values.community.config.name }}
             - secretRef:
-                name: {{ .Values.credentialsSecretName }}
+                name: {{ .Values.sharedEnvSourceName }}
           {{- if .Values.community.resources }}
           resources:
             {{- toYaml .Values.community.resources | nindent 12 }}
