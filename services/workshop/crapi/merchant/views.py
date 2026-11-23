@@ -17,6 +17,7 @@ contains all the views related to Merchant
 """
 import ipaddress
 import logging
+import re
 import socket
 from urllib.parse import quote, urlparse, urlunsplit
 import requests
@@ -55,23 +56,27 @@ def _is_blocked_address(address):
     )
 
 
-def is_safe_header_value(value):
+# "Bearer <header>.<payload>.<signature>" using the base64url charset of a JWT
+BEARER_JWT_PATTERN = re.compile(
+    r"Bearer ([A-Za-z0-9\-_=]+\.[A-Za-z0-9\-_=]+\.[A-Za-z0-9\-_=]*)", re.ASCII
+)
+
+
+def build_authorization_header(value):
     """
-    True when value can be forwarded in an HTTP header: it must be a string
-    (or absent) and must not contain CR, LF or any other control character
-    that could split the header / inject additional headers
-    :param value: candidate header value
-    :returns bool
+    parses the incoming Authorization header with a strict allowlist pattern
+    and rebuilds the outbound header value from the captured token only, so
+    the raw request header (and any CR/LF / control characters in it) is
+    never forwarded
+    :param value: raw Authorization header of the incoming request
+    :returns rebuilt "Bearer <token>" string, or None when not a valid bearer jwt
     """
-    if value is None:
-        return True
     if not isinstance(value, str):
-        return False
-    for char in value:
-        code_point = ord(char)
-        if (code_point < 32 and char != "\t") or code_point == 127:
-            return False
-    return True
+        return None
+    match = BEARER_JWT_PATTERN.fullmatch(value)
+    if match is None:
+        return None
+    return "Bearer " + match.group(1)
 
 
 ALLOWED_SCHEMES = {"http": "http", "https": "https"}
@@ -202,8 +207,10 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        authorization_header = request.META.get("HTTP_AUTHORIZATION")
-        if not is_safe_header_value(authorization_header):
+        authorization_header = build_authorization_header(
+            request.META.get("HTTP_AUTHORIZATION")
+        )
+        if authorization_header is None:
             log_error(
                 request.path,
                 request.data,

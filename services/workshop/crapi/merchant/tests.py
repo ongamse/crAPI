@@ -28,7 +28,10 @@ from django.test import TestCase, Client, override_settings
 from django.utils import timezone
 from utils import messages
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
-from crapi.merchant.views import is_safe_header_value, build_mechanic_api_url
+from crapi.merchant.views import (
+    build_authorization_header,
+    build_mechanic_api_url,
+)
 
 
 class MerchantTestCase(TestCase):
@@ -198,15 +201,30 @@ class MerchantTestCase(TestCase):
                 build_mechanic_api_url("http://mechanic.example.com/", "testserver")
             )
 
-    def test_is_safe_header_value(self):
+    def test_build_authorization_header(self):
         """
-        header values containing CR/LF or other control characters are rejected
+        only a well formed bearer jwt is rebuilt; anything else is rejected
         :return: None
         """
-        self.assertTrue(is_safe_header_value(None))
-        self.assertTrue(is_safe_header_value("Bearer abc.def.ghi"))
-        for value in ["Bearer a\r\nX-Injected: 1", "Bearer a\nb", "a\rb", "a\x00b", 5]:
-            self.assertFalse(is_safe_header_value(value))
+        self.assertEqual(
+            build_authorization_header("Bearer abc.def.ghi"), "Bearer abc.def.ghi"
+        )
+        self.assertEqual(
+            build_authorization_header("Bearer abc-_=.def.ghi"),
+            "Bearer abc-_=.def.ghi",
+        )
+        for value in [
+            None,
+            5,
+            "",
+            "abc.def.ghi",
+            "Bearer abc",
+            "Bearer a b.c.d",
+            "Bearer a.b.c\r\nX-Injected: 1",
+            "Bearer a.b.c\n",
+            "Bearer a.b.c\x00",
+        ]:
+            self.assertIsNone(build_authorization_header(value))
 
     @override_settings(MECHANIC_API_ALLOWED_HOSTS=["www.google.com"])
     def test_contact_mechanic_rejects_header_injection(self):
@@ -216,7 +234,7 @@ class MerchantTestCase(TestCase):
         """
         with patch("crapi.merchant.views.requests.get") as mock_get:
             with patch(
-                "crapi.merchant.views.is_safe_header_value", return_value=False
+                "crapi.merchant.views.build_authorization_header", return_value=None
             ):
                 res = self.client.post(
                     "/workshop/api/merchant/contact_mechanic",
