@@ -14,6 +14,7 @@
 contains all the test cases related to merchant
 """
 from unittest.mock import patch
+import requests
 from utils.mock_methods import (
     get_sample_mechanic_data,
     mock_jwt_auth_required,
@@ -32,6 +33,8 @@ from crapi.merchant.views import (
     build_authorization_header,
     build_mechanic_api_query,
     build_mechanic_api_url,
+    call_mechanic_api,
+    MechanicApiTarget,
 )
 
 
@@ -153,7 +156,7 @@ class MerchantTestCase(TestCase):
             "https://" + ":".join(["userinfo", "placeholder"]) + "@www.google.com",
         ]:
             self.contact_mechanic_request_body["mechanic_api"] = url
-            with patch("crapi.merchant.views.requests.get") as mock_get:
+            with patch("crapi.merchant.views.requests.Session.get") as mock_get:
                 res = self.client.post(
                     "/workshop/api/merchant/contact_mechanic",
                     self.contact_mechanic_request_body,
@@ -174,17 +177,18 @@ class MerchantTestCase(TestCase):
             "crapi.merchant.views.socket.getaddrinfo",
             return_value=[(2, 1, 6, "", ("93.184.216.34", 0))],
         ):
-            self.assertEqual(
-                build_mechanic_api_url(
-                    "HTTPS://Mechanic.Example.com:8443/api/x?a=b c", "testserver"
-                ),
-                "https://mechanic.example.com:8443/api/x?a=b%20c",
+            target = build_mechanic_api_url(
+                "HTTPS://Mechanic.Example.com:8443/api/x?a=b c", "testserver"
             )
+            self.assertEqual(
+                target.url, "https://mechanic.example.com:8443/api/x?a=b%20c"
+            )
+            self.assertEqual(target.addresses, ("93.184.216.34",))
             self.assertEqual(
                 build_mechanic_api_url(
                     "http://testserver/workshop/api/mechanic/receive_report/",
                     "testserver",
-                ),
+                ).url,
                 "http://testserver/workshop/api/mechanic/receive_report/",
             )
             for url in [
@@ -201,6 +205,44 @@ class MerchantTestCase(TestCase):
             self.assertIsNone(
                 build_mechanic_api_url("http://mechanic.example.com/", "testserver")
             )
+
+    def test_call_mechanic_api_pins_validated_address(self):
+        """
+        the request connects to the validated ip, not the host name, while
+        the Host header and TLS host name stay the original host
+        :return: None
+        """
+        target = MechanicApiTarget(
+            "https://mechanic.example.com:8443/api/x?a=b", ("93.184.216.34",)
+        )
+        with patch("crapi.merchant.views.requests.Session.get") as mock_get:
+            call_mechanic_api(target, {"vin": "v"}, "Bearer a.b.c")
+        mock_get.assert_called_once()
+        self.assertEqual(
+            mock_get.call_args.args[0], "https://93.184.216.34:8443/api/x?a=b"
+        )
+        self.assertEqual(
+            mock_get.call_args.kwargs["headers"],
+            {"Authorization": "Bearer a.b.c", "Host": "mechanic.example.com:8443"},
+        )
+        self.assertFalse(mock_get.call_args.kwargs["allow_redirects"])
+        self.assertEqual(mock_get.call_args.kwargs["params"], {"vin": "v"})
+
+    def test_call_mechanic_api_ipv6_and_fail_closed(self):
+        """
+        ipv6 addresses are bracketed; with no validated address nothing is
+        requested and a connection error is raised
+        :return: None
+        """
+        target = MechanicApiTarget("http://mechanic.example.com/a", ("2001:db8::1",))
+        with patch("crapi.merchant.views.requests.Session.get") as mock_get:
+            call_mechanic_api(target, {}, "Bearer a.b.c")
+        self.assertEqual(mock_get.call_args.args[0], "http://[2001:db8::1]/a")
+        empty = MechanicApiTarget("http://mechanic.example.com/a", ())
+        with patch("crapi.merchant.views.requests.Session.get") as mock_get:
+            with self.assertRaises(requests.exceptions.ConnectionError):
+                call_mechanic_api(empty, {}, "Bearer a.b.c")
+            mock_get.assert_not_called()
 
     def test_build_authorization_header(self):
         """
@@ -260,7 +302,7 @@ class MerchantTestCase(TestCase):
         :return: None
         """
         self.contact_mechanic_request_body["attacker"] = "x"
-        with patch("crapi.merchant.views.requests.get") as mock_get:
+        with patch("crapi.merchant.views.requests.Session.get") as mock_get:
             mock_get.return_value.status_code = 200
             mock_get.return_value.json.return_value = {}
             res = self.client.post(
@@ -289,7 +331,7 @@ class MerchantTestCase(TestCase):
         an Authorization header carrying CR/LF must not be forwarded
         :return: None
         """
-        with patch("crapi.merchant.views.requests.get") as mock_get:
+        with patch("crapi.merchant.views.requests.Session.get") as mock_get:
             with patch(
                 "crapi.merchant.views.build_authorization_header", return_value=None
             ):
