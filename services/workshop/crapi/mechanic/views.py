@@ -18,11 +18,11 @@ contains all the views related to Mechanic
 import os
 import bcrypt
 import re
+import stat
 from urllib.parse import unquote
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.response import Response
@@ -51,7 +51,6 @@ class SignUpView(APIView):
     Used to add a new mechanic
     """
 
-    @csrf_exempt
     def post(self, request):
         """
         creates a new Mechanic in the db
@@ -240,7 +239,7 @@ class GetReportView(APIView):
             )
         serializer = MechanicServiceRequestSerializer(service_request)
         response_data = dict(serializer.data)
-        service_report_pdf(response_data, report_id)
+        service_report_pdf(response_data, service_request.id)
         return Response(response_data, status=status.HTTP_200_OK)
 
 
@@ -393,19 +392,60 @@ class DownloadReportView(APIView):
             )
 
         filename_from_user = unquote(filename_from_user)
-        full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
-        if os.path.exists(full_path) and os.path.isfile(full_path):
-            return FileResponse(open(full_path, 'rb'))
-        elif not os.path.exists(full_path):
+        reports_dir = os.path.join(settings.BASE_DIR, "reports")
+        entry_name = find_report_entry(reports_dir, filename_from_user)
+        if entry_name is None:
             return Response(
-                {"message": f"File not found at '{full_path}'."},
+                {"message": "File not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
-        else:
+        # entry_name comes from the directory listing, not from the request.
+        report_path = os.path.join(reports_dir, entry_name)
+        # Open once (refusing symlinks) and validate the open descriptor, so
+        # there is no gap between the check and the use of the file.
+        try:
+            fd = os.open(
+                report_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+            )
+        except FileNotFoundError:
             return Response(
-                {"message": f"'{full_path}' is not a file."},
+                {"message": "File not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except OSError:
+            return Response(
+                {"message": "Requested entry is not a file."},
                 status=status.HTTP_403_FORBIDDEN
             )
+        try:
+            is_regular = stat.S_ISREG(os.fstat(fd).st_mode)
+        except OSError:
+            is_regular = False
+        if not is_regular:
+            os.close(fd)
+            return Response(
+                {"message": "Requested entry is not a file."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return FileResponse(os.fdopen(fd, 'rb'))
+
+
+def find_report_entry(reports_dir: str, requested_name: str):
+    """
+    Returns the name of the entry in reports_dir that equals requested_name,
+    or None when there is no such entry. The returned value is taken from
+    the filesystem listing, so the requested value is never used to build
+    a path.
+    """
+    try:
+        entries = os.listdir(reports_dir)
+    except OSError:
+        return None
+    for entry in entries:
+        if entry == requested_name:
+            return entry
+    return None
+
 
 def validate_filename(input: str) -> bool:
     """
@@ -421,7 +461,8 @@ def service_report_pdf(response_data, report_id):
     """
     reports_dir = os.path.join(settings.BASE_DIR, 'reports')
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = os.path.join(reports_dir, f"report_{report_id}")
+    # report_id is the integer primary key of a ServiceRequest row.
+    report_filepath = os.path.join(reports_dir, "report_%d" % int(report_id))
 
     template = get_template('service_report.html')
     html_string = template.render({'service': response_data})

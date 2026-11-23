@@ -61,11 +61,39 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Host names (comma separated, without port) this service may be served as.
+# Defaults cover local access, the container health check and the default
+# compose / k8s / helm service name used by the web proxy. Extend with the
+# ALLOWED_HOSTS environment variable; a wildcard ("*") is ignored.
+DEFAULT_ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "0.0.0.0",
+    "crapi-workshop",
+]
+ALLOWED_HOSTS = DEFAULT_ALLOWED_HOSTS + [
+    host.strip()
+    for host in os.environ.get("ALLOWED_HOSTS", "").split(",")
+    if host.strip() and host.strip() != "*"
+]
+
+# Hostnames (comma separated) that the contact mechanic feature may call.
+MECHANIC_API_ALLOWED_HOSTS = [
+    host.strip().lower()
+    for host in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
+
+# TLS certificate verification for outbound HTTPS calls (always on). To trust
+# internal / self-signed certificates set TLS_CA_BUNDLE to the path of a CA
+# bundle (PEM) that contains the issuing CA; the system trust store is used
+# otherwise.
+TLS_CA_BUNDLE = os.environ.get("TLS_CA_BUNDLE") or True
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
 
 # Application definition
 
@@ -99,7 +127,15 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Exact origins (comma separated, scheme://host[:port]) allowed to call this
+# service cross-origin. Empty (default) disables cross-origin access; requests
+# made through the gateway from the web UI are same-origin and unaffected.
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip() and origin.strip() != "*"
+]
 
 ROOT_URLCONF = "crapi_site.urls"
 

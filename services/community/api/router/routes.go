@@ -81,6 +81,12 @@ func (server *Server) Run(addr string) {
 		if !is_key || key == "" {
 			key = "certs/server.key"
 		}
+		// The private key is not committed; mount it (TLS_KEY) at runtime.
+		if _, err := os.Stat(key); err != nil {
+			log.Println("TLS key not found at " + key + ", falling back to plain HTTP: " + err.Error())
+			log.Println(srv.ListenAndServe())
+			return
+		}
 		log.Println(srv.ListenAndServeTLS(certificate, key))
 	} else {
 		log.Println(srv.ListenAndServe())

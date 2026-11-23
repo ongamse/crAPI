@@ -18,6 +18,15 @@ DIR="$( cd "$( dirname "$0" )" >/dev/null 2>&1 && pwd )"
 
 echo "Starting Flask server"
 python -m mcpserver.server &
+# The private key is not committed; mount it and set TLS_KEY (see services/gencert.sh).
+if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
+  if [ "$TLS_CERTIFICATE" = "" ]; then TLS_CERTIFICATE=$DIR/certs/server.crt; fi
+  if [ "$TLS_KEY" = "" ]; then TLS_KEY=$DIR/certs/server.key; fi
+  if [ ! -f "$TLS_KEY" ] || [ ! -f "$TLS_CERTIFICATE" ]; then
+    echo "TLS key/certificate not found, falling back to plain HTTP"
+    TLS_ENABLED=false
+  fi
+fi
 if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
   echo "TLS is ENABLED"
   # if $TLS_CERTIFICATE and $TLS_KEY are not set, use the default ones

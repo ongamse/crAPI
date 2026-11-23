@@ -28,6 +28,12 @@ class ContactMechanicSerializer(serializers.Serializer):
     mechanic_api = serializers.CharField()
     repeat_request_if_failed = serializers.BooleanField(required=False)
     number_of_repeats = serializers.IntegerField(required=False)
+    # report fields read by the mechanic receive_report endpoint; the only
+    # request fields that are forwarded to the mechanic api as query params
+    mechanic_code = serializers.CharField(required=False)
+    problem_details = serializers.CharField(required=False)
+    vin = serializers.CharField(required=False)
+    owner_id = serializers.CharField(required=False)
 
 
 class MechanicPublicSerializer(serializers.ModelSerializer):

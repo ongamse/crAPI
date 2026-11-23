@@ -16,6 +16,7 @@
 Configuration for crapi application
 """
 import django
+import os
 import sys
 import time
 from django.apps import AppConfig
@@ -32,6 +33,14 @@ from crapi_site import settings
 import requests
 
 logger = logging.getLogger()
+
+# Documented demo-account seed value (see postman collection). Deployments can
+# override it with MECHANIC_SEED_PASSWORD.
+_DEMO_MECHANIC_SEED = "Admin1@#"
+
+
+def get_mechanic_seed_password():
+    return os.environ.get("MECHANIC_SEED_PASSWORD") or _DEMO_MECHANIC_SEED
 
 
 def create_products():
@@ -63,14 +72,14 @@ def create_mechanics():
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": get_mechanic_seed_password(),
             "mechanic_code": "TRAC_JHN",
         },
         {
             "name": "James",
             "email": "james@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": get_mechanic_seed_password(),
             "mechanic_code": "TRAC_JME",
         },
     ]
@@ -217,7 +226,7 @@ def ping_identity_server():
         headers = {
             "Accept": "*/*",
         }
-        request = requests.get(identity_health_url, headers, verify=False)
+        request = requests.get(identity_health_url, headers, verify=settings.TLS_CA_BUNDLE)
         if request.status_code == 200:
             return True
         else:

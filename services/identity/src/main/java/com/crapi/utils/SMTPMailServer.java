@@ -21,6 +21,7 @@ import jakarta.mail.Session;
 import jakarta.mail.Transport;
 import jakarta.mail.internet.*;
 import java.util.Date;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,9 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class SMTPMailServer {
+  private static final Pattern SAFE_ADDRESS =
+      Pattern.compile("[^\\s<>(),;:\\\\\"\\[\\]@]+@[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?");
+
   @Autowired MailConfiguration mailConfiguration;
 
   @Autowired MailHogConfiguration mailhogConfiguration;
@@ -42,8 +46,13 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
-      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
+      if (containsLineBreak(sendMail)) {
+        log.error("sendMail rejected: CR/LF characters are not allowed in recipient");
+        return;
+      }
+      InternetAddress[] emails = toValidatedAddresses(sendMail);
+      String safeSubject = sanitizeHeaderValue(subject);
+      log.info("sendMail  mhogDomain: {}, recipient count: {}", mhogDomain, emails.length);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -69,17 +78,42 @@ public class SMTPMailServer {
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
-      msg.setSubject(subject);
+      msg.setRecipients(Message.RecipientType.TO, emails);
+      msg.setSubject(safeSubject, "UTF-8");
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
-
-      MimeBodyPart messageBodyPart = new MimeBodyPart();
-      messageBodyPart.setContent(body, "text/html");
 
       Transport.send(msg);
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  /**
+   * Parse the recipient list strictly, validate every address and re-create it from the validated
+   * bare address only (display names, comments and group syntax are dropped).
+   */
+  private static InternetAddress[] toValidatedAddresses(String recipients) throws AddressException {
+    InternetAddress[] parsed = InternetAddress.parse(recipients, true);
+    InternetAddress[] validated = new InternetAddress[parsed.length];
+    for (int i = 0; i < parsed.length; i++) {
+      String bare = parsed[i].getAddress();
+      if (bare == null || !SAFE_ADDRESS.matcher(bare).matches()) {
+        throw new AddressException("Invalid recipient address");
+      }
+      InternetAddress rebuilt = new InternetAddress(bare, true);
+      rebuilt.validate();
+      validated[i] = rebuilt;
+    }
+    return validated;
+  }
+
+  /** Replace any CR/LF in a header value with a single space so no extra header can be injected. */
+  private static String sanitizeHeaderValue(String value) {
+    return value == null ? "" : value.replaceAll("[\\r\\n]+", " ");
+  }
+
+  private static boolean containsLineBreak(String value) {
+    return value != null && (value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0);
   }
 }
