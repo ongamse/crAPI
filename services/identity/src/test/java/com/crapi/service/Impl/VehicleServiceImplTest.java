@@ -207,6 +207,20 @@ public class VehicleServiceImplTest {
   }
 
   @Test
+  public void getVehicleLocationGuardRejectsVehicleNotOwnedByCaller() {
+    // Even if the repository were to return another user's vehicle, the explicit guard rejects it.
+    VehicleDetails vehicleDetails = getDummyVehicleDetails();
+    User otherUser = new User("other@example.com", "9798789213", "Pass", ERole.ROLE_USER);
+    otherUser.setId(2l);
+    Mockito.when(userService.getUserByEmail(Mockito.any())).thenReturn(otherUser);
+    Mockito.when(vehicleDetailsRepository.findByUuidAndOwner_id(vehicleDetails.getUuid(), 2L))
+        .thenReturn(vehicleDetails);
+    Assertions.assertNull(
+        vehicleService.getVehicleLocation(vehicleDetails.getUuid(), otherUser.getEmail()));
+    Mockito.verify(userDetailsRepository, Mockito.never()).findByUser_id(Mockito.anyLong());
+  }
+
+  @Test
   public void checkVehicleSuccessFull() {
     VehicleForm vehicleForm = getDummyVehicleForm();
     VehicleDetails vehicleDetails = getDummyVehicleDetails();

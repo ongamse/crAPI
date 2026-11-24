@@ -267,6 +267,37 @@ public class ProfileServiceImplTest {
   }
 
   @Test
+  @DisplayName("updateProfileVideoGuardRejectsVideoNotOwnedByCaller")
+  public void updateProfileVideoGuardRejectsVideoNotOwnedByCaller() {
+    // Even if the repository were to return another user's video, the explicit guard rejects it.
+    User caller = getOtherUser();
+    ProfileVideo foreignVideo = getDummyProfileVideo();
+    Mockito.when(userService.getUserByEmail(Mockito.any())).thenReturn(caller);
+    Mockito.when(profileVideoRepository.findByIdAndUser_id(1L, caller.getId()))
+        .thenReturn(Optional.of(foreignVideo));
+    CRAPIExceptionHandler exception =
+        Assertions.assertThrows(
+            CRAPIExceptionHandler.class,
+            () -> profileService.updateProfileVideo(1L, getDummyVideoForm(), caller.getEmail()));
+    Assertions.assertEquals(404, exception.getStatus());
+    Mockito.verify(profileVideoRepository, Mockito.never()).save(Mockito.any());
+  }
+
+  @Test
+  @DisplayName("deleteProfileVideoGuardRejectsVideoNotOwnedByCaller")
+  public void deleteProfileVideoGuardRejectsVideoNotOwnedByCaller() {
+    User caller = getOtherUser();
+    Mockito.when(userService.getUserByEmail(Mockito.any())).thenReturn(caller);
+    Mockito.when(profileVideoRepository.findByIdAndUser_id(1L, caller.getId()))
+        .thenReturn(Optional.of(getDummyProfileVideo()));
+    CRAPIExceptionHandler exception =
+        Assertions.assertThrows(
+            CRAPIExceptionHandler.class,
+            () -> profileService.deleteProfileVideo(1L, caller.getEmail()));
+    Assertions.assertEquals(404, exception.getStatus());
+  }
+
+  @Test
   @DisplayName("convertVideoFailWhenVideoBelongsToAnotherUser")
   public void convertVideoFailWhenVideoBelongsToAnotherUser() {
     ReflectionTestUtils.setField(profileService, "enable_shell_injection", false);

@@ -154,24 +154,36 @@ public class VehicleServiceImpl implements VehicleService {
       if (user != null) {
         vehicleDetails = vehicleDetailsRepository.findByUuidAndOwner_id(carId, user.getId());
       }
-      if (vehicleDetails != null && vehicleDetails.getOwner() != null) {
-        // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);
-        // vehicleDetails.setVehicleLocation(getVehicleLocationList().get(random.nextInt(getVehicleLocationList().size())));
-        if (vehicleDetails.getOwner() != null) {
-          userDetails = userDetailsRepository.findByUser_id(vehicleDetails.getOwner().getId());
-          vehicleLocationForm =
-              new VehicleLocationResponse(
-                  carId,
-                  (userDetails != null ? userDetails.getName() : null),
-                  (userDetails != null ? userDetails.getUser().getEmail() : null),
-                  vehicleDetails.getVehicleLocation());
-          return vehicleLocationForm;
-        }
+      // Explicit authorization guard on top of the owner-scoped query (defence in depth).
+      if (isOwnedBy(vehicleDetails, user)) {
+        userDetails = userDetailsRepository.findByUser_id(vehicleDetails.getOwner().getId());
+        vehicleLocationForm =
+            new VehicleLocationResponse(
+                carId,
+                (userDetails != null ? userDetails.getName() : null),
+                (userDetails != null ? userDetails.getUser().getEmail() : null),
+                vehicleDetails.getVehicleLocation());
+        return vehicleLocationForm;
       }
     } catch (Exception exception) {
       log.error("Fail to get vehicle location-> Message: {}", exception);
     }
     return null;
+  }
+
+  /**
+   * Authorization guard: the vehicle may only be used on behalf of its owner.
+   *
+   * @param vehicleDetails vehicle loaded from the repository, may be null
+   * @param caller authenticated user, may be null
+   * @return true only when the vehicle has an owner and that owner is the caller
+   */
+  private static boolean isOwnedBy(VehicleDetails vehicleDetails, User caller) {
+    return vehicleDetails != null
+        && vehicleDetails.getOwner() != null
+        && caller != null
+        && caller.getId() != null
+        && caller.getId().equals(vehicleDetails.getOwner().getId());
   }
 
   /**

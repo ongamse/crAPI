@@ -151,6 +151,7 @@ public class ProfileServiceImpl implements ProfileService {
     // Scoped to the authenticated user: the path id can only select that user's own video.
     profileVideo = profileVideoRepository.findByIdAndUser_id(videoId, user.getId()).orElse(null);
     if (profileVideo != null) {
+      requireOwned(profileVideo, user);
       profileVideo.setVideo_name(videoForm.getVideoName());
       profileVideo.setConversion_params(
           (videoForm.getConversion_params() != null
@@ -193,7 +194,37 @@ public class ProfileServiceImpl implements ProfileService {
     if (videoId == null || user == null || user.getId() == null) {
       return Optional.empty();
     }
-    return profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
+    // Owner-scoped query plus the explicit guard (defence in depth).
+    return profileVideoRepository
+        .findByIdAndUser_id(videoId, user.getId())
+        .filter(video -> isOwnedBy(video, user));
+  }
+
+  /**
+   * Authorization guard: the video may only be used on behalf of the user it belongs to.
+   *
+   * @param video video loaded from the repository, may be null
+   * @param caller authenticated user, may be null
+   * @return true only when the video has an owner and that owner is the caller
+   */
+  private static boolean isOwnedBy(ProfileVideo video, User caller) {
+    return video != null
+        && video.getUser() != null
+        && caller != null
+        && caller.getId() != null
+        && caller.getId().equals(video.getUser().getId());
+  }
+
+  /**
+   * Throws the same 404 as a missing video when the loaded video is not owned by the caller.
+   *
+   * @param video video loaded from the repository
+   * @param caller authenticated user
+   */
+  private static void requireOwned(ProfileVideo video, User caller) {
+    if (!isOwnedBy(video, caller)) {
+      throw new CRAPIExceptionHandler(UserMessage.VIDEO_NOT_FOUND, 404);
+    }
   }
 
   /**
