@@ -19,11 +19,9 @@ import com.crapi.repository.UserRepository;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
-import com.nimbusds.jwt.SignedJWT;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -48,8 +46,6 @@ public class JwtProvider {
 
   private KeyPair keyPair;
 
-  private RSAKey publicRSAKey;
-
   private Map<String, Object> publicJwkSet;
 
   public JwtProvider(@Value("${app.jwksJson}") String jwksJson) {
@@ -64,7 +60,6 @@ public class JwtProvider {
       }
 
       RSAKey rsaKey = keys.get(0).toRSAKey();
-      this.publicRSAKey = rsaKey.toPublicJWK();
       this.keyPair = rsaKey.toKeyPair();
       this.publicJwkSet = jwkSet.toJSONObject();
     } catch (IOException | ParseException | JOSEException e) {
@@ -116,34 +111,29 @@ public class JwtProvider {
    * @return username from JWT Token
    */
   public String getUserNameFromJwtToken(String token) throws ParseException {
-    SignedJWT signedJWT = SignedJWT.parse(token);
-    // Only trust claims after the signature is verified against the server's own key
-    if (!verifySignature(signedJWT)) {
-      throw new ParseException("Invalid JWT signature", 0);
+    try {
+      return parseVerifiedClaims(token).getSubject();
+    } catch (JwtException | IllegalArgumentException e) {
+      throw new ParseException("Invalid JWT token", 0);
     }
-    return signedJWT.getJWTClaimsSet().getSubject();
   }
 
   /**
-   * Verify the token signature using only the server's own RS256 public key. Key material is never
-   * taken from attacker-controlled headers (jku/jwk/kid) and only RS256 is accepted.
+   * Parse and verify the token in a single step using only the server's own RSA public key. A
+   * PublicKey verification key makes the parser reject unsigned (alg=none) and HMAC tokens, and key
+   * material is never resolved from attacker-controlled headers (jku/jwk/kid). Claims are only
+   * returned after the signature is verified.
    *
-   * @param signedJWT parsed token
-   * @return true only if the token is RS256 signed with the server's private key
+   * @param token compact JWT
+   * @return verified claims
+   * @throws JwtException if the token is malformed, unsigned or the signature is invalid
    */
-  private boolean verifySignature(SignedJWT signedJWT) {
-    try {
-      if (!JWSAlgorithm.RS256.equals(signedJWT.getHeader().getAlgorithm())) {
-        log.debug("Rejected JWT with unsupported algorithm");
-        return false;
-      }
-      boolean valid = signedJWT.verify(new RSASSAVerifier(this.publicRSAKey));
-      log.debug("JWT valid?: {}", valid);
-      return valid;
-    } catch (JOSEException e) {
-      log.error("JWT signature verification failed", e);
-      return false;
-    }
+  private Claims parseVerifiedClaims(String token) {
+    return Jwts.parser()
+        .verifyWith(this.keyPair.getPublic())
+        .build()
+        .parseSignedClaims(token)
+        .getPayload();
   }
 
   /**
@@ -152,9 +142,10 @@ public class JwtProvider {
    */
   public boolean validateJwtToken(String authToken) {
     try {
-      return verifySignature(SignedJWT.parse(authToken));
-    } catch (ParseException e) {
-      log.error("Could not parse JWT Token", e);
+      parseVerifiedClaims(authToken);
+      return true;
+    } catch (JwtException | IllegalArgumentException e) {
+      log.error("Could not verify JWT Token", e);
     }
 
     return false;

@@ -14,6 +14,8 @@
 
 package com.crapi.config;
 
+import com.crapi.entity.User;
+import com.crapi.enums.ERole;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -24,6 +26,7 @@ import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.PlainJWT;
 import com.nimbusds.jwt.SignedJWT;
+import io.jsonwebtoken.Jwts;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.util.Base64;
@@ -61,6 +64,41 @@ public class JwtProviderTest {
     String token = sign(rsaKey, EMAIL);
     Assertions.assertTrue(jwtProvider.validateJwtToken(token));
     Assertions.assertEquals(EMAIL, jwtProvider.getUserNameFromJwtToken(token));
+  }
+
+  @Test
+  public void jjwtSignedTokenWithoutExpiryIsAccepted() throws Exception {
+    String token = Jwts.builder().subject(EMAIL).signWith(rsaKey.toRSAPrivateKey()).compact();
+    Assertions.assertTrue(jwtProvider.validateJwtToken(token));
+    Assertions.assertEquals(EMAIL, jwtProvider.getUserNameFromJwtToken(token));
+  }
+
+  @Test
+  public void generatedApiKeyIsAccepted() throws Exception {
+    User user = new User();
+    user.setEmail(EMAIL);
+    user.setRole(ERole.ROLE_USER);
+    String token = jwtProvider.generateApiKey(user);
+    Assertions.assertTrue(jwtProvider.validateJwtToken(token));
+    Assertions.assertEquals(EMAIL, jwtProvider.getUserNameFromJwtToken(token));
+  }
+
+  @Test
+  public void algNoneWithEmptySignatureIsRejected() throws Exception {
+    Base64.Encoder enc = Base64.getUrlEncoder().withoutPadding();
+    String token =
+        enc.encodeToString("{\"alg\":\"none\"}".getBytes(StandardCharsets.UTF_8))
+            + "."
+            + enc.encodeToString(("{\"sub\":\"" + EMAIL + "\"}").getBytes(StandardCharsets.UTF_8))
+            + ".";
+    Assertions.assertFalse(jwtProvider.validateJwtToken(token));
+    Assertions.assertThrows(ParseException.class, () -> jwtProvider.getUserNameFromJwtToken(token));
+  }
+
+  @Test
+  public void garbageTokenIsRejected() {
+    Assertions.assertFalse(jwtProvider.validateJwtToken("not-a-jwt"));
+    Assertions.assertFalse(jwtProvider.validateJwtToken(""));
   }
 
   @Test
