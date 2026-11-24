@@ -97,7 +97,7 @@ public class ProfileController {
       @PathVariable("video_id") Long videoId,
       @RequestBody VideoForm videoForm,
       HttpServletRequest request) {
-    ProfileVideo profileVideo = profileService.updateProfileVideo(videoForm, request);
+    ProfileVideo profileVideo = profileService.updateProfileVideo(videoId, videoForm, request);
     if (profileVideo != null) return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
     else
       return ResponseEntity.status(HttpStatus.NO_CONTENT)
