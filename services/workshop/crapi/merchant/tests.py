@@ -27,7 +27,7 @@ import bcrypt
 from django.test import TestCase, Client, override_settings
 from django.utils import timezone
 from utils import messages
-from utils.helper import is_url_destination_allowed
+from utils.helper import is_safe_header_value, is_url_destination_allowed
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
 
 
@@ -177,6 +177,19 @@ class MerchantTestCase(TestCase):
         self.assertFalse(is_url_destination_allowed("http://example.com:x/a", allowed))
         self.assertFalse(is_url_destination_allowed("http://a@example.com/", allowed))
         self.assertFalse(is_url_destination_allowed(None, allowed))
+
+    def test_is_safe_header_value(self):
+        """
+        checks that header values with control characters are rejected
+        :return: None
+        """
+        self.assertTrue(is_safe_header_value("Bearer abc.def-123"))
+        self.assertFalse(is_safe_header_value("Bearer abc\r\nX-Injected: 1"))
+        self.assertFalse(is_safe_header_value("Bearer abc\nX-Injected: 1"))
+        self.assertFalse(is_safe_header_value("Bearer abc\x00"))
+        self.assertFalse(is_safe_header_value("Bearer é"))
+        self.assertFalse(is_safe_header_value(""))
+        self.assertFalse(is_safe_header_value(None))
 
     def test_contact_mechanic(self):
         """

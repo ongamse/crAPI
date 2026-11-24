@@ -7,6 +7,18 @@ def basic_auth(username, password=""):
     return f"Basic {token}"
 
 
+def is_safe_header_value(value):
+    """
+    Check that a client-supplied value can be forwarded as an HTTP header value.
+    :param value: header value taken from the incoming request
+    :returns True only for non-empty str values made of printable characters
+        (no CR, LF, NUL or other control characters)
+    """
+    if not isinstance(value, str) or not value:
+        return False
+    return all(ch == "\t" or 0x20 <= ord(ch) < 0x7F for ch in value)
+
+
 def is_url_destination_allowed(url, allowed_hosts):
     """
     Check that an outbound request URL targets an allowlisted destination.
