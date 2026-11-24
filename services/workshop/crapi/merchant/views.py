@@ -27,7 +27,7 @@ from crapi.mechanic.serializers import (
 )
 from utils.jwt import jwt_auth_required
 from utils import messages
-from utils.helper import is_safe_header_value, is_url_destination_allowed
+from utils.helper import is_safe_header_value, build_allowlisted_mechanic_url
 from rest_framework.pagination import LimitOffsetPagination
 from utils.logging import log_error
 from crapi_site import settings
@@ -80,10 +80,10 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        request_url = request_data["mechanic_api"]
-        if not is_url_destination_allowed(
-            request_url, settings.MECHANIC_API_ALLOWED_HOSTS
-        ):
+        request_url = build_allowlisted_mechanic_url(
+            request_data["mechanic_api"], settings.MECHANIC_API_ALLOWED_HOSTS
+        )
+        if request_url is None:
             log_error(
                 request.path,
                 request.data,
