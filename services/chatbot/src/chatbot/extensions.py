@@ -3,9 +3,9 @@ import asyncio
 from langchain_community.utilities.sql_database import SQLDatabase
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from .dbconnections import MONGO_CONNECTION_URI, POSTGRES_URI
+from .dbconnections import MONGO_CLIENT_KWARGS, MONGO_CONNECTION_URI, POSTGRES_URI
 
-mongo_client = AsyncIOMotorClient(MONGO_CONNECTION_URI)
+mongo_client = AsyncIOMotorClient(MONGO_CONNECTION_URI, **MONGO_CLIENT_KWARGS)
 db = mongo_client.chatgpt
 postgresdb = SQLDatabase.from_uri(POSTGRES_URI)
 
