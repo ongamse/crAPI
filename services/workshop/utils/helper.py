@@ -1,4 +1,3 @@
-import re
 from base64 import b64encode
 from urllib.parse import quote, urlparse, urlsplit
 
@@ -9,7 +8,10 @@ def basic_auth(username, password=""):
 
 
 _AUTH_SCHEMES = {"bearer": "Bearer", "token": "Token", "basic": "Basic"}
-_AUTH_CREDENTIALS_RE = re.compile(r"[A-Za-z0-9._~+/=@-]{1,4096}")
+_AUTH_TOKEN_ALPHABET = (
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._~+/=@-"
+)
+_AUTH_CREDENTIALS_MAX_LEN = 4096
 
 
 def build_safe_authorization_header(raw):
@@ -30,10 +32,18 @@ def build_safe_authorization_header(raw):
     scheme = _AUTH_SCHEMES.get(parts[0].lower())
     if scheme is None:
         return None
-    match = _AUTH_CREDENTIALS_RE.fullmatch(parts[1])
-    if match is None:
+    credentials = parts[1]
+    if not 1 <= len(credentials) <= _AUTH_CREDENTIALS_MAX_LEN:
         return None
-    return f"{scheme} {match.group(0)}"
+    # Emit only characters taken from the server-held alphabet, never the
+    # request characters themselves.
+    safe_chars = []
+    for ch in credentials:
+        idx = _AUTH_TOKEN_ALPHABET.find(ch)
+        if idx < 0:
+            return None
+        safe_chars.append(_AUTH_TOKEN_ALPHABET[idx])
+    return scheme + " " + "".join(safe_chars)
 
 
 def is_url_destination_allowed(url, allowed_hosts):
