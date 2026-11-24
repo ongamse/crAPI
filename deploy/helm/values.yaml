@@ -172,8 +172,9 @@ chatbot:
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    # Must match the password of the seeded admin user (documented demo account)
-    apiPassword: Admin!123
+    # REQUIRED: must match the password of the account named by apiUser.
+    # Not stored in the chart; pass it with --set chatbot.config.apiPassword=...
+    apiPassword: ""
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"
