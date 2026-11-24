@@ -64,6 +64,17 @@ if LOG_LEVEL == "DEBUG":
 ALLOWED_HOSTS = ["*"]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
+
+# Hosts the contact mechanic feature may call ("hostname" or "hostname:port"),
+# comma separated. Set MECHANIC_API_ALLOWED_HOSTS to the public host(s) of
+# this deployment.
+MECHANIC_API_ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "MECHANIC_API_ALLOWED_HOSTS", "localhost,127.0.0.1,crapi-web,crapi-workshop"
+    ).split(",")
+    if host.strip()
+]
 API_GATEWAY_USERNAME = "vendorcrapi"
 API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
 

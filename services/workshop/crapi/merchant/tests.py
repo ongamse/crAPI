@@ -24,12 +24,16 @@ from crapi.mechanic.models import ServiceRequest, Mechanic
 patch("utils.jwt.jwt_auth_required", mock_jwt_auth_required).start()
 
 import bcrypt
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.utils import timezone
 from utils import messages
+from utils.helper import is_url_destination_allowed
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
 
 
+@override_settings(
+    MECHANIC_API_ALLOWED_HOSTS=["www.google.com", "jsonplaceholder.typicode.com"]
+)
 class MerchantTestCase(TestCase):
     """
     contains all the test cases related to merchant
@@ -133,6 +137,46 @@ class MerchantTestCase(TestCase):
             content_type="application/json"
         )
         self.assertNotEqual(res.status_code, 200)
+
+    def test_mechanic_api_not_allowlisted(self):
+        """
+        points mechanic_api at hosts that are not allowlisted
+        should get a bad request response without any outbound request
+        :return: None
+        """
+        for url in (
+            "http://169.254.169.254/latest/meta-data/",
+            "http://localhost:8000/",
+            "file:///etc/passwd",
+            "https://www.google.com@evil.example.com/",
+        ):
+            self.contact_mechanic_request_body["mechanic_api"] = url
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+            mock_get.assert_not_called()
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(res.json()["message"], messages.MECHANIC_API_NOT_ALLOWED)
+
+    def test_is_url_destination_allowed(self):
+        """
+        checks the allowlist helper for scheme, host and port handling
+        :return: None
+        """
+        allowed = ["example.com", "localhost:8000"]
+        self.assertTrue(is_url_destination_allowed("https://example.com/a", allowed))
+        self.assertTrue(is_url_destination_allowed("http://EXAMPLE.com:81/a", allowed))
+        self.assertTrue(is_url_destination_allowed("http://localhost:8000/a", allowed))
+        self.assertFalse(is_url_destination_allowed("http://localhost:9000/a", allowed))
+        self.assertFalse(is_url_destination_allowed("ftp://example.com/a", allowed))
+        self.assertFalse(is_url_destination_allowed("example.com", allowed))
+        self.assertFalse(is_url_destination_allowed("http://example.com:x/a", allowed))
+        self.assertFalse(is_url_destination_allowed("http://a@example.com/", allowed))
+        self.assertFalse(is_url_destination_allowed(None, allowed))
 
     def test_contact_mechanic(self):
         """
