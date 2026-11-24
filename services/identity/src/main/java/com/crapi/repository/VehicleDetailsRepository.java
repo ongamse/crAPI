@@ -24,7 +24,8 @@ import org.springframework.stereotype.Repository;
 public interface VehicleDetailsRepository extends JpaRepository<VehicleDetails, Long> {
   VehicleDetails findByVin(String vin);
 
-  VehicleDetails findByUuid(UUID uuid);
+  /** Owner-scoped lookup: a vehicle uuid only resolves when the vehicle belongs to the owner. */
+  VehicleDetails findByUuidAndOwner_id(UUID uuid, Long ownerId);
 
   List<VehicleDetails> findAllByOwner_id(Long id);
 

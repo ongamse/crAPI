@@ -15,10 +15,14 @@
 package com.crapi.repository;
 
 import com.crapi.entity.ProfileVideo;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ProfileVideoRepository extends JpaRepository<ProfileVideo, Long> {
   ProfileVideo findByUser_id(Long id);
+
+  /** Owner-scoped lookup: a video id only resolves when the video belongs to the given user. */
+  Optional<ProfileVideo> findByIdAndUser_id(Long id, Long userId);
 }
