@@ -6,3 +6,6 @@ deploy/vagrant/.vagrant
 services/chatbot/db
 services/certs/
 docker-compose.local.yml
+services/**/server.key
+services/**/server.p12
+services/**/server.keystore

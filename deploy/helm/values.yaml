@@ -11,8 +11,8 @@ secrets:
   mongoPassword: ""
   apiGatewayPassword: ""
   mechanicSeedPassword: ""
-  # Only needed when tlsEnabled is true: password of identity's PKCS12 keystore
-  # (must match the keystore bundled in the identity image)
+  # Only needed when tlsEnabled is true: passwords of identity's PKCS12 keystore
+  # (must match the server.p12 supplied in the tlsSecretName Secret)
   tlsKeystorePassword: ""
   tlsKeyPassword: ""
 enableLog4j: true
@@ -21,6 +21,12 @@ imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
 tlsEnabled: false
+# Only used when tlsEnabled is true. Name of an existing Kubernetes Secret
+# (created out of band, never committed) with keys server.crt, server.key and
+# server.p12, e.g.:
+#   kubectl create secret generic crapi-tls -n crapi \
+#     --from-file=server.crt --from-file=server.key --from-file=server.p12
+tlsSecretName: crapi-tls
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
@@ -84,7 +90,7 @@ identity:
     smtpAuth: true
     smtpStartTLS: true
     keyStoreType: PKCS12
-    keyStore: classpath:certs/server.p12
+    keyStore: file:/app/certs/server.p12
     keyAlias: identity
   deploymentLabels:
     app: crapi-identity

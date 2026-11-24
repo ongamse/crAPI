@@ -35,12 +35,24 @@ spec:
             - "service"
             - {{ .Values.community.service.name | quote }}
       {{- end }}
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: {{ .Values.tlsSecretName }}
+      {{- end }}
       containers:
         - name: {{ .Values.workshop.name }}
           image: {{ .Values.workshop.image }}:{{ .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.workshop.port }}
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /app/certs
+              readOnly: true
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ .Values.workshop.config.name }}

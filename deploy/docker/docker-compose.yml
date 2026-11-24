@@ -19,6 +19,9 @@ services:
     #  - "${LISTEN_IP:-127.0.0.1}:8080:8080"
     volumes:
       - ./keys:/app/keys
+      # TLS material (server.p12) is supplied at runtime, never baked into the image.
+      # Only needed when TLS_ENABLED=true; generate with services/gencert.sh.
+      - ${TLS_CERTS_DIR:-../../services/certs}:/app/certs:ro
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DB_NAME=crapi
@@ -45,9 +48,9 @@ services:
       - API_GATEWAY_PASSWORD=${API_GATEWAY_PASSWORD:-}
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - TLS_KEYSTORE_TYPE=PKCS12
-      - TLS_KEYSTORE=classpath:certs/server.p12
-      - TLS_KEYSTORE_PASSWORD=passw0rd
-      - TLS_KEY_PASSWORD=passw0rd
+      - TLS_KEYSTORE=file:/app/certs/server.p12
+      - TLS_KEYSTORE_PASSWORD=${TLS_KEYSTORE_PASSWORD:-}
+      - TLS_KEY_PASSWORD=${TLS_KEY_PASSWORD:-}
       - TLS_KEY_ALIAS=identity
     depends_on:
       postgresdb:
@@ -72,6 +75,8 @@ services:
     image: crapi/crapi-community:${VERSION:-latest}
     #ports:
     #  - "${LISTEN_IP:-127.0.0.1}:8087:8087"
+    volumes:
+      - ${TLS_CERTS_DIR:-../../services/certs}:/app/certs:ro
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - IDENTITY_SERVICE=crapi-identity:${IDENTITY_SERVER_PORT:-8080}
@@ -112,6 +117,8 @@ services:
     image: crapi/crapi-workshop:${VERSION:-latest}
     #ports:
     #  - "${LISTEN_IP:-127.0.0.1}:8000:8000"
+    volumes:
+      - ${TLS_CERTS_DIR:-../../services/certs}:/app/certs:ro
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - IDENTITY_SERVICE=crapi-identity:${IDENTITY_SERVER_PORT:-8080}
@@ -157,6 +164,8 @@ services:
   crapi-chatbot:
     container_name: crapi-chatbot
     image: crapi/crapi-chatbot:${VERSION:-latest}
+    volumes:
+      - ${TLS_CERTS_DIR:-../../services/certs}:/app/certs:ro
     environment:
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - SERVER_PORT=${CHATBOT_SERVER_PORT:-5002}
@@ -197,6 +206,8 @@ services:
       - "${LISTEN_IP:-127.0.0.1}:30080:80"
       - "${LISTEN_IP:-127.0.0.1}:8443:443"
       - "${LISTEN_IP:-127.0.0.1}:30443:443"
+    volumes:
+      - ${TLS_CERTS_DIR:-../../services/certs}:/app/certs:ro
     environment:
       - COMMUNITY_SERVICE=crapi-community:${COMMUNITY_SERVER_PORT:-8087}
       - IDENTITY_SERVICE=crapi-identity:${IDENTITY_SERVER_PORT:-8080}

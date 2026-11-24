@@ -6,6 +6,8 @@ Setup | crAPI
 ## Docker and docker compose
 
 > **Note**: docker compose requires credentials to be provided before start-up (none are stored in the repository). In `deploy/docker`, add values for the variables listed in `.env.example` to your `.env` file (or export them), for example `echo "DB_PASSWORD=$(openssl rand -hex 16)" >> .env`.
+>
+> TLS is disabled by default (`TLS_ENABLED=false`). To enable it, generate or supply your own `server.crt`, `server.key` and identity's `server.p12` (`KEYSTORE_PASSWORD=<password> services/gencert.sh <hostname>` creates a self-signed set in the git-ignored `services/certs`), set `TLS_ENABLED=true`, `TLS_KEYSTORE_PASSWORD` and `TLS_KEY_PASSWORD` in `.env`, and optionally point `TLS_CERTS_DIR` at the folder holding them. Private keys are never stored in the repository.
 
 You'll need to have Docker and docker-compose installed and running on your host system. Also, the version of docker-compose should be `1.27.0` or above. Check your docker-compose version using:
 ```
@@ -190,6 +192,10 @@ You can change the smtp configuration if required however all emails with domain
     Random values are generated on first install; to provide your own use
     `--set secrets.postgresPassword=... --set secrets.mongoPassword=...` (see the `secrets` block in `values.yaml`).
     When `tlsEnabled` is true also set `secrets.tlsKeystorePassword` and `secrets.tlsKeyPassword`.
+    TLS is disabled by default. To enable it, create the Secret named by `tlsSecretName` (default `crapi-tls`)
+    from your own certificate material (it is never stored in this repository), e.g.
+    `kubectl create secret generic crapi-tls -n crapi --from-file=server.crt --from-file=server.key --from-file=server.p12`,
+    then set `tlsEnabled=true`. `services/gencert.sh` can generate a self-signed set for local use.
 
 3. If using minikube, create a tunnel to initialize the LoadBalancers
     ```
