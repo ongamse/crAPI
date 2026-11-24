@@ -27,7 +27,10 @@ from crapi.mechanic.serializers import (
 )
 from utils.jwt import jwt_auth_required
 from utils import messages
-from utils.helper import is_safe_header_value, build_allowlisted_mechanic_url
+from utils.helper import (
+    build_safe_authorization_header,
+    build_allowlisted_mechanic_url,
+)
 from rest_framework.pagination import LimitOffsetPagination
 from utils.logging import log_error
 from crapi_site import settings
@@ -95,8 +98,10 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        authorization = request.META.get("HTTP_AUTHORIZATION")
-        if not is_safe_header_value(authorization):
+        safe_authorization = build_safe_authorization_header(
+            request.META.get("HTTP_AUTHORIZATION")
+        )
+        if safe_authorization is None:
             log_error(
                 request.path,
                 request.data,
@@ -116,7 +121,7 @@ class ContactMechanicView(APIView):
                     request_url,
                     params=request_data,
                     allow_redirects=False,
-                    headers={"Authorization": authorization},
+                    headers={"Authorization": safe_authorization},
                     verify=settings.OUTBOUND_TLS_VERIFY,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:

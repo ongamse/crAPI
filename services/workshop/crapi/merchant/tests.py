@@ -28,7 +28,7 @@ from django.test import TestCase, Client, override_settings
 from django.utils import timezone
 from utils import messages
 from utils.helper import (
-    is_safe_header_value,
+    build_safe_authorization_header,
     is_url_destination_allowed,
     build_allowlisted_mechanic_url,
 )
@@ -224,18 +224,41 @@ class MerchantTestCase(TestCase):
         self.assertEqual(mock_get.call_args[0][0], "https://www.google.com/")
         self.assertFalse(mock_get.call_args[1]["allow_redirects"])
 
-    def test_is_safe_header_value(self):
+    def test_build_safe_authorization_header(self):
         """
-        checks that header values with control characters are rejected
+        checks that the Authorization header is rebuilt from validated parts
+        and that malformed or control-character values are rejected
         :return: None
         """
-        self.assertTrue(is_safe_header_value("Bearer abc.def-123"))
-        self.assertFalse(is_safe_header_value("Bearer abc\r\nX-Injected: 1"))
-        self.assertFalse(is_safe_header_value("Bearer abc\nX-Injected: 1"))
-        self.assertFalse(is_safe_header_value("Bearer abc\x00"))
-        self.assertFalse(is_safe_header_value("Bearer é"))
-        self.assertFalse(is_safe_header_value(""))
-        self.assertFalse(is_safe_header_value(None))
+        self.assertEqual(
+            build_safe_authorization_header("Bearer abc.def-123"),
+            "Bearer abc.def-123",
+        )
+        self.assertEqual(
+            build_safe_authorization_header("bEaReR abc.def-123"),
+            "Bearer abc.def-123",
+        )
+        self.assertEqual(
+            build_safe_authorization_header("basic QWxhZA=="), "Basic QWxhZA=="
+        )
+        self.assertEqual(
+            build_safe_authorization_header("Token a/b+c~d_e"), "Token a/b+c~d_e"
+        )
+        self.assertIsNone(
+            build_safe_authorization_header("Bearer abc\r\nX-Injected: 1")
+        )
+        self.assertIsNone(
+            build_safe_authorization_header("Bearer abc\nX-Injected: 1")
+        )
+        self.assertIsNone(build_safe_authorization_header("Bearer abc\x00"))
+        self.assertIsNone(build_safe_authorization_header("Bearer abc\n"))
+        self.assertIsNone(build_safe_authorization_header("Bearer é"))
+        self.assertIsNone(build_safe_authorization_header("Bearer a b"))
+        self.assertIsNone(build_safe_authorization_header("Digest abc"))
+        self.assertIsNone(build_safe_authorization_header("Bearer " + "a" * 4097))
+        self.assertIsNone(build_safe_authorization_header("abc"))
+        self.assertIsNone(build_safe_authorization_header(""))
+        self.assertIsNone(build_safe_authorization_header(None))
 
     def test_contact_mechanic(self):
         """

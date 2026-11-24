@@ -1,3 +1,4 @@
+import re
 from base64 import b64encode
 from urllib.parse import quote, urlparse, urlsplit
 
@@ -7,16 +8,32 @@ def basic_auth(username, password=""):
     return f"Basic {token}"
 
 
-def is_safe_header_value(value):
+_AUTH_SCHEMES = {"bearer": "Bearer", "token": "Token", "basic": "Basic"}
+_AUTH_CREDENTIALS_RE = re.compile(r"[A-Za-z0-9._~+/=@-]{1,4096}")
+
+
+def build_safe_authorization_header(raw):
     """
-    Check that a client-supplied value can be forwarded as an HTTP header value.
-    :param value: header value taken from the incoming request
-    :returns True only for non-empty str values made of printable characters
-        (no CR, LF, NUL or other control characters)
+    Rebuild an Authorization header value from validated components.
+    The client value is never forwarded: the scheme is taken from a fixed
+    literal and the credentials must fully match a restricted charset
+    (no whitespace or control characters).
+    :param raw: Authorization header value taken from the incoming request
+    :returns a new "<Scheme> <credentials>" string, or None when raw is
+        missing or malformed
     """
-    if not isinstance(value, str) or not value:
-        return False
-    return all(ch == "\t" or 0x20 <= ord(ch) < 0x7F for ch in value)
+    if not isinstance(raw, str):
+        return None
+    parts = raw.split(" ")
+    if len(parts) != 2:
+        return None
+    scheme = _AUTH_SCHEMES.get(parts[0].lower())
+    if scheme is None:
+        return None
+    match = _AUTH_CREDENTIALS_RE.fullmatch(parts[1])
+    if match is None:
+        return None
+    return f"{scheme} {match.group(0)}"
 
 
 def is_url_destination_allowed(url, allowed_hosts):
