@@ -1,7 +1,12 @@
 import os
 
 MONGO_USER = os.environ.get("MONGO_DB_USER", "admin")
-MONGO_PASSWORD = os.environ.get("MONGO_DB_PASSWORD", "crapisecretpassword")
+# The MongoDB password must be supplied via the environment (no in-code default).
+# NOTE: the previously hard-coded default credential remains in git history and
+# must be rotated.
+MONGO_PASSWORD = os.environ.get("MONGO_DB_PASSWORD")
+if not MONGO_PASSWORD:
+    raise RuntimeError("MONGO_DB_PASSWORD environment variable must be set")
 MONGO_HOST = os.environ.get("MONGO_DB_HOST", "mongodb")
 MONGO_PORT = os.environ.get("MONGO_DB_PORT", "27017")
 MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "crapi")
