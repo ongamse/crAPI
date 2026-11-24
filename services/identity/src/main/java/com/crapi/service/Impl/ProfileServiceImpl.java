@@ -22,7 +22,7 @@ import com.crapi.enums.ERole;
 import com.crapi.exception.CRAPIExceptionHandler;
 import com.crapi.exception.IOExceptionHandler;
 import com.crapi.model.CRAPIResponse;
-import com.crapi.model.VideoForm;
+import com.crapi.model.VideoUpdateForm;
 import com.crapi.repository.ProfileVideoRepository;
 import com.crapi.repository.UserDetailsRepository;
 import com.crapi.service.ProfileService;
@@ -140,7 +140,8 @@ public class ProfileServiceImpl implements ProfileService {
    */
   @Transactional
   @Override
-  public ProfileVideo updateProfileVideo(Long videoId, VideoForm videoForm, String ownerEmail) {
+  public ProfileVideo updateProfileVideo(
+      Long videoId, VideoUpdateForm videoForm, String ownerEmail) {
     User user;
     ProfileVideo profileVideo;
     user = userService.getUserByEmail(ownerEmail);

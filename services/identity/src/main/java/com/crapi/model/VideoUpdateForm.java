@@ -16,11 +16,13 @@ package com.crapi.model;
 
 import lombok.Data;
 
+/**
+ * Request body for updating a profile video. It intentionally carries no identifiers: the video is
+ * selected only by the path variable and is resolved against the authenticated owner.
+ */
 @Data
-public class VideoForm {
+public class VideoUpdateForm {
 
-  private long id;
   private String videoName;
-  private String video_url;
   private String conversion_params;
 }

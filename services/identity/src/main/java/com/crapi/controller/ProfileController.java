@@ -20,7 +20,7 @@ import com.crapi.entity.UserDetails;
 import com.crapi.enums.ERole;
 import com.crapi.exception.CRAPIExceptionHandler;
 import com.crapi.model.CRAPIResponse;
-import com.crapi.model.VideoForm;
+import com.crapi.model.VideoUpdateForm;
 import com.crapi.service.ProfileService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.Principal;
@@ -91,17 +91,17 @@ public class ProfileController {
 
   /**
    * @param videoId
-   * @param videoForm
+   * @param videoUpdateForm name and conversion params only; carries no identifiers
    * @param principal authenticated Spring Security principal
    * @return updated profile video name and return update success message.
    */
   @PutMapping("/api/v2/user/videos/{video_id}")
   public ResponseEntity<?> updateProfileVideo(
       @PathVariable("video_id") Long videoId,
-      @RequestBody VideoForm videoForm,
+      @RequestBody VideoUpdateForm videoUpdateForm,
       Principal principal) {
     ProfileVideo profileVideo =
-        profileService.updateProfileVideo(videoId, videoForm, principal.getName());
+        profileService.updateProfileVideo(videoId, videoUpdateForm, principal.getName());
     if (profileVideo != null) return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
     else
       return ResponseEntity.status(HttpStatus.NO_CONTENT)
