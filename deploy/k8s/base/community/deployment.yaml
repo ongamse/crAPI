@@ -40,6 +40,8 @@ spec:
         envFrom:
             - configMapRef:
                 name: crapi-community-configmap
+            - secretRef:
+                name: crapi-secrets
         resources:
           limits:
             cpu: "500m"

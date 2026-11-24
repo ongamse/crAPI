@@ -29,6 +29,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Generate ephemeral CI secrets
+        run: |
+          for name in DB_PASSWORD MONGO_DB_PASSWORD JWT_SECRET SECRET_KEY API_GATEWAY_PASSWORD MECHANIC_SEED_PASSWORD; do
+            value="$(openssl rand -hex 16)"
+            echo "::add-mask::${value}"
+            echo "${name}=${value}" >> "${GITHUB_ENV}"
+          done
+
       - name: Env seen prerun
         run: env
 
@@ -178,7 +186,7 @@ jobs:
         run: npm install -g newman
 
       - name: Run Postman Collection
-        run: newman run "./postman_collections/crAPI.postman_collection.json" -e ./postman_collections/crAPI.postman_environment.json --verbose
+        run: newman run "./postman_collections/crAPI.postman_collection.json" -e ./postman_collections/crAPI.postman_environment.json --verbose --env-var "mechanic_password=${MECHANIC_SEED_PASSWORD}"
 
       - name: Dump docker logs on failure
         if: failure()
@@ -199,6 +207,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Generate ephemeral CI secrets
+        run: |
+          for name in DB_PASSWORD MONGO_DB_PASSWORD JWT_SECRET SECRET_KEY API_GATEWAY_PASSWORD MECHANIC_SEED_PASSWORD; do
+            value="$(openssl rand -hex 16)"
+            echo "::add-mask::${value}"
+            echo "${name}=${value}" >> "${GITHUB_ENV}"
+          done
 
       - name: Setup Python
         uses: actions/setup-python@v5

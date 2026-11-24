@@ -18,6 +18,9 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8087
+        envFrom:
+          - secretRef:
+              name: crapi-secrets
         resources:
           limits:
             cpu: "100m"

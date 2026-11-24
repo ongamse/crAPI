@@ -5,6 +5,7 @@ kubectl create namespace crapi
 
 kubectl create -n secret generic jwt-key-secret --from-file=../keys
 kubectl apply -n crapi -f ./rbac
+./create-secrets.sh crapi
 kubectl apply -n crapi -f ./mongodb
 kubectl apply -n crapi -f ./postgres
 kubectl apply -n crapi -f ./mailhog

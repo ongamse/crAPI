@@ -41,7 +41,7 @@ def get_sample_mechanic_data():
         "email": "mechraju@crapi.com",
         "mechanic_code": "TRAC_MEC_3",
         "number": "9123456708",
-        "password": "admin",
+        "password": "admin",  # test fixture only, not a real credential
     }
 
 
@@ -54,7 +54,7 @@ def get_sample_user_data():
         "name": "TestUser",
         "email": "test@crapi.com",
         "number": "9123456708",
-        "password": "password",
+        "password": "password",  # test fixture only, not a real credential
     }
 
 
@@ -89,7 +89,7 @@ def get_sample_admin_user():
         "name": "Admin 1",
         "email": "admin1@crapi.com",
         "number": "9123456700",
-        "password": "password1",
+        "password": "password1",  # test fixture only, not a real credential
         "role": User.ROLE_CHOICES.ADMIN,
     }
 

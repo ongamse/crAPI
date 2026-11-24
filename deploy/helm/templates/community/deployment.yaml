@@ -51,6 +51,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.community.config.name }}
+            - secretRef:
+                name: crapi-secrets
           {{- if .Values.community.resources }}
           resources:
             {{- toYaml .Values.community.resources | nindent 12 }}

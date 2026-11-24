@@ -28,6 +28,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.mongodb.config.name }}
+            - secretRef:
+                name: crapi-secrets
           volumeMounts:
             - mountPath: /data/db
               name: mongodb-data

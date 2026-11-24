@@ -5,6 +5,8 @@ Setup | crAPI
 
 ## Docker and docker compose
 
+> **Note**: docker compose requires credentials to be provided before start-up (none are stored in the repository). In `deploy/docker`, add values for the variables listed in `.env.example` to your `.env` file (or export them), for example `echo "DB_PASSWORD=$(openssl rand -hex 16)" >> .env`.
+
 You'll need to have Docker and docker-compose installed and running on your host system. Also, the version of docker-compose should be `1.27.0` or above. Check your docker-compose version using:
 ```
 docker compose version
@@ -183,6 +185,11 @@ You can change the smtp configuration if required however all emails with domain
 
     helm install --namespace crapi crapi . --values values.yaml
     ```
+
+    Credentials (database passwords, JWT secret, ...) are stored in the `crapi-secrets` Secret.
+    Random values are generated on first install; to provide your own use
+    `--set secrets.postgresPassword=... --set secrets.mongoPassword=...` (see the `secrets` block in `values.yaml`).
+    When `tlsEnabled` is true also set `secrets.tlsKeystorePassword` and `secrets.tlsKeyPassword`.
 
 3. If using minikube, create a tunnel to initialize the LoadBalancers
     ```

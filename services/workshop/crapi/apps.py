@@ -23,9 +23,21 @@ from django.utils import timezone
 from django.db import models
 from django.db import connection, transaction
 import logging
+import os
+import secrets
 import traceback
 
 logger = logging.getLogger()
+
+
+def get_mechanic_seed_password():
+    """
+    Password for the pre-populated mechanic accounts. Supplied at runtime via
+    MECHANIC_SEED_PASSWORD; when unset a random password is generated so that
+    no credential is committed to the repository (accounts are then not
+    loginable until the password is reset).
+    """
+    return os.environ.get("MECHANIC_SEED_PASSWORD") or secrets.token_urlsafe(24)
 
 
 def create_products():
@@ -52,19 +64,20 @@ def create_mechanics():
     from crapi.user.models import User, UserDetails
     from crapi.mechanic.models import Mechanic
 
+    mechanic_password = get_mechanic_seed_password()
     mechanic_details_all = [
         {
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": mechanic_password,
             "mechanic_code": "TRAC_JHN",
         },
         {
             "name": "James",
             "email": "james@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": mechanic_password,
             "mechanic_code": "TRAC_JME",
         },
     ]

@@ -29,6 +29,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Values.postgresdb.config.name }}
+            - secretRef:
+                name: crapi-secrets
 
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
