@@ -15,8 +15,22 @@
 package com.crapi.utils;
 
 public class EmailTokenGenerator {
-  static String charsequence = "abcdefghijklmnopqrstuvwxzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  // Lowercase a-z without 'y', followed by uppercase A-Z.
+  static String charsequence = buildAlphabet();
   static String num = "0123456789";
+
+  private static String buildAlphabet() {
+    StringBuilder sb = new StringBuilder();
+    for (char c = 'a'; c <= 'z'; c++) {
+      if (c != 'y') {
+        sb.append(c);
+      }
+    }
+    for (char c = 'A'; c <= 'Z'; c++) {
+      sb.append(c);
+    }
+    return sb.toString();
+  }
 
   /**
    * @param length
