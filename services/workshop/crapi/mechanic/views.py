@@ -391,24 +391,25 @@ class DownloadReportView(APIView):
             )
 
         filename_from_user = unquote(filename_from_user)
-        full_path = resolve_report_path(filename_from_user)
-        if full_path is None:
+        if not is_plain_report_name(filename_from_user):
             return Response(
                 {"message": "Invalid input."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        if os.path.exists(full_path) and os.path.isfile(full_path):
-            return FileResponse(open(full_path, 'rb'))
-        elif not os.path.exists(full_path):
+        # The path used for filesystem access comes from the server-side
+        # directory listing, never from the request.
+        full_path = find_report_in_listing(filename_from_user)
+        if full_path is None:
             return Response(
-                {"message": f"File not found at '{full_path}'."},
+                {"message": "File not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
-        else:
-            return Response(
-                {"message": f"'{full_path}' is not a file."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        if os.path.isfile(full_path):
+            return FileResponse(open(full_path, 'rb'))
+        return Response(
+            {"message": "Requested path is not a file."},
+            status=status.HTTP_403_FORBIDDEN
+        )
 
 def validate_filename(input: str) -> bool:
     """
@@ -418,37 +419,54 @@ def validate_filename(input: str) -> bool:
     return bool(url_encoded_pattern.fullmatch(input))
 
 
-def resolve_report_path(filename: str):
+def is_plain_report_name(filename: str) -> bool:
     """
-    Resolves filename inside the reports directory.
-    Returns the canonical absolute path, or None if the name is not a plain
-    file name or the resolved path escapes the reports directory.
+    True when filename is a single path component (no separators, NUL, or
+    dot-only names).
     """
-    if (
+    return not (
         not filename
         or "\x00" in filename
         or "/" in filename
         or "\\" in filename
         or filename in (".", "..")
-    ):
-        return None
+    )
+
+
+def find_report_in_listing(filename: str):
+    """
+    Looks filename up in the listing of the reports directory and returns the
+    absolute path built from the listed entry, or None when there is no entry
+    with exactly that name or the entry resolves outside the reports directory.
+    The returned path is derived from os.listdir output, not from the input.
+    """
     reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, "reports"))
-    candidate = os.path.realpath(os.path.join(reports_dir, filename))
-    if os.path.commonpath([reports_dir, candidate]) != reports_dir:
+    try:
+        entries = os.listdir(reports_dir)
+    except OSError:
         return None
-    if candidate == reports_dir:
-        return None
-    return candidate
+    for entry in entries:
+        if entry != filename:
+            continue
+        candidate = os.path.realpath(os.path.join(reports_dir, entry))
+        if os.path.dirname(candidate) != reports_dir:
+            return None
+        return candidate
+    return None
 
 
 def service_report_pdf(response_data, report_id):
     """
     Generates service report's PDF file from a template and saves it to the disk.
     """
-    reports_dir = os.path.join(settings.BASE_DIR, 'reports')
+    # Only a server-formatted integer ever becomes part of the file name.
+    report_number = int(report_id)
+    if report_number < 0:
+        raise ValueError("Invalid report id")
+    reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, 'reports'))
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = resolve_report_path(f"report_{report_id}")
-    if report_filepath is None:
+    report_filepath = os.path.join(reports_dir, "report_%d" % report_number)
+    if os.path.dirname(os.path.realpath(report_filepath)) != reports_dir:
         raise ValueError("Invalid report id")
 
     template = get_template('service_report.html')
