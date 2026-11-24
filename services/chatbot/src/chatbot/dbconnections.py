@@ -31,16 +31,25 @@ MONGO_CLIENT_KWARGS = {
 POSTGRES_HOST = os.environ.get("DB_HOST", "postgresdb")
 POSTGRES_PORT = os.environ.get("DB_PORT", "5432")
 POSTGRES_USER = os.environ.get("DB_USER", "admin")
-POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD", "crapisecretpassword")
+# The PostgreSQL password must be supplied via the environment (no in-code default).
+# NOTE: the previously hard-coded default credential remains in git history and
+# must be rotated.
+POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD")
+if not POSTGRES_PASSWORD:
+    raise RuntimeError("DB_PASSWORD environment variable must be set")
 POSTGRES_DB = os.environ.get("DB_NAME", "crapi")
 
-POSTGRES_URI = "postgresql://%s:%s@%s:%s/%s?sslmode=disable" % (
-    POSTGRES_USER,
-    POSTGRES_PASSWORD,
-    POSTGRES_HOST,
-    POSTGRES_PORT,
-    POSTGRES_DB,
-)
+# No credential-bearing URI is built; extensions.py assembles the connection
+# with sqlalchemy.engine.URL.create(), which keeps the password out of any string.
+POSTGRES_URL_PARTS = {
+    "drivername": "postgresql",
+    "username": POSTGRES_USER,
+    "password": POSTGRES_PASSWORD,
+    "host": POSTGRES_HOST,
+    "port": int(POSTGRES_PORT),
+    "database": POSTGRES_DB,
+    "query": {"sslmode": "disable"},
+}
 
 CHROMA_HOST = os.environ.get("CHROMA_HOST", "chromadb")
 CHROMA_PORT = os.environ.get("CHROMA_PORT", "8000")
