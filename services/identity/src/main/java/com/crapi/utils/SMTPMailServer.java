@@ -20,7 +20,10 @@ import jakarta.mail.Message;
 import jakarta.mail.Session;
 import jakarta.mail.Transport;
 import jakarta.mail.internet.*;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -42,10 +45,11 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
-      requireNoControlChars(sendMail, "recipient");
-      requireNoControlChars(subject, "subject");
-      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
+      // Rebuild recipients and subject from validated, canonical data only.
+      InternetAddress[] emails = buildValidatedRecipients(sendMail);
+      String safeSubject = sanitizeSubject(subject);
+      String safeRecipients = joinAddresses(emails);
+      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, safeRecipients);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -53,26 +57,26 @@ public class SMTPMailServer {
           useMailHog = true;
         }
         for (InternetAddress emailAddress : emails) {
-          String email = emailAddress.toString();
+          String email = emailAddress.getAddress();
           String domain = email.substring(email.indexOf("@") + 1).trim();
           log.debug("sendMail  mhogDomain: {}, email: {}, domain: {}", mhogDomain, email, domain);
           if (mhogDomain.trim().equals(domain)) {
-            log.info("Using MailHog Configuration for sending email for domain: " + domain);
+            log.info("Using MailHog Configuration for sending email for domain: {}", domain);
             useMailHog = true;
           }
         }
       }
       if (!useMailHog) {
         session = mailConfiguration.sendmail();
-        log.info("Using Mail Configuration for sending email: " + sendMail);
+        log.info("Using Mail Configuration for sending email: {}", safeRecipients);
       }
 
-      Message msg = new MimeMessage(session);
+      MimeMessage msg = new MimeMessage(session);
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
       msg.setRecipients(Message.RecipientType.TO, emails);
-      msg.setSubject(subject);
+      msg.setSubject(safeSubject, "UTF-8");
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
 
@@ -82,19 +86,58 @@ public class SMTPMailServer {
     }
   }
 
+  private static final Pattern PLAIN_ADDRESS =
+      Pattern.compile("^[A-Za-z0-9._%+'-]{1,64}@[A-Za-z0-9.-]{1,255}\\.[A-Za-z]{2,}$");
+
+  private static final int MAX_SUBJECT_LENGTH = 255;
+
   /**
-   * Reject header values (recipients, subject) containing CR, LF or other control characters, which
-   * could be used to inject additional mail headers or recipients.
+   * Split the comma separated recipient list, accept only entries that fully match a strict plain
+   * address pattern (no display name, whitespace or control characters) and construct fresh strict
+   * {@link InternetAddress} objects from the validated strings. Throws if any entry is invalid so
+   * that no mail is sent.
    */
-  private static String requireNoControlChars(String value, String fieldName) {
-    if (value == null) {
-      throw new IllegalArgumentException("Mail " + fieldName + " must not be null");
+  static InternetAddress[] buildValidatedRecipients(String recipients) throws AddressException {
+    if (recipients == null || recipients.isEmpty()) {
+      throw new IllegalArgumentException("Mail recipient must not be empty");
     }
-    for (int i = 0; i < value.length(); i++) {
-      if (Character.isISOControl(value.charAt(i))) {
-        throw new IllegalArgumentException("Mail " + fieldName + " contains control characters");
+    String[] parts = recipients.split(",", -1);
+    List<InternetAddress> validated = new ArrayList<>();
+    for (String part : parts) {
+      String candidate = part.trim();
+      if (!PLAIN_ADDRESS.matcher(candidate).matches()) {
+        throw new IllegalArgumentException("Mail recipient is not a valid plain email address");
+      }
+      InternetAddress address = new InternetAddress(candidate, true);
+      address.validate();
+      validated.add(address);
+    }
+    return validated.toArray(new InternetAddress[0]);
+  }
+
+  /** Remove every ISO control character from the subject and cap its length. */
+  static String sanitizeSubject(String subject) {
+    if (subject == null) {
+      throw new IllegalArgumentException("Mail subject must not be null");
+    }
+    StringBuilder sb = new StringBuilder(Math.min(subject.length(), MAX_SUBJECT_LENGTH));
+    for (int i = 0; i < subject.length() && sb.length() < MAX_SUBJECT_LENGTH; i++) {
+      char c = subject.charAt(i);
+      if (!Character.isISOControl(c)) {
+        sb.append(c);
       }
     }
-    return value;
+    return sb.toString();
+  }
+
+  private static String joinAddresses(InternetAddress[] addresses) {
+    StringBuilder sb = new StringBuilder();
+    for (InternetAddress address : addresses) {
+      if (sb.length() > 0) {
+        sb.append(", ");
+      }
+      sb.append(address.getAddress());
+    }
+    return sb.toString();
   }
 }
