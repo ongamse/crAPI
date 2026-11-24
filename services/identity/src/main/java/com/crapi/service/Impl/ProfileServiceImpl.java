@@ -145,11 +145,12 @@ public class ProfileServiceImpl implements ProfileService {
     User user;
     ProfileVideo profileVideo;
     user = userService.getUserFromToken(request);
-    profileVideo = profileVideoRepository.findByUser_id(user.getId());
+    if (videoId == null || user == null || user.getId() == null) {
+      throw new CRAPIExceptionHandler(UserMessage.VIDEO_NOT_FOUND, 404);
+    }
+    // Scoped to the token user: the path id can only select that user's own video.
+    profileVideo = profileVideoRepository.findByIdAndUser_id(videoId, user.getId()).orElse(null);
     if (profileVideo != null) {
-      if (videoId == null || profileVideo.getId() != videoId) {
-        throw new CRAPIExceptionHandler(UserMessage.VIDEO_NOT_FOUND, 404);
-      }
       profileVideo.setVideo_name(videoForm.getVideoName());
       profileVideo.setConversion_params(
           (videoForm.getConversion_params() != null
@@ -157,6 +158,10 @@ public class ProfileServiceImpl implements ProfileService {
               : profileVideo.getConversion_params()));
       profileVideoRepository.save(profileVideo);
       return profileVideo;
+    }
+    if (profileVideoRepository.findByUser_id(user.getId()) != null) {
+      // The user has a video, but not the requested one.
+      throw new CRAPIExceptionHandler(UserMessage.VIDEO_NOT_FOUND, 404);
     }
     throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE + user.getEmail(), 404);
   }
@@ -169,28 +174,25 @@ public class ProfileServiceImpl implements ProfileService {
   @Transactional
   @Override
   public CRAPIResponse deleteProfileVideo(Long videoId, HttpServletRequest request) {
-    Optional<ProfileVideo> optionalProfileVideo;
-    ProfileVideo profileVideo;
-    optionalProfileVideo = profileVideoRepository.findById(videoId);
-    // Only reveal that a video exists to its owner; other ids look the same as missing ones.
-    if (optionalProfileVideo.isPresent()
-        && isOwnedBy(optionalProfileVideo.get(), userService.getUserFromToken(request))) {
+    // The lookup is scoped to the token user, so other users' ids look the same as missing ones.
+    Optional<ProfileVideo> optionalProfileVideo = findOwnedVideo(videoId, request);
+    if (optionalProfileVideo.isPresent()) {
       return new CRAPIResponse(UserMessage.THIS_IS_ADMIN_FUNCTION, 403);
     }
     throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404);
   }
 
   /**
-   * @param profileVideo video to check
-   * @param user authenticated user
-   * @return true only when the video belongs to the given user
+   * @param videoId client supplied video id
+   * @param request getting jwt token for user from request header
+   * @return the video only when it belongs to the token user, otherwise empty
    */
-  private boolean isOwnedBy(ProfileVideo profileVideo, User user) {
-    return profileVideo != null
-        && user != null
-        && profileVideo.getUser() != null
-        && profileVideo.getUser().getId() != null
-        && profileVideo.getUser().getId().equals(user.getId());
+  private Optional<ProfileVideo> findOwnedVideo(Long videoId, HttpServletRequest request) {
+    User user = userService.getUserFromToken(request);
+    if (videoId == null || user == null || user.getId() == null) {
+      return Optional.empty();
+    }
+    return profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
   }
 
   /**
@@ -242,11 +244,7 @@ public class ProfileServiceImpl implements ProfileService {
     try {
       if (xForwardedHost == null) {
         if (videoId != null && videoId > 0) {
-          Optional<ProfileVideo> optionalProfileVideo = profileVideoRepository.findById(videoId);
-          if (optionalProfileVideo.isPresent()
-              && !isOwnedBy(optionalProfileVideo.get(), userService.getUserFromToken(request))) {
-            return new CRAPIResponse(UserMessage.VIDEO_NOT_FOUND, 404);
-          }
+          Optional<ProfileVideo> optionalProfileVideo = findOwnedVideo(videoId, request);
           if (optionalProfileVideo.isPresent() && !enable_shell_injection) {
             profileVideo = optionalProfileVideo.get();
             if (ProfileValidator.checkContains(profileVideo.getConversion_params())) {
