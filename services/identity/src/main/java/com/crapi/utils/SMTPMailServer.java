@@ -42,6 +42,8 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
+      requireNoControlChars(sendMail, "recipient");
+      requireNoControlChars(subject, "subject");
       log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
       InternetAddress[] emails = InternetAddress.parse(sendMail);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
@@ -69,17 +71,30 @@ public class SMTPMailServer {
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
+      msg.setRecipients(Message.RecipientType.TO, emails);
       msg.setSubject(subject);
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
-
-      MimeBodyPart messageBodyPart = new MimeBodyPart();
-      messageBodyPart.setContent(body, "text/html");
 
       Transport.send(msg);
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  /**
+   * Reject header values (recipients, subject) containing CR, LF or other control characters, which
+   * could be used to inject additional mail headers or recipients.
+   */
+  private static String requireNoControlChars(String value, String fieldName) {
+    if (value == null) {
+      throw new IllegalArgumentException("Mail " + fieldName + " must not be null");
+    }
+    for (int i = 0; i < value.length(); i++) {
+      if (Character.isISOControl(value.charAt(i))) {
+        throw new IllegalArgumentException("Mail " + fieldName + " contains control characters");
+      }
+    }
+    return value;
   }
 }
