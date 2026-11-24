@@ -29,11 +29,11 @@ public interface ProfileService {
 
   ProfileVideo uploadProfileVideo(MultipartFile file, HttpServletRequest request);
 
-  ProfileVideo updateProfileVideo(Long videoId, VideoForm videoForm, HttpServletRequest request);
+  ProfileVideo updateProfileVideo(Long videoId, VideoForm videoForm, String ownerEmail);
 
-  CRAPIResponse deleteProfileVideo(Long videoId, HttpServletRequest request);
+  CRAPIResponse deleteProfileVideo(Long videoId, String ownerEmail);
 
-  CRAPIResponse deleteAdminProfileVideo(Long videoId, HttpServletRequest request);
+  CRAPIResponse deleteAdminProfileVideo(Long videoId, String adminEmail);
 
-  CRAPIResponse convertVideo(Long videoId, HttpServletRequest request);
+  CRAPIResponse convertVideo(Long videoId, String ownerEmail, HttpServletRequest request);
 }

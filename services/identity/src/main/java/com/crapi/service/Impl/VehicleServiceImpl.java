@@ -138,18 +138,18 @@ public class VehicleServiceImpl implements VehicleService {
 
   /**
    * @param carId
-   * @param request getting jwt token for user from request header
+   * @param ownerEmail name of the authenticated Spring Security principal
    * @return VehicleDetails which is linked with this carId, only when the vehicle belongs to the
-   *     token user.
+   *     authenticated user.
    */
   @Transactional
   @Override
-  public VehicleLocationResponse getVehicleLocation(UUID carId, HttpServletRequest request) {
+  public VehicleLocationResponse getVehicleLocation(UUID carId, String ownerEmail) {
     VehicleDetails vehicleDetails = null;
     VehicleLocationResponse vehicleLocationForm = null;
     UserDetails userDetails = null;
     Random random = new Random();
-    User user = userService.getUserFromToken(request);
+    User user = userService.getUserByEmail(ownerEmail);
     try {
       if (user != null) {
         vehicleDetails = vehicleDetailsRepository.findByUuidAndOwner_id(carId, user.getId());

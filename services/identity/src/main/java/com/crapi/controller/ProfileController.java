@@ -17,13 +17,17 @@ package com.crapi.controller;
 import com.crapi.constant.UserMessage;
 import com.crapi.entity.ProfileVideo;
 import com.crapi.entity.UserDetails;
+import com.crapi.enums.ERole;
+import com.crapi.exception.CRAPIExceptionHandler;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.VideoForm;
 import com.crapi.service.ProfileService;
 import jakarta.servlet.http.HttpServletRequest;
+import java.security.Principal;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -88,15 +92,16 @@ public class ProfileController {
   /**
    * @param videoId
    * @param videoForm
-   * @param request
+   * @param principal authenticated Spring Security principal
    * @return updated profile video name and return update success message.
    */
   @PutMapping("/api/v2/user/videos/{video_id}")
   public ResponseEntity<?> updateProfileVideo(
       @PathVariable("video_id") Long videoId,
       @RequestBody VideoForm videoForm,
-      HttpServletRequest request) {
-    ProfileVideo profileVideo = profileService.updateProfileVideo(videoId, videoForm, request);
+      Principal principal) {
+    ProfileVideo profileVideo =
+        profileService.updateProfileVideo(videoId, videoForm, principal.getName());
     if (profileVideo != null) return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
     else
       return ResponseEntity.status(HttpStatus.NO_CONTENT)
@@ -105,14 +110,15 @@ public class ProfileController {
 
   /**
    * @param videoId
-   * @param request
+   * @param principal authenticated Spring Security principal
    * @return message that user can't delete user video it give hint to user for BFLA -
    *     Vulnerabilities
    */
   @DeleteMapping("/api/v2/user/videos/{video_id}")
   public ResponseEntity<?> deleteVideo(
-      @PathVariable("video_id") Long videoId, HttpServletRequest request) {
-    CRAPIResponse deleteProfileResponse = profileService.deleteProfileVideo(videoId, request);
+      @PathVariable("video_id") Long videoId, Principal principal) {
+    CRAPIResponse deleteProfileResponse =
+        profileService.deleteProfileVideo(videoId, principal.getName());
     if (deleteProfileResponse != null && deleteProfileResponse.getStatus() == 200) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN).body(deleteProfileResponse);
     } else {
@@ -122,13 +128,22 @@ public class ProfileController {
 
   /**
    * @param videoId
-   * @param request
+   * @param authentication authenticated Spring Security principal
    * @return delete user video from database and return message BFLA - Vulnerabilities
    */
   @DeleteMapping("/api/v2/admin/videos/{video_id}")
   public ResponseEntity<CRAPIResponse> deleteVideoBOLA(
-      @PathVariable("video_id") Long videoId, HttpServletRequest request) {
-    CRAPIResponse deleteProfileResponse = profileService.deleteAdminProfileVideo(videoId, request);
+      @PathVariable("video_id") Long videoId, Authentication authentication) {
+    // Admin-only endpoint: the role comes from the authenticated principal's authorities.
+    boolean isAdmin =
+        authentication != null
+            && authentication.getAuthorities().stream()
+                .anyMatch(authority -> ERole.ROLE_ADMIN.name().equals(authority.getAuthority()));
+    if (!isAdmin) {
+      throw new CRAPIExceptionHandler(UserMessage.THIS_IS_ADMIN_FUNCTION, 403);
+    }
+    CRAPIResponse deleteProfileResponse =
+        profileService.deleteAdminProfileVideo(videoId, authentication.getName());
     if (deleteProfileResponse != null && deleteProfileResponse.getStatus() == 200) {
       return ResponseEntity.status(HttpStatus.OK).body(deleteProfileResponse);
     }
@@ -143,8 +158,11 @@ public class ProfileController {
    */
   @GetMapping("api/v2/user/videos/convert_video")
   public ResponseEntity<?> convertVideoEndPoint(
-      @RequestParam(required = false) Long video_id, HttpServletRequest request) {
-    CRAPIResponse convertVideoResponse = profileService.convertVideo(video_id, request);
+      @RequestParam(required = false) Long video_id,
+      Principal principal,
+      HttpServletRequest request) {
+    CRAPIResponse convertVideoResponse =
+        profileService.convertVideo(video_id, principal.getName(), request);
     if (convertVideoResponse != null && convertVideoResponse.getStatus() == 200) {
       return ResponseEntity.status(HttpStatus.OK).body(convertVideoResponse);
     } else if (convertVideoResponse != null && convertVideoResponse.getStatus() != 200) {

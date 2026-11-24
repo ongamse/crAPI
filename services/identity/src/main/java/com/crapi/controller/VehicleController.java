@@ -24,6 +24,7 @@ import com.crapi.service.VehicleOwnershipService;
 import com.crapi.service.VehicleService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -106,8 +107,9 @@ public class VehicleController {
    */
   @GetMapping("/vehicle/{carId}/location")
   public ResponseEntity<?> getLocationBOLA(
-      @PathVariable("carId") UUID carId, HttpServletRequest request) {
-    VehicleLocationResponse vehicleDetails = vehicleService.getVehicleLocation(carId, request);
+      @PathVariable("carId") UUID carId, Principal principal) {
+    VehicleLocationResponse vehicleDetails =
+        vehicleService.getVehicleLocation(carId, principal.getName());
     if (vehicleDetails != null) return ResponseEntity.ok().body(vehicleDetails);
     else
       return ResponseEntity.status(HttpStatus.NOT_FOUND)

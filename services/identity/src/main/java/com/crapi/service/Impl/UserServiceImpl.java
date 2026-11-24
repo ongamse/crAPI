@@ -338,6 +338,21 @@ public class UserServiceImpl implements UserService {
     }
   }
 
+  /**
+   * @param email e-mail (username) of the authenticated principal
+   * @return User object for the e-mail, throw entity not found if user not found.
+   */
+  @Transactional
+  @Override
+  public User getUserByEmail(String email) {
+    User user = email != null ? userRepository.findByEmail(email) : null;
+    if (user == null) {
+      log.error("User not found with email: {}", email);
+      throw new EntityNotFoundException(User.class, "userEmail", email);
+    }
+    return user;
+  }
+
   @Transactional
   @Override
   public User getUserFromTokenWithoutValidation(HttpServletRequest request) {
