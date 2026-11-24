@@ -27,7 +27,11 @@ import bcrypt
 from django.test import TestCase, Client, override_settings
 from django.utils import timezone
 from utils import messages
-from utils.helper import is_safe_header_value, is_url_destination_allowed
+from utils.helper import (
+    is_safe_header_value,
+    is_url_destination_allowed,
+    build_allowlisted_mechanic_url,
+)
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
 
 
@@ -177,6 +181,48 @@ class MerchantTestCase(TestCase):
         self.assertFalse(is_url_destination_allowed("http://example.com:x/a", allowed))
         self.assertFalse(is_url_destination_allowed("http://a@example.com/", allowed))
         self.assertFalse(is_url_destination_allowed(None, allowed))
+
+    def test_build_allowlisted_mechanic_url(self):
+        """
+        checks that the outbound url is built from the allowlist entry
+        :return: None
+        """
+        allowed = ["example.com", "localhost:8000"]
+        build = build_allowlisted_mechanic_url
+        self.assertEqual(build("https://example.com", allowed), "https://example.com/")
+        self.assertEqual(
+            build("http://EXAMPLE.com:81/a b?x=1", allowed),
+            "http://example.com:81/a%20b",
+        )
+        self.assertEqual(
+            build("http://localhost:8000/a/b", allowed), "http://localhost:8000/a/b"
+        )
+        self.assertIsNone(build("http://localhost:9000/a", allowed))
+        self.assertIsNone(build("ftp://example.com/a", allowed))
+        self.assertIsNone(build("example.com", allowed))
+        self.assertIsNone(build("http://example.com:x/a", allowed))
+        self.assertIsNone(build("http://a@example.com/", allowed))
+        self.assertIsNone(build("http://example.com.evil.com/", allowed))
+        self.assertIsNone(build(None, allowed))
+
+    def test_contact_mechanic_uses_allowlisted_url(self):
+        """
+        checks that requests.get receives the rebuilt allowlisted url
+        :return: None
+        """
+        self.contact_mechanic_request_body["mechanic_api"] = "HTTPS://WWW.Google.com"
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {}
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(mock_get.call_args[0][0], "https://www.google.com/")
+        self.assertFalse(mock_get.call_args[1]["allow_redirects"])
 
     def test_is_safe_header_value(self):
         """
