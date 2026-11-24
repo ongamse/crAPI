@@ -9,3 +9,5 @@ docker-compose.local.yml
 services/**/server.key
 services/**/server.p12
 services/**/server.keystore
+deploy/**/keys/jwks.json
+services/identity/jwks.json

@@ -3,6 +3,11 @@ cd "$(dirname $0)"
 kubectl create namespace crapi
 #kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 
+# Requires ../keys/jwks.json (your own RSA JWKS signing key; never committed)
+if [ ! -f ../keys/jwks.json ]; then
+  echo "Missing ../keys/jwks.json: supply your own JWKS signing key." >&2
+  exit 1
+fi
 kubectl create -n secret generic jwt-key-secret --from-file=../keys
 kubectl apply -n crapi -f ./rbac
 ./create-secrets.sh crapi

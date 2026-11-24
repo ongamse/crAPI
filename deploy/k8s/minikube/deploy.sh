@@ -16,6 +16,11 @@
 cd "$(dirname $0)"
 kubectl create namespace crapi
 
+# Requires ../keys/jwks.json (your own RSA JWKS signing key; never committed)
+if [ ! -f ../keys/jwks.json ]; then
+  echo "Missing ../keys/jwks.json: supply your own JWKS signing key." >&2
+  exit 1
+fi
 kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
 kubectl apply -n crapi -f ../base/rbac
 ../base/create-secrets.sh crapi

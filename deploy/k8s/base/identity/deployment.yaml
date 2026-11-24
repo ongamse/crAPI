@@ -27,7 +27,7 @@ spec:
         - name: crapi-identity
           image: crapi/crapi-identity:latest
           volumeMounts:
-            - mountPath: "/.keys"
+            - mountPath: "/app/keys"
               name: jwt-key-secret
               readOnly: true
           imagePullPolicy: Always

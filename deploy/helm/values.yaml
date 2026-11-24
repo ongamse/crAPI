@@ -11,6 +11,10 @@ secrets:
   mongoPassword: ""
   apiGatewayPassword: ""
   mechanicSeedPassword: ""
+  # RSA signing key for identity (JWKS json, RS256, single key). Required, never
+  # committed: pass it with --set-file secrets.jwksJson=jwks.json, or place a
+  # git-ignored keys/jwks.json in the chart.
+  jwksJson: ""
   # Only needed when tlsEnabled is true: passwords of identity's PKCS12 keystore
   # (must match the server.p12 supplied in the tlsSecretName Secret)
   tlsKeystorePassword: ""

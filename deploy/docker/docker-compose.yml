@@ -18,6 +18,7 @@ services:
     # ports:
     #  - "${LISTEN_IP:-127.0.0.1}:8080:8080"
     volumes:
+      # Optional JWKS key file (keys/jwks.json); never committed. Alternatively set JWKS below.
       - ./keys:/app/keys
       # TLS material (server.p12) is supplied at runtime, never baked into the image.
       # Only needed when TLS_ENABLED=true; generate with services/gencert.sh.
@@ -32,6 +33,7 @@ services:
       - SERVER_PORT=${IDENTITY_SERVER_PORT:-8080}
       - ENABLE_SHELL_INJECTION=${ENABLE_SHELL_INJECTION:-false}
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET (see deploy/docker/.env.example)}
+      - JWKS=${JWKS:-}
       - MAILHOG_HOST=mailhog
       - MAILHOG_PORT=1025
       - MAILHOG_DOMAIN=example.com
