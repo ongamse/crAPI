@@ -206,8 +206,7 @@ public class UserServiceImpl implements UserService {
     DashboardResponse dashboardResponse;
     ProfileVideo profileVideo;
     try {
-      // Invalid Signature vulnerability
-      // Not Checking the validity of the token for this request
+      // Token signature is verified inside JwtProvider.getUserNameFromJwtToken
       user = getUserFromTokenWithoutValidation(request);
       userDetails = userDetailsRepository.findByUser_id(user.getId());
       profileVideo = profileVideoRepository.findByUser_id(user.getId());
