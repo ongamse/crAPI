@@ -16,7 +16,7 @@ secrets:
   # git-ignored keys/jwks.json in the chart.
   jwksJson: ""
   # Only needed when tlsEnabled is true: passwords of identity's PKCS12 keystore
-  # (must match the server.p12 supplied in the tlsSecretName Secret)
+  # (must match the server.p12 supplied in the Secret named by tlsCertsName)
   tlsKeystorePassword: ""
   tlsKeyPassword: ""
 enableLog4j: true
@@ -30,7 +30,7 @@ tlsEnabled: false
 # server.p12, e.g.:
 #   kubectl create secret generic crapi-tls -n crapi \
 #     --from-file=server.crt --from-file=server.key --from-file=server.p12
-tlsSecretName: crapi-tls
+tlsCertsName: crapi-tls
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO

@@ -39,7 +39,7 @@ spec:
       volumes:
         - name: tls-certs
           secret:
-            secretName: {{ .Values.tlsSecretName }}
+            secretName: {{ .Values.tlsCertsName }}
       {{- end }}
       containers:
         - name: {{ .Values.workshop.name }}

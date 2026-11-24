@@ -195,7 +195,7 @@ You can change the smtp configuration if required however all emails with domain
     The chatbot logs in to the API as `chatbot.config.apiUser`; its password is required and not stored in the chart:
     `--set chatbot.config.apiPassword=...` (it must match that account's password).
     For local runs of `services/chatbot/.env`, export `API_PASSWORD` before sourcing the file.
-    TLS is disabled by default. To enable it, create the Secret named by `tlsSecretName` (default `crapi-tls`)
+    TLS is disabled by default. To enable it, create the Secret named by `tlsCertsName` (default `crapi-tls`)
     from your own certificate material (it is never stored in this repository), e.g.
     `kubectl create secret generic crapi-tls -n crapi --from-file=server.crt --from-file=server.key --from-file=server.p12`,
     then set `tlsEnabled=true`. `services/gencert.sh` can generate a self-signed set for local use.
