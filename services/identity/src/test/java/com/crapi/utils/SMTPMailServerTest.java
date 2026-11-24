@@ -59,6 +59,21 @@ public class SMTPMailServerTest {
   }
 
   @Test
+  public void bodyKeepsAppMarkupAndDropsControlChars() {
+    Assertions.assertEquals(
+        "<html><body><b>Hi</b>&nbsp;x\r\n</body></html>",
+        SMTPMailServer.rebuildHtmlBody("<html><body><b>Hi</b>&nbsp;x\r\n</body></html>"));
+    Assertions.assertEquals("ab", SMTPMailServer.rebuildHtmlBody("a\u0000\u0007b"));
+  }
+
+  @Test
+  public void bodyNonAsciiBecomesNumericReference() {
+    Assertions.assertEquals("&#233;", SMTPMailServer.rebuildHtmlBody("\u00e9"));
+    Assertions.assertThrows(
+        IllegalArgumentException.class, () -> SMTPMailServer.rebuildHtmlBody(null));
+  }
+
+  @Test
   public void subjectControlCharsAreStrippedAndLengthCapped() {
     Assertions.assertEquals(
         "HelloBcc: x@example.com", SMTPMailServer.sanitizeSubject("Hello\r\nBcc: x@example.com"));

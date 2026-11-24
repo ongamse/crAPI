@@ -77,7 +77,7 @@ public class SMTPMailServer {
 
       msg.setRecipients(Message.RecipientType.TO, emails);
       msg.setSubject(safeSubject, "UTF-8");
-      msg.setContent(body, "text/html");
+      msg.setText(rebuildHtmlBody(body), "UTF-8", "html");
       msg.setSentDate(new Date());
 
       Transport.send(msg);
@@ -90,6 +90,44 @@ public class SMTPMailServer {
       Pattern.compile("^[A-Za-z0-9._%+'-]{1,64}@[A-Za-z0-9.-]{1,255}\\.[A-Za-z]{2,}$");
 
   private static final int MAX_SUBJECT_LENGTH = 255;
+
+  /** Constant alphabet of characters copied verbatim into the body: printable ASCII, TAB, LF, CR. */
+  private static final String BODY_ALPHABET;
+
+  static {
+    StringBuilder alphabet = new StringBuilder();
+    for (char c = 0x20; c <= 0x7E; c++) {
+      alphabet.append(c);
+    }
+    alphabet.append('\t').append('\n').append('\r');
+    BODY_ALPHABET = alphabet.toString();
+  }
+
+  /**
+   * Rebuild the HTML body from the constant {@link #BODY_ALPHABET}. Every character that is in the
+   * alphabet is copied from the constant (so the HTML markup built by the application still
+   * renders); every other character (control characters, non-ASCII) is emitted as a numeric
+   * character reference, which is valid HTML and cannot carry raw control characters. Callers are
+   * responsible for HTML-escaping user supplied values (see {@link MailBody}).
+   */
+  static String rebuildHtmlBody(String body) {
+    if (body == null) {
+      throw new IllegalArgumentException("Mail body must not be null");
+    }
+    StringBuilder sb = new StringBuilder(body.length());
+    int i = 0;
+    while (i < body.length()) {
+      int codePoint = body.codePointAt(i);
+      i += Character.charCount(codePoint);
+      int index = BODY_ALPHABET.indexOf(codePoint);
+      if (index >= 0) {
+        sb.append(BODY_ALPHABET.charAt(index));
+      } else if (!Character.isISOControl(codePoint)) {
+        sb.append("&#").append(codePoint).append(';');
+      }
+    }
+    return sb.toString();
+  }
 
   /**
    * Split the comma separated recipient list, accept only entries that fully match a strict plain

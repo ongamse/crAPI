@@ -14,6 +14,7 @@
 
 package com.crapi.utils;
 
+import com.crapi.model.ChangeEmailForm;
 import com.crapi.model.ChangePhoneForm;
 import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
@@ -31,6 +32,31 @@ public class MailBodyTest {
     Assertions.assertFalse(body.contains("<b>1</b>"));
     Assertions.assertTrue(body.contains("&lt;script&gt;x&lt;/script&gt;"));
     Assertions.assertTrue(body.contains("&lt;i&gt;"));
+  }
+
+  @Test
+  public void changeEmailMailBodyEscapesUserInput() {
+    ChangeEmailForm form = new ChangeEmailForm();
+    form.setOld_email("<script>a</script>@example.com");
+    form.setNew_email("<b>n</b>@example.com");
+    form.setToken("<i>");
+    String body = MailBody.changeMailBody(form);
+    Assertions.assertFalse(body.contains("<script>"));
+    Assertions.assertFalse(body.contains("<b>n</b>@"));
+    Assertions.assertTrue(body.contains("&lt;script&gt;a&lt;/script&gt;@example.com"));
+    Assertions.assertTrue(body.contains("&lt;i&gt;"));
+  }
+
+  @Test
+  public void changeEmailMailBodyKeepsPlainValues() {
+    ChangeEmailForm form = new ChangeEmailForm();
+    form.setOld_email("old@example.com");
+    form.setNew_email("new@example.com");
+    form.setToken("tok123");
+    String body = MailBody.changeMailBody(form);
+    Assertions.assertTrue(body.contains("<b>old@example.com</b>"));
+    Assertions.assertTrue(body.contains("<b>new@example.com</b>"));
+    Assertions.assertTrue(body.contains("<b>tok123</b>"));
   }
 
   @Test
