@@ -61,7 +61,17 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Host header values this service answers to (comma separated hostnames, no
+# port). Defaults cover local access, the container health check (0.0.0.0) and
+# the in-cluster/compose service name used by the web proxy. Set ALLOWED_HOSTS
+# to add other hostnames. Wildcards are not accepted.
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0,crapi-workshop,crapi-web"
+    ).split(",")
+    if host.strip() and host.strip() != "*"
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 
