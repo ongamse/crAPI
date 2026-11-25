@@ -9,3 +9,5 @@ docker-compose.local.yml
 # TLS private keys are generated locally (services/gencert.sh) or mounted at runtime; never commit them
 services/**/certs/server.key
 services/gateway-service/server.key
+# JWKS signing keys (contain private RSA members) are supplied at runtime; never commit them
+jwks.json

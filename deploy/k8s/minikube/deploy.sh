@@ -16,7 +16,13 @@
 cd "$(dirname $0)"
 kubectl create namespace crapi
 
-kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
+# The JWKS signing key is not committed. Put your own jwks.json in ../keys to use it;
+# otherwise an empty secret is created and the identity service generates an ephemeral key.
+if [ -f ../keys/jwks.json ]; then
+  kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
+else
+  kubectl create -n crapi secret generic jwt-key-secret
+fi
 # Generate the credentials at deploy time instead of committing them.
 # Override by exporting DB_PASSWORD / MONGO_DB_PASSWORD / SECRET_KEY / API_GATEWAY_PASSWORD.
 DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -hex 16)}"
