@@ -43,7 +43,19 @@ public class SMTPMailServer {
     boolean useMailHog = false;
     try {
       log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
+      if (containsControlChars(sendMail)) {
+        log.error("sendMail rejected: recipient contains control characters");
+        return;
+      }
+      // Strict parsing rejects malformed addresses; fail closed before any header is built.
+      InternetAddress[] emails = InternetAddress.parse(sendMail, true);
+      for (InternetAddress emailAddress : emails) {
+        emailAddress.validate();
+      }
+      if (emails.length == 0) {
+        log.error("sendMail rejected: no recipient provided");
+        return;
+      }
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -69,8 +81,8 @@ public class SMTPMailServer {
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
-      msg.setSubject(subject);
+      msg.setRecipients(Message.RecipientType.TO, emails);
+      msg.setSubject(stripLineBreaks(subject));
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
 
@@ -81,5 +93,22 @@ public class SMTPMailServer {
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  private static boolean containsControlChars(String value) {
+    if (value == null) {
+      return false;
+    }
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c < 0x20 || c == 0x7f) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static String stripLineBreaks(String value) {
+    return value == null ? null : value.replaceAll("[\\r\\n]+", " ");
   }
 }
