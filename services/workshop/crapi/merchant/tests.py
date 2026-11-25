@@ -13,7 +13,7 @@
 """
 contains all the test cases related to merchant
 """
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from utils.mock_methods import (
     get_sample_mechanic_data,
     mock_jwt_auth_required,
@@ -93,7 +93,7 @@ class MerchantTestCase(TestCase):
             vehicle_model=self.vehicle_model,
         )
         self.contact_mechanic_request_body = {
-            "mechanic_api": "https://www.google.com",
+            "mechanic_api": "http://localhost:8000/workshop/api/mechanic/receive_report",
             "repeat_request_if_failed": True,
             "number_of_repeats": 5,
             "mechanic_code": self.mechanic["mechanic_code"],
@@ -133,6 +133,32 @@ class MerchantTestCase(TestCase):
             content_type="application/json"
         )
         self.assertNotEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
+
+    def test_disallowed_mechanic_api_targets(self):
+        """
+        points mechanic_api to non allowlisted / internal targets
+        should get an error message and no outbound request
+        :return: None
+        """
+        for url in (
+            "http://169.254.169.254/latest/meta-data/",
+            "http://localhost.evil.com/",
+            "http://user@localhost:8000/",
+            "file:///etc/passwd",
+            "ftp://localhost/",
+        ):
+            self.contact_mechanic_request_body["mechanic_api"] = url
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
+            mock_get.assert_not_called()
 
     def test_contact_mechanic(self):
         """
@@ -140,14 +166,20 @@ class MerchantTestCase(TestCase):
         should get a valid response from mechanic_api
         :return: None
         """
-        res = self.client.post(
-            "/workshop/api/merchant/contact_mechanic",
-            self.contact_mechanic_request_body,
-            **self.user_auth_headers,
-            content_type="application/json"
-        )
+        mock_response = Mock(status_code=200, text="ok")
+        mock_response.json.return_value = {"id": 1}
+        with patch(
+            "crapi.merchant.views.requests.get", return_value=mock_response
+        ) as mock_get:
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
         self.assertEqual(res.status_code, 200)
-        self.assertIn("<title>Google</title>", res.json()["response_from_mechanic_api"])
+        self.assertEqual(res.json()["response_from_mechanic_api"], {"id": 1})
+        mock_get.assert_called_once()
 
     def test_repeat_missing_request(self):
         """
@@ -156,12 +188,15 @@ class MerchantTestCase(TestCase):
         :return: None
         """
         del self.contact_mechanic_request_body["repeat_request_if_failed"]
-        res = self.client.post(
-            "/workshop/api/merchant/contact_mechanic",
-            self.contact_mechanic_request_body,
-            **self.user_auth_headers,
-            content_type="application/json"
-        )
+        mock_response = Mock(status_code=200, text="ok")
+        mock_response.json.return_value = {"id": 1}
+        with patch("crapi.merchant.views.requests.get", return_value=mock_response):
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
         self.assertEqual(res.status_code, 200)
 
     def test_receive_report_and_get_report(self):

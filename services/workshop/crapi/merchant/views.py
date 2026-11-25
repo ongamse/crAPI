@@ -15,7 +15,10 @@
 """
 contains all the views related to Merchant
 """
+import ipaddress
 import logging
+import socket
+from urllib.parse import urlparse
 import requests
 from requests.exceptions import MissingSchema, InvalidURL
 from rest_framework import status
@@ -35,6 +38,42 @@ from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
 
 
 logger = logging.getLogger()
+
+
+def is_allowed_mechanic_api(url):
+    """
+    checks that the mechanic_api url targets an allowlisted host
+    (settings.MECHANIC_API_ALLOWED_HOSTS) over http(s) and does not
+    resolve to a link-local (cloud metadata), multicast or unspecified address
+    :param url: url supplied by the user
+    :returns True if the url may be requested, False otherwise
+    """
+    if not isinstance(url, str):
+        return False
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https") or not hostname:
+        return False
+    if parsed.username is not None or parsed.password is not None:
+        return False
+    if hostname.lower() not in settings.MECHANIC_API_ALLOWED_HOSTS:
+        return False
+    try:
+        addr_infos = socket.getaddrinfo(
+            hostname, port or (443 if parsed.scheme == "https" else 80)
+        )
+    except socket.gaierror:
+        # cannot resolve: the request itself will fail to connect
+        return True
+    for addr_info in addr_infos:
+        ip = ipaddress.ip_address(addr_info[4][0].split("%")[0])
+        if ip.is_link_local or ip.is_multicast or ip.is_unspecified:
+            return False
+    return True
 
 
 class ContactMechanicView(APIView):
@@ -79,6 +118,18 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        if not is_allowed_mechanic_api(request_data["mechanic_api"]):
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.INVALID_MECHANIC_API,
+            )
+            return Response(
+                {"message": messages.INVALID_MECHANIC_API},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         repeat_count = 0
         while True:
             request_url = request_data["mechanic_api"]
@@ -87,6 +138,7 @@ class ContactMechanicView(APIView):
                 mechanic_response = requests.get(
                     request_url,
                     params=request_data,
+                    allow_redirects=False,
                     headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
                     verify=False,
                 )
