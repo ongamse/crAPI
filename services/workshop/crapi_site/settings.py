@@ -61,7 +61,17 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Host headers the workshop accepts (comma separated). The defaults cover
+# local access, the container health check (0.0.0.0) and the service names
+# the web proxy uses to reach the workshop in compose / k8s / helm.
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,[::1],0.0.0.0,crapi-workshop,workshop",
+    ).split(",")
+    if host.strip()
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 
