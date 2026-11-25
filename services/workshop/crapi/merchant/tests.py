@@ -24,6 +24,7 @@ from crapi.mechanic.models import ServiceRequest, Mechanic
 patch("utils.jwt.jwt_auth_required", mock_jwt_auth_required).start()
 
 import bcrypt
+from django.contrib.auth.hashers import make_password
 from django.test import TestCase, Client
 from django.utils import timezone
 from utils import messages
@@ -83,7 +84,7 @@ class MerchantTestCase(TestCase):
             id=3,
             email=self.jwt_token,
             number="9123456709",
-            password=bcrypt.hashpw(b"unused-password", bcrypt.gensalt()).decode(),
+            password=make_password(None),
             role=User.ROLE_CHOICES.USER,
             created_on=timezone.now(),
         )
@@ -245,7 +246,7 @@ class MerchantTestCase(TestCase):
                     email=value[7:],
                     defaults={
                         "number": "9123456710",
-                        "password": "unused",
+                        "password": make_password(None),
                         "role": User.ROLE_CHOICES.USER,
                         "created_on": timezone.now(),
                     },
