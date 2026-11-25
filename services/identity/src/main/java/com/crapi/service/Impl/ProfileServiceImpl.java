@@ -31,6 +31,7 @@ import com.crapi.utils.ProfileValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -113,6 +114,25 @@ public class ProfileServiceImpl implements ProfileService {
   }
 
   /**
+   * Resolves the video from the authenticated user (never from the request-supplied id) and only
+   * compares the requested id against it.
+   *
+   * @param user authenticated user
+   * @param videoId video id supplied by the client
+   * @return the user's own video when its id equals videoId, otherwise empty
+   */
+  private Optional<ProfileVideo> findOwnedVideo(User user, Long videoId) {
+    if (user == null || videoId == null) {
+      return Optional.empty();
+    }
+    ProfileVideo ownVideo = profileVideoRepository.findByUser_id(user.getId());
+    if (ownVideo != null && Objects.equals(ownVideo.getId(), videoId)) {
+      return Optional.of(ownVideo);
+    }
+    return Optional.empty();
+  }
+
+  /**
    * @param videoId
    * @param request getting jwt token for user from request header
    * @return get profile video details.
@@ -121,8 +141,7 @@ public class ProfileServiceImpl implements ProfileService {
   @Override
   public ProfileVideo getProfileVideo(Long videoId, HttpServletRequest request) {
     User user = userService.getUserFromToken(request);
-    Optional<ProfileVideo> optionalProfileVideo =
-        profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
+    Optional<ProfileVideo> optionalProfileVideo = findOwnedVideo(user, videoId);
     if (optionalProfileVideo.isPresent()) {
       return optionalProfileVideo.get();
     }
@@ -140,8 +159,7 @@ public class ProfileServiceImpl implements ProfileService {
       Long videoId, VideoForm videoForm, HttpServletRequest request) {
     User user = userService.getUserFromToken(request);
     // The video id in the path must reference the video owned by the token user.
-    Optional<ProfileVideo> optionalProfileVideo =
-        profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
+    Optional<ProfileVideo> optionalProfileVideo = findOwnedVideo(user, videoId);
     if (optionalProfileVideo.isPresent()) {
       ProfileVideo profileVideo = optionalProfileVideo.get();
       profileVideo.setVideo_name(videoForm.getVideoName());
@@ -164,8 +182,7 @@ public class ProfileServiceImpl implements ProfileService {
   @Override
   public CRAPIResponse deleteProfileVideo(Long videoId, HttpServletRequest request) {
     User user = userService.getUserFromToken(request);
-    Optional<ProfileVideo> optionalProfileVideo =
-        profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
+    Optional<ProfileVideo> optionalProfileVideo = findOwnedVideo(user, videoId);
     if (optionalProfileVideo.isPresent()) {
       return new CRAPIResponse(UserMessage.THIS_IS_ADMIN_FUNCTION, 403);
     }
@@ -183,7 +200,7 @@ public class ProfileServiceImpl implements ProfileService {
     Optional<ProfileVideo> optionalProfileVideo;
     ProfileVideo profileVideo;
     User user = userService.getUserFromToken(request);
-    optionalProfileVideo = profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
+    optionalProfileVideo = findOwnedVideo(user, videoId);
     if (optionalProfileVideo.isPresent()) {
       profileVideo = optionalProfileVideo.get();
       profileVideo.setUser(null);
@@ -219,8 +236,7 @@ public class ProfileServiceImpl implements ProfileService {
       if (xForwardedHost == null) {
         if (videoId != null && videoId > 0) {
           User user = userService.getUserFromToken(request);
-          Optional<ProfileVideo> optionalProfileVideo =
-              profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
+          Optional<ProfileVideo> optionalProfileVideo = findOwnedVideo(user, videoId);
           if (optionalProfileVideo.isPresent() && !enable_shell_injection) {
             profileVideo = optionalProfileVideo.get();
             if (ProfileValidator.checkContains(profileVideo.getConversion_params())) {

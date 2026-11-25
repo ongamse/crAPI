@@ -154,7 +154,17 @@ public class VehicleServiceImpl implements VehicleService {
       if (requester == null) {
         return null;
       }
-      vehicleDetails = vehicleDetailsRepository.findByUuidAndOwner_id(carId, requester.getId());
+      // Load only the requester's own vehicles; carId is compared, never used as a query key.
+      List<VehicleDetails> ownedVehicles =
+          vehicleDetailsRepository.findAllByOwner_id(requester.getId());
+      if (ownedVehicles != null) {
+        for (VehicleDetails ownedVehicle : ownedVehicles) {
+          if (ownedVehicle != null && Objects.equals(ownedVehicle.getUuid(), carId)) {
+            vehicleDetails = ownedVehicle;
+            break;
+          }
+        }
+      }
       if (vehicleDetails != null && vehicleDetails.getOwner() != null) {
         // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);
         // vehicleDetails.setVehicleLocation(getVehicleLocationList().get(random.nextInt(getVehicleLocationList().size())));
