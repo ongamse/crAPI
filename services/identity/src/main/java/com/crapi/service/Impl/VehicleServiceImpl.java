@@ -16,6 +16,7 @@ package com.crapi.service.Impl;
 
 import com.crapi.constant.UserMessage;
 import com.crapi.entity.*;
+import com.crapi.enums.ERole;
 import com.crapi.enums.EStatus;
 import com.crapi.exception.CRAPIExceptionHandler;
 import com.crapi.model.CRAPIResponse;
@@ -138,18 +139,25 @@ public class VehicleServiceImpl implements VehicleService {
 
   /**
    * @param carId
-   * @return VehicleDetails which is linked with this carId.
+   * @param request
+   * @return VehicleDetails which is linked with this carId, only if owned by the token user (or
+   *     requested by an admin).
    */
   @Transactional
   @Override
-  public VehicleLocationResponse getVehicleLocation(UUID carId) {
+  public VehicleLocationResponse getVehicleLocation(UUID carId, HttpServletRequest request) {
     VehicleDetails vehicleDetails = null;
     VehicleLocationResponse vehicleLocationForm = null;
     UserDetails userDetails = null;
     Random random = new Random();
+    User requester = userService.getUserFromToken(request);
     try {
       vehicleDetails = vehicleDetailsRepository.findByUuid(carId);
-      if (vehicleDetails != null) {
+      if (vehicleDetails != null
+          && requester != null
+          && vehicleDetails.getOwner() != null
+          && (ERole.ROLE_ADMIN.equals(requester.getRole())
+              || Objects.equals(vehicleDetails.getOwner().getId(), requester.getId()))) {
         // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);
         // vehicleDetails.setVehicleLocation(getVehicleLocationList().get(random.nextInt(getVehicleLocationList().size())));
         if (vehicleDetails.getOwner() != null) {
