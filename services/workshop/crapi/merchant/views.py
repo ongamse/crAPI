@@ -41,32 +41,16 @@ from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
 logger = logging.getLogger()
 
 
-def is_allowed_mechanic_api(url):
+def resolves_to_safe_address(hostname, port):
     """
-    checks that the mechanic_api url targets an allowlisted host
-    (settings.MECHANIC_API_ALLOWED_HOSTS) over http(s) and does not
-    resolve to a link-local (cloud metadata), multicast or unspecified address
-    :param url: url supplied by the user
-    :returns True if the url may be requested, False otherwise
+    checks that an (already allowlisted) host does not resolve to a link-local
+    (cloud metadata), multicast or unspecified address
+    :param hostname: allowlisted hostname
+    :param port: port that will be connected to
+    :returns True if the host may be requested, False otherwise
     """
-    if not isinstance(url, str):
-        return False
     try:
-        parsed = urlparse(url)
-        hostname = parsed.hostname
-        port = parsed.port
-    except ValueError:
-        return False
-    if parsed.scheme not in ("http", "https") or not hostname:
-        return False
-    if parsed.username is not None or parsed.password is not None:
-        return False
-    if hostname.lower() not in settings.MECHANIC_API_ALLOWED_HOSTS:
-        return False
-    try:
-        addr_infos = socket.getaddrinfo(
-            hostname, port or (443 if parsed.scheme == "https" else 80)
-        )
+        addr_infos = socket.getaddrinfo(hostname, port)
     except socket.gaierror:
         # cannot resolve: the request itself will fail to connect
         return True
@@ -136,7 +120,38 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        if not is_allowed_mechanic_api(request_data["mechanic_api"]):
+        # Validate the user supplied url and rebuild the outbound url from the
+        # allowlisted host (from settings) plus the validated port/path/query.
+        request_url = None
+        mechanic_api = request_data["mechanic_api"]
+        if isinstance(mechanic_api, str):
+            try:
+                parsed_api = urlparse(mechanic_api)
+                api_hostname = (parsed_api.hostname or "").lower()
+                api_port = parsed_api.port
+            except ValueError:
+                parsed_api = None
+            if (
+                parsed_api is not None
+                and parsed_api.scheme in ("http", "https")
+                and parsed_api.username is None
+                and parsed_api.password is None
+                and (parsed_api.path == "" or parsed_api.path.startswith("/"))
+                and api_hostname in settings.MECHANIC_API_ALLOWED_HOSTS
+            ):
+                allowed_host = settings.MECHANIC_API_ALLOWED_HOSTS[
+                    settings.MECHANIC_API_ALLOWED_HOSTS.index(api_hostname)
+                ]
+                api_scheme = "https" if parsed_api.scheme == "https" else "http"
+                effective_port = api_port or (443 if api_scheme == "https" else 80)
+                if resolves_to_safe_address(allowed_host, effective_port):
+                    netloc = allowed_host
+                    if api_port:
+                        netloc = f"{netloc}:{int(api_port)}"
+                    request_url = f"{api_scheme}://{netloc}{parsed_api.path}"
+                    if parsed_api.query:
+                        request_url = f"{request_url}?{parsed_api.query}"
+        if request_url is None:
             log_error(
                 request.path,
                 request.data,
@@ -163,7 +178,6 @@ class ContactMechanicView(APIView):
 
         repeat_count = 0
         while True:
-            request_url = request_data["mechanic_api"]
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
             try:
                 mechanic_response = requests.get(
