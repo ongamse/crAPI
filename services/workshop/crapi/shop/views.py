@@ -145,7 +145,7 @@ class OrderControlView(APIView):
                         "Content-Type": "application/json",
                     },
                     json=data,
-                    verify=False,
+                    verify=True,
                     timeout=5,
                 )
                 if payment_response.status_code == 200:

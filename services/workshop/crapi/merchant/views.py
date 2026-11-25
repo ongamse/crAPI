@@ -171,7 +171,7 @@ class ContactMechanicView(APIView):
                     params=request_data,
                     allow_redirects=False,
                     headers={"Authorization": authorization},
-                    verify=False,
+                    verify=True,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")
