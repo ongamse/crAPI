@@ -77,17 +77,29 @@ public class SMTPMailServer {
         log.info("Using Mail Configuration for sending email: " + sendMail);
       }
 
-      Message msg = new MimeMessage(session);
+      String configuredFrom = mailhogConfiguration.getFrom();
+      if (containsControlChars(configuredFrom)) {
+        log.error("sendMail rejected: sender contains control characters");
+        return;
+      }
+      InternetAddress[] fromAddresses = InternetAddress.parse(configuredFrom, true);
+      if (fromAddresses.length != 1) {
+        log.error("sendMail rejected: exactly one sender address is required");
+        return;
+      }
+      fromAddresses[0].validate();
 
-      msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
+      // Header values are rebuilt from validated/sanitized variables; body is stripped of
+      // control characters (other than tab/CR/LF) before it reaches the MIME content.
+      String safeSubject = removeControlChars(subject);
+      String safeBody = removeNonPrintableBodyChars(body);
 
+      MimeMessage msg = new MimeMessage(session);
+      msg.setFrom(fromAddresses[0]);
       msg.setRecipients(Message.RecipientType.TO, emails);
-      msg.setSubject(stripLineBreaks(subject));
-      msg.setContent(body, "text/html");
+      msg.setSubject(safeSubject);
+      msg.setContent(safeBody, "text/html");
       msg.setSentDate(new Date());
-
-      MimeBodyPart messageBodyPart = new MimeBodyPart();
-      messageBodyPart.setContent(body, "text/html");
 
       Transport.send(msg);
     } catch (Exception e) {
@@ -108,7 +120,42 @@ public class SMTPMailServer {
     return false;
   }
 
-  private static String stripLineBreaks(String value) {
-    return value == null ? null : value.replaceAll("[\\r\\n]+", " ");
+  /** Replaces CR/LF runs with a space and drops all other control characters. */
+  private static String removeControlChars(String value) {
+    if (value == null) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder(value.length());
+    boolean lastWasBreak = false;
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c == '\r' || c == '\n') {
+        if (!lastWasBreak) {
+          sb.append(' ');
+        }
+        lastWasBreak = true;
+      } else if (c < 0x20 || c == 0x7f) {
+        lastWasBreak = false;
+      } else {
+        sb.append(c);
+        lastWasBreak = false;
+      }
+    }
+    return sb.toString();
+  }
+
+  /** Drops control characters from the body except tab, CR and LF. */
+  private static String removeNonPrintableBodyChars(String value) {
+    if (value == null) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c == '\t' || c == '\r' || c == '\n' || (c >= 0x20 && c != 0x7f)) {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
   }
 }
