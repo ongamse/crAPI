@@ -163,8 +163,13 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        authorization = get_safe_authorization_header(request)
-        if authorization is None:
+        # Only a value made purely of printable ASCII (no CR, LF or other
+        # control characters) is forwarded; the header value sent below is the
+        # validated match, never the raw request value.
+        authorization_match = SAFE_HEADER_VALUE_PATTERN.fullmatch(
+            get_safe_authorization_header(request) or ""
+        )
+        if authorization_match is None:
             log_error(
                 request.path,
                 request.data,
@@ -176,6 +181,7 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        authorization = str(authorization_match.group(0))
         repeat_count = 0
         while True:
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
