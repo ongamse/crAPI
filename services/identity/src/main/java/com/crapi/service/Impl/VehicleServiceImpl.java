@@ -16,7 +16,6 @@ package com.crapi.service.Impl;
 
 import com.crapi.constant.UserMessage;
 import com.crapi.entity.*;
-import com.crapi.enums.ERole;
 import com.crapi.enums.EStatus;
 import com.crapi.exception.CRAPIExceptionHandler;
 import com.crapi.model.CRAPIResponse;
@@ -152,12 +151,11 @@ public class VehicleServiceImpl implements VehicleService {
     Random random = new Random();
     User requester = userService.getUserFromToken(request);
     try {
-      vehicleDetails = vehicleDetailsRepository.findByUuid(carId);
-      if (vehicleDetails != null
-          && requester != null
-          && vehicleDetails.getOwner() != null
-          && (ERole.ROLE_ADMIN.equals(requester.getRole())
-              || Objects.equals(vehicleDetails.getOwner().getId(), requester.getId()))) {
+      if (requester == null) {
+        return null;
+      }
+      vehicleDetails = vehicleDetailsRepository.findByUuidAndOwner_id(carId, requester.getId());
+      if (vehicleDetails != null && vehicleDetails.getOwner() != null) {
         // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);
         // vehicleDetails.setVehicleLocation(getVehicleLocationList().get(random.nextInt(getVehicleLocationList().size())));
         if (vehicleDetails.getOwner() != null) {
