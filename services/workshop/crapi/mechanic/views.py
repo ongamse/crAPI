@@ -391,8 +391,15 @@ class DownloadReportView(APIView):
             )
 
         filename_from_user = unquote(filename_from_user)
-        full_path = resolve_report_path(filename_from_user)
-        if full_path is None:
+        safe_name = os.path.basename(filename_from_user)
+        reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, "reports"))
+        full_path = os.path.realpath(os.path.join(reports_dir, safe_name))
+        if (
+            not safe_name
+            or safe_name != filename_from_user
+            or "\x00" in safe_name
+            or not full_path.startswith(reports_dir + os.sep)
+        ):
             return Response(
                 {"message": "Invalid input."},
                 status=status.HTTP_400_BAD_REQUEST
@@ -410,21 +417,6 @@ class DownloadReportView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-def resolve_report_path(filename):
-    """
-    Resolves a report filename to a canonical path confined to the reports
-    directory. Returns None if the name is empty, contains a NUL byte or
-    escapes the reports directory (e.g. via '..' or absolute paths).
-    """
-    if not filename or "\x00" in filename:
-        return None
-    reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, "reports"))
-    candidate = os.path.realpath(os.path.join(reports_dir, filename))
-    if os.path.commonpath([reports_dir, candidate]) != reports_dir:
-        return None
-    return candidate
-
-
 def validate_filename(input: str) -> bool:
     """
     Allowed: alphanumerics, _, :, %HH
@@ -439,8 +431,14 @@ def service_report_pdf(response_data, report_id):
     """
     reports_dir = os.path.join(settings.BASE_DIR, 'reports')
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = resolve_report_path(f"report_{report_id}")
-    if report_filepath is None:
+    safe_report_name = "report_" + os.path.basename(str(report_id))
+    real_reports_dir = os.path.realpath(reports_dir)
+    report_filepath = os.path.realpath(os.path.join(real_reports_dir, safe_report_name))
+    if (
+        not str(report_id).isascii()
+        or not str(report_id).isdigit()
+        or not report_filepath.startswith(real_reports_dir + os.sep)
+    ):
         raise ValueError("Invalid report id")
 
     template = get_template('service_report.html')
