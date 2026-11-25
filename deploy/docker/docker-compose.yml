@@ -45,8 +45,8 @@ services:
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - TLS_KEYSTORE_TYPE=PKCS12
       - TLS_KEYSTORE=classpath:certs/server.p12
-      - TLS_KEYSTORE_PASSWORD=passw0rd
-      - TLS_KEY_PASSWORD=passw0rd
+      - TLS_KEYSTORE_PASSWORD=${TLS_KEYSTORE_PASSWORD:-}
+      - TLS_KEY_PASSWORD=${TLS_KEY_PASSWORD:-}
       - TLS_KEY_ALIAS=identity
     depends_on:
       postgresdb:
@@ -172,7 +172,7 @@ services:
       - MONGO_DB_PASSWORD=${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD}
       - MONGO_DB_NAME=crapi
       - API_USER=admin@example.com
-      - API_PASSWORD=Admin!123
+      - API_PASSWORD=${API_PASSWORD:?Set API_PASSWORD}
       - OPENAPI_SPEC=/app/resources/crapi-openapi-spec.json
       - DEFAULT_MODEL=gpt-4o-mini
       - CHROMA_HOST=chromadb
