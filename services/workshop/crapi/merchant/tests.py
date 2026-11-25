@@ -24,6 +24,7 @@ from crapi.mechanic.models import ServiceRequest, Mechanic
 patch("utils.jwt.jwt_auth_required", mock_jwt_auth_required).start()
 
 import bcrypt
+import requests
 from django.contrib.auth.hashers import make_password
 from django.test import TestCase, Client
 from django.utils import timezone
@@ -214,9 +215,12 @@ class MerchantTestCase(TestCase):
                 "vin": self.vehicle.vin,
             },
         )
+        self.assertNotIn("headers", mock_get.call_args.kwargs)
+        prepared = requests.Request(
+            "GET", "http://localhost/", auth=mock_get.call_args.kwargs["auth"]
+        ).prepare()
         self.assertEqual(
-            mock_get.call_args.kwargs["headers"],
-            {"Authorization": "Bearer " + self.jwt_token},
+            prepared.headers["Authorization"], "Bearer " + self.jwt_token
         )
 
     def test_unsafe_authorization_header_not_forwarded(self):
