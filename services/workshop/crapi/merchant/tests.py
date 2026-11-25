@@ -148,6 +148,11 @@ class MerchantTestCase(TestCase):
             "http://user@localhost:8000/",
             "file:///etc/passwd",
             "ftp://localhost/",
+            "http://localhost:8000/",
+            "http://localhost:8000/workshop/api/mechanic/receive_report/../x",
+            "http://localhost:8000/workshop/api/mechanic/receive_report?a=b",
+            "http://localhost:8000/workshop/api/mechanic/receive_report#x",
+            "http://localhost:9999/workshop/api/mechanic/receive_report",
         ):
             self.contact_mechanic_request_body["mechanic_api"] = url
             with patch("crapi.merchant.views.requests.get") as mock_get:
@@ -181,6 +186,20 @@ class MerchantTestCase(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["response_from_mechanic_api"], {"id": 1})
         mock_get.assert_called_once()
+        # the outbound url is the server side allowlist entry, and only the
+        # fields consumed by receive_report are sent as query params
+        self.assertEqual(
+            mock_get.call_args.args[0],
+            "http://localhost:8000/workshop/api/mechanic/receive_report",
+        )
+        self.assertEqual(
+            mock_get.call_args.kwargs["params"],
+            {
+                "mechanic_code": self.mechanic["mechanic_code"],
+                "problem_details": "My Car is not working",
+                "vin": self.vehicle.vin,
+            },
+        )
         self.assertEqual(
             mock_get.call_args.kwargs["headers"],
             {"Authorization": self.user_auth_headers["HTTP_AUTHORIZATION"]},

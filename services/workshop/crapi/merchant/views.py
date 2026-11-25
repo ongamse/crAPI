@@ -61,6 +61,54 @@ def resolves_to_safe_address(hostname, port):
     return True
 
 
+MECHANIC_REPORT_FIELDS = ("mechanic_code", "problem_details", "vin", "owner_id")
+
+
+def normalize_mechanic_url(url):
+    """
+    normalizes an http(s) url to (scheme, host, port, path) for comparison
+    :param url: url string
+    :returns tuple, or None if the url is not a plain http(s) url without
+        credentials, query, params or fragment
+    """
+    if not isinstance(url, str):
+        return None
+    try:
+        parsed = urlparse(url)
+        port = parsed.port
+    except ValueError:
+        return None
+    if (
+        parsed.scheme not in ("http", "https")
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+    if port is None:
+        port = 443 if parsed.scheme == "https" else 80
+    return (parsed.scheme, parsed.hostname.lower(), port, parsed.path.rstrip("/"))
+
+
+def get_allowed_mechanic_url(mechanic_api):
+    """
+    resolves the user supplied mechanic_api against the server side allowlist
+    :param mechanic_api: user supplied url
+    :returns the allowlist entry (settings string) that matches exactly on
+        scheme, host, port and path, None otherwise
+    """
+    requested = normalize_mechanic_url(mechanic_api)
+    if requested is None:
+        return None
+    for allowed_url in settings.MECHANIC_API_ALLOWED_URLS:
+        if normalize_mechanic_url(allowed_url) == requested:
+            return allowed_url
+    return None
+
+
 SAFE_HEADER_VALUE_PATTERN = re.compile(r"[\x20-\x7e]+")
 
 
@@ -120,37 +168,16 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        # Validate the user supplied url and rebuild the outbound url from the
-        # allowlisted host (from settings) plus the validated port/path/query.
-        request_url = None
-        mechanic_api = request_data["mechanic_api"]
-        if isinstance(mechanic_api, str):
-            try:
-                parsed_api = urlparse(mechanic_api)
-                api_hostname = (parsed_api.hostname or "").lower()
-                api_port = parsed_api.port
-            except ValueError:
-                parsed_api = None
-            if (
-                parsed_api is not None
-                and parsed_api.scheme in ("http", "https")
-                and parsed_api.username is None
-                and parsed_api.password is None
-                and (parsed_api.path == "" or parsed_api.path.startswith("/"))
-                and api_hostname in settings.MECHANIC_API_ALLOWED_HOSTS
+        # The outbound url is a complete base url from the server side
+        # allowlist in settings; the user supplied value only selects an entry.
+        request_url = get_allowed_mechanic_url(request_data["mechanic_api"])
+        if request_url is not None:
+            allowed_parts = urlparse(request_url)
+            if not resolves_to_safe_address(
+                allowed_parts.hostname,
+                allowed_parts.port or (443 if allowed_parts.scheme == "https" else 80),
             ):
-                allowed_host = settings.MECHANIC_API_ALLOWED_HOSTS[
-                    settings.MECHANIC_API_ALLOWED_HOSTS.index(api_hostname)
-                ]
-                api_scheme = "https" if parsed_api.scheme == "https" else "http"
-                effective_port = api_port or (443 if api_scheme == "https" else 80)
-                if resolves_to_safe_address(allowed_host, effective_port):
-                    netloc = allowed_host
-                    if api_port:
-                        netloc = f"{netloc}:{int(api_port)}"
-                    request_url = f"{api_scheme}://{netloc}{parsed_api.path}"
-                    if parsed_api.query:
-                        request_url = f"{request_url}?{parsed_api.query}"
+                request_url = None
         if request_url is None:
             log_error(
                 request.path,
@@ -182,13 +209,19 @@ class ContactMechanicView(APIView):
             )
 
         authorization = str(authorization_match.group(0))
+        # only the fields the mechanic receive_report endpoint consumes
+        mechanic_params = {
+            field: request_data[field]
+            for field in MECHANIC_REPORT_FIELDS
+            if field in request_data
+        }
         repeat_count = 0
         while True:
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
             try:
                 mechanic_response = requests.get(
                     request_url,
-                    params=request_data,
+                    params=mechanic_params,
                     allow_redirects=False,
                     headers={"Authorization": authorization},
                     verify=True,

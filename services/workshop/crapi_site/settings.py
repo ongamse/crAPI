@@ -83,6 +83,42 @@ MECHANIC_API_ALLOWED_HOSTS = [
     ).split(",")
     if host.strip()
 ]
+# Ports the allowlisted hosts are reachable on (direct workshop, web proxy
+# http / https, and the published compose / k8s ports)
+MECHANIC_API_HTTP_PORTS = [
+    int(port)
+    for port in os.environ.get("MECHANIC_API_HTTP_PORTS", "80,8000,8888,30080").split(
+        ","
+    )
+    if port.strip()
+]
+MECHANIC_API_HTTPS_PORTS = [
+    int(port)
+    for port in os.environ.get("MECHANIC_API_HTTPS_PORTS", "443,8443,30443").split(",")
+    if port.strip()
+]
+MECHANIC_API_RECEIVE_REPORT_PATH = "/workshop/api/mechanic/receive_report"
+# Complete base urls (scheme://host:port/path) the contact mechanic feature may
+# call. The outbound request always uses one of these entries verbatim; set
+# MECHANIC_API_ALLOWED_URLS (comma separated) to override the generated defaults.
+MECHANIC_API_ALLOWED_URLS = [
+    url.strip()
+    for url in os.environ.get(
+        "MECHANIC_API_ALLOWED_URLS",
+        ",".join(
+            [
+                f"{scheme}://{host}:{port}{MECHANIC_API_RECEIVE_REPORT_PATH}"
+                for scheme, ports in (
+                    ("http", MECHANIC_API_HTTP_PORTS),
+                    ("https", MECHANIC_API_HTTPS_PORTS),
+                )
+                for host in MECHANIC_API_ALLOWED_HOSTS
+                for port in ports
+            ]
+        ),
+    ).split(",")
+    if url.strip()
+]
 API_GATEWAY_USERNAME = "vendorcrapi"
 # Supplied at runtime via the API_GATEWAY_PASSWORD environment variable
 API_GATEWAY_PASSWORD = os.environ.get("API_GATEWAY_PASSWORD", "")
