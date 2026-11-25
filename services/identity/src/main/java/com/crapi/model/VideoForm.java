@@ -14,12 +14,17 @@
 
 package com.crapi.model;
 
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
 public class VideoForm {
 
   private long id;
+
+  @Size(max = 255)
+  @Pattern(regexp = "^[^\\p{Cntrl}]*$")
   private String videoName;
   private String video_url;
   private String conversion_params;
