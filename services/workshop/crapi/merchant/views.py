@@ -17,11 +17,9 @@ contains all the views related to Merchant
 """
 import ipaddress
 import logging
-import re
 import socket
 from urllib.parse import urlparse
 import requests
-from requests.auth import AuthBase
 from requests.exceptions import MissingSchema, InvalidURL
 from rest_framework import status
 from rest_framework.response import Response
@@ -110,34 +108,6 @@ def get_allowed_mechanic_url(mechanic_api):
     return None
 
 
-# The only credential shape this service accepts and forwards: a bearer JWT,
-# i.e. three base64url segments separated by dots (the signature segment may
-# be empty). Nothing else (spaces, CR/LF, other control chars) can match.
-JWT_TOKEN_REGEX = (
-    r"[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{0,2048}"
-)
-JWT_TOKEN_PATTERN = re.compile(JWT_TOKEN_REGEX)
-BEARER_JWT_PATTERN = re.compile(r"Bearer (?P<token>" + JWT_TOKEN_REGEX + r")")
-
-
-class BearerTokenAuth(AuthBase):
-    """
-    requests auth handler that attaches a validated bearer JWT. The header is
-    built here from a fixed prefix and a token that must fully match the
-    strict JWT charset, so no request supplied string is placed in the
-    outbound headers mapping.
-    """
-
-    def __init__(self, token):
-        if not isinstance(token, str) or not JWT_TOKEN_PATTERN.fullmatch(token):
-            raise ValueError("token is not a well formed JWT")
-        self.token = token
-
-    def __call__(self, r):
-        r.headers["Authorization"] = "Bearer " + self.token
-        return r
-
-
 class ContactMechanicView(APIView):
     """
     View for contact mechanic feature
@@ -202,28 +172,9 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Only a strict "Bearer <jwt>" value is accepted. The header value sent
-        # below is rebuilt from a fixed prefix and the validated token group,
-        # never the raw request value.
-        raw_authorization = request.META.get("HTTP_AUTHORIZATION")
-        authorization_match = (
-            BEARER_JWT_PATTERN.fullmatch(raw_authorization)
-            if isinstance(raw_authorization, str)
-            else None
-        )
-        if authorization_match is None:
-            log_error(
-                request.path,
-                request.data,
-                status.HTTP_400_BAD_REQUEST,
-                messages.INVALID_TOKEN,
-            )
-            return Response(
-                {"message": messages.INVALID_TOKEN},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        mechanic_auth = BearerTokenAuth(authorization_match.group("token"))
+        # The caller is already authenticated by jwt_auth_required. The mechanic
+        # receive_report endpoint does not authenticate, so no request supplied
+        # header (in particular the caller's Authorization) is forwarded.
         # only the fields the mechanic receive_report endpoint consumes
         mechanic_params = {
             field: request_data[field]
@@ -238,7 +189,6 @@ class ContactMechanicView(APIView):
                     request_url,
                     params=mechanic_params,
                     allow_redirects=False,
-                    auth=mechanic_auth,
                     verify=True,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:

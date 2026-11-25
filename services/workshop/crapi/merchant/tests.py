@@ -215,58 +215,15 @@ class MerchantTestCase(TestCase):
                 "vin": self.vehicle.vin,
             },
         )
+        # no request supplied header (the caller's Authorization) is forwarded
         self.assertNotIn("headers", mock_get.call_args.kwargs)
+        self.assertNotIn("auth", mock_get.call_args.kwargs)
         prepared = requests.Request(
-            "GET", "http://localhost/", auth=mock_get.call_args.kwargs["auth"]
+            "GET",
+            mock_get.call_args.args[0],
+            params=mock_get.call_args.kwargs["params"],
         ).prepare()
-        self.assertEqual(
-            prepared.headers["Authorization"], "Bearer " + self.jwt_token
-        )
-
-    def test_unsafe_authorization_header_not_forwarded(self):
-        """
-        authorization header containing CR/LF, or that is not a bearer JWT,
-        should be rejected and never forwarded to the mechanic_api
-        :return: None
-        """
-        for value in (
-            "Bearer " + self.jwt_token + "\r\nX-Injected: 1",
-            "Bearer " + self.jwt_token + "\nX-Injected: 1",
-            "Bearer a.b.c\x00",
-            "Bearer a.b.c d",
-            "Bearer é.b.c",
-            "Bearer " + self.user.email,
-            "Bearer notajwt",
-            "Bearer a.b",
-            "Token a.b.c",
-            "bearer a.b.c",
-            "Bearer  a.b.c",
-        ):
-            # the mocked auth decorator resolves the bearer value as a user
-            # email, so create such a user to reach the view's own validation
-            reaches_view = value.startswith("Bearer ")
-            if reaches_view:
-                User.objects.get_or_create(
-                    email=value[7:],
-                    defaults={
-                        "number": "9123456710",
-                        "password": make_password(None),
-                        "role": User.ROLE_CHOICES.USER,
-                        "created_on": timezone.now(),
-                    },
-                )
-            with patch("crapi.merchant.views.requests.get") as mock_get:
-                res = self.client.post(
-                    "/workshop/api/merchant/contact_mechanic",
-                    self.contact_mechanic_request_body,
-                    HTTP_AUTHORIZATION=value,
-                    content_type="application/json",
-                )
-            mock_get.assert_not_called()
-            self.assertNotEqual(res.status_code, 200)
-            if reaches_view:
-                self.assertEqual(res.status_code, 400)
-                self.assertEqual(res.json()["message"], messages.INVALID_TOKEN)
+        self.assertNotIn("Authorization", prepared.headers)
 
     def test_repeat_missing_request(self):
         """
