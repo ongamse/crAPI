@@ -97,8 +97,9 @@ public class SMTPMailServer {
       MimeMessage msg = new MimeMessage(session);
       msg.setFrom(fromAddresses[0]);
       msg.setRecipients(Message.RecipientType.TO, emails);
-      msg.setSubject(safeSubject);
-      msg.setContent(safeBody, "text/html");
+      // Subject is RFC 2047 encoded (MimeUtility.encodeText) so it can never add header lines.
+      msg.setSubject(MimeUtility.encodeText(safeSubject, "UTF-8", "B"));
+      msg.setContent(safeBody, "text/html; charset=UTF-8");
       msg.setSentDate(new Date());
 
       Transport.send(msg);
