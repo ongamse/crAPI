@@ -25,16 +25,25 @@ MONGO_CLIENT_KWARGS = {
 POSTGRES_HOST = os.environ.get("DB_HOST", "postgresdb")
 POSTGRES_PORT = os.environ.get("DB_PORT", "5432")
 POSTGRES_USER = os.environ.get("DB_USER", "admin")
-POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD", "crapisecretpassword")
+# Supplied at runtime via the DB_PASSWORD environment variable
+# (docker-compose / k8s secret / helm values); no password is hardcoded here.
+POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD", "")
 POSTGRES_DB = os.environ.get("DB_NAME", "crapi")
 
-POSTGRES_URI = "postgresql://%s:%s@%s:%s/%s?sslmode=disable" % (
-    POSTGRES_USER,
-    POSTGRES_PASSWORD,
+# Credential-free URI; the username/password are passed to the driver as
+# separate connect arguments (see POSTGRES_CONNECT_KWARGS) so no credentialed
+# URL string is ever built.
+POSTGRES_URI = "postgresql://%s:%s/%s" % (
     POSTGRES_HOST,
     POSTGRES_PORT,
     POSTGRES_DB,
 )
+
+POSTGRES_CONNECT_KWARGS = {
+    "user": POSTGRES_USER,
+    "password": POSTGRES_PASSWORD,
+    "sslmode": "disable",
+}
 
 CHROMA_HOST = os.environ.get("CHROMA_HOST", "chromadb")
 CHROMA_PORT = os.environ.get("CHROMA_PORT", "8000")
