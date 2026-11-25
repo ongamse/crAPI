@@ -28,7 +28,6 @@ from django.test import TestCase, Client
 from django.utils import timezone
 from utils import messages
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
-from crapi.merchant.views import get_safe_authorization_header
 
 
 class MerchantTestCase(TestCase):
@@ -75,6 +74,20 @@ class MerchantTestCase(TestCase):
         self.mechanic_auth_headers = {
             "HTTP_AUTHORIZATION": "Bearer " + self.mechanic["email"]
         }
+
+        # contact_mechanic only forwards a JWT shaped bearer token. The mocked
+        # auth decorator resolves the token as a user email, so use a user
+        # whose email is JWT shaped.
+        self.jwt_token = "aGVhZGVy.cGF5bG9hZA.c2lnbmF0dXJl"
+        User.objects.create(
+            id=3,
+            email=self.jwt_token,
+            number="9123456709",
+            password=bcrypt.hashpw(b"unused-password", bcrypt.gensalt()).decode(),
+            role=User.ROLE_CHOICES.USER,
+            created_on=timezone.now(),
+        )
+        self.jwt_auth_headers = {"HTTP_AUTHORIZATION": "Bearer " + self.jwt_token}
 
         self.vehicle_company = VehicleCompany.objects.create(name="RandomCompany")
 
@@ -180,7 +193,7 @@ class MerchantTestCase(TestCase):
             res = self.client.post(
                 "/workshop/api/merchant/contact_mechanic",
                 self.contact_mechanic_request_body,
-                **self.user_auth_headers,
+                **self.jwt_auth_headers,
                 content_type="application/json"
             )
         self.assertEqual(res.status_code, 200)
@@ -202,28 +215,53 @@ class MerchantTestCase(TestCase):
         )
         self.assertEqual(
             mock_get.call_args.kwargs["headers"],
-            {"Authorization": self.user_auth_headers["HTTP_AUTHORIZATION"]},
+            {"Authorization": "Bearer " + self.jwt_token},
         )
 
     def test_unsafe_authorization_header_not_forwarded(self):
         """
-        authorization header containing CR/LF or other control characters
+        authorization header containing CR/LF, or that is not a bearer JWT,
         should be rejected and never forwarded to the mechanic_api
         :return: None
         """
         for value in (
-            "Bearer a\r\nX-Injected: 1",
-            "Bearer a\nX-Injected: 1",
-            "Bearer a\x00b",
-            "Bearer \x7f",
-            "Bearer é",
-            "",
-            None,
+            "Bearer " + self.jwt_token + "\r\nX-Injected: 1",
+            "Bearer " + self.jwt_token + "\nX-Injected: 1",
+            "Bearer a.b.c\x00",
+            "Bearer a.b.c d",
+            "Bearer é.b.c",
+            "Bearer " + self.user.email,
+            "Bearer notajwt",
+            "Bearer a.b",
+            "Token a.b.c",
+            "bearer a.b.c",
+            "Bearer  a.b.c",
         ):
-            request = Mock(META={"HTTP_AUTHORIZATION": value})
-            self.assertIsNone(get_safe_authorization_header(request))
-        request = Mock(META={"HTTP_AUTHORIZATION": "Bearer abc.def-ghi"})
-        self.assertEqual(get_safe_authorization_header(request), "Bearer abc.def-ghi")
+            # the mocked auth decorator resolves the bearer value as a user
+            # email, so create such a user to reach the view's own validation
+            reaches_view = value.startswith("Bearer ")
+            if reaches_view:
+                User.objects.get_or_create(
+                    email=value[7:],
+                    defaults={
+                        "number": "9123456710",
+                        "password": "unused",
+                        "role": User.ROLE_CHOICES.USER,
+                        "created_on": timezone.now(),
+                    },
+                )
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    HTTP_AUTHORIZATION=value,
+                    content_type="application/json",
+                )
+            mock_get.assert_not_called()
+            self.assertNotEqual(res.status_code, 200)
+            if reaches_view:
+                self.assertEqual(res.status_code, 400)
+                self.assertEqual(res.json()["message"], messages.INVALID_TOKEN)
 
     def test_repeat_missing_request(self):
         """
@@ -238,7 +276,7 @@ class MerchantTestCase(TestCase):
             res = self.client.post(
                 "/workshop/api/merchant/contact_mechanic",
                 self.contact_mechanic_request_body,
-                **self.user_auth_headers,
+                **self.jwt_auth_headers,
                 content_type="application/json"
             )
         self.assertEqual(res.status_code, 200)

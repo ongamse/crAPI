@@ -109,21 +109,12 @@ def get_allowed_mechanic_url(mechanic_api):
     return None
 
 
-SAFE_HEADER_VALUE_PATTERN = re.compile(r"[\x20-\x7e]+")
-
-
-def get_safe_authorization_header(request):
-    """
-    returns the request's Authorization header value if it is safe to forward
-    in an outbound http header (printable ASCII only, so no CR/LF or other
-    control characters), None otherwise
-    :param request: http request for the view
-    :returns the header value or None if missing / unsafe
-    """
-    value = request.META.get("HTTP_AUTHORIZATION")
-    if not isinstance(value, str) or not SAFE_HEADER_VALUE_PATTERN.fullmatch(value):
-        return None
-    return value
+# The only credential shape this service accepts and forwards: a bearer JWT,
+# i.e. three base64url segments separated by dots (the signature segment may
+# be empty). Nothing else (spaces, CR/LF, other control chars) can match.
+BEARER_JWT_PATTERN = re.compile(
+    r"Bearer (?P<token>[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{1,2048}\.[A-Za-z0-9_-]{0,2048})"
+)
 
 
 class ContactMechanicView(APIView):
@@ -190,11 +181,14 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Only a value made purely of printable ASCII (no CR, LF or other
-        # control characters) is forwarded; the header value sent below is the
-        # validated match, never the raw request value.
-        authorization_match = SAFE_HEADER_VALUE_PATTERN.fullmatch(
-            get_safe_authorization_header(request) or ""
+        # Only a strict "Bearer <jwt>" value is accepted. The header value sent
+        # below is rebuilt from a fixed prefix and the validated token group,
+        # never the raw request value.
+        raw_authorization = request.META.get("HTTP_AUTHORIZATION")
+        authorization_match = (
+            BEARER_JWT_PATTERN.fullmatch(raw_authorization)
+            if isinstance(raw_authorization, str)
+            else None
         )
         if authorization_match is None:
             log_error(
@@ -208,7 +202,7 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        authorization = str(authorization_match.group(0))
+        authorization = "Bearer " + authorization_match.group("token")
         # only the fields the mechanic receive_report endpoint consumes
         mechanic_params = {
             field: request_data[field]
