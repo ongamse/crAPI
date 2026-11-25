@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
@@ -31,6 +32,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -95,7 +98,16 @@ public class WebSecurityConfig {
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .exceptionHandling(handling -> handling.authenticationEntryPoint(jwtUnauthorizedHandler));
     http.authenticationProvider(authenticationProvider());
-    http.csrf().disable();
+    // CSRF stays enabled. Requests that carry an explicit Authorization header (Bearer JWT /
+    // ApiKey) are not browser-ambient credentials, and the unauthenticated credential-in-body
+    // endpoints carry no ambient authority, so only those are exempt from the token check.
+    http.csrf(
+        csrf ->
+            csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .ignoringRequestMatchers(
+                    request -> request.getHeader(HttpHeaders.AUTHORIZATION) != null,
+                    new AntPathRequestMatcher("/identity/api/auth/**"),
+                    new AntPathRequestMatcher("/identity/management/user/**")));
     http.cors(Customizer.withDefaults());
     return http.build();
   }
