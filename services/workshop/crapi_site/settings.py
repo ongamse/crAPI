@@ -74,7 +74,8 @@ MECHANIC_API_ALLOWED_HOSTS = [
     if host.strip()
 ]
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+# Supplied at runtime via the API_GATEWAY_PASSWORD environment variable
+API_GATEWAY_PASSWORD = os.environ.get("API_GATEWAY_PASSWORD", "")
 
 # Application definition
 

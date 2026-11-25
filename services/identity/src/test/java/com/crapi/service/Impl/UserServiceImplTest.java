@@ -44,6 +44,7 @@ import com.crapi.service.VehicleService;
 import com.crapi.utils.SMTPMailServer;
 import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
+import java.util.UUID;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.LogEvent;
@@ -242,7 +243,7 @@ public class UserServiceImplTest {
   @Test
   public void testUpdateUserPassword() {
     User user = getDummyUser();
-    String samplePassword = "samplePassword";
+    String samplePassword = UUID.randomUUID().toString();
     Mockito.when(userRepository.findByEmail(user.getEmail())).thenReturn(user);
     Mockito.when(userRepository.saveAndFlush(Mockito.any())).thenReturn(user);
     userService.updateUserPassword(samplePassword, getDummyUser().getEmail());

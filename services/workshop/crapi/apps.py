@@ -23,6 +23,8 @@ from django.utils import timezone
 from django.db import models
 from django.db import connection, transaction
 import logging
+import os
+import secrets
 import traceback
 
 logger = logging.getLogger()
@@ -52,19 +54,22 @@ def create_mechanics():
     from crapi.user.models import User, UserDetails
     from crapi.mechanic.models import Mechanic
 
+    # Supplied at runtime via MECHANIC_PASSWORD; random when unset so no
+    # credential is committed to source control.
+    mechanic_password = os.environ.get("MECHANIC_PASSWORD") or secrets.token_urlsafe(16)
     mechanic_details_all = [
         {
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": mechanic_password,
             "mechanic_code": "TRAC_JHN",
         },
         {
             "name": "James",
             "email": "james@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": mechanic_password,
             "mechanic_code": "TRAC_JME",
         },
     ]

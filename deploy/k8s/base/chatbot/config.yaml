@@ -4,5 +4,4 @@ metadata:
   name: crapi-chatbot-configmap
   labels:
     app: crapi-chatbot
-data:
-    MONGO_DB_PASSWORD: crapisecretpassword
+data: {}
