@@ -15,11 +15,15 @@
 package com.crapi.config;
 
 import com.crapi.service.Impl.UserDetailsServiceImpl;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
@@ -31,6 +35,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -73,6 +81,35 @@ public class WebSecurityConfig {
     return new BCryptPasswordEncoder();
   }
 
+  private static RequestMatcher explicitAuthorizationCredentialMatcher() {
+    return request -> {
+      String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+      return authHeader != null
+          && (authHeader.startsWith("Bearer ") || authHeader.startsWith("ApiKey "));
+    };
+  }
+
+  private static RequestMatcher preAuthenticationPostMatcher() {
+    String[] paths = {
+      "/identity/api/auth/login",
+      "/identity/api/auth/signup",
+      "/identity/api/auth/verify",
+      "/identity/api/auth/forget-password",
+      "/identity/api/auth/v2/check-otp",
+      "/identity/api/auth/v3/check-otp",
+      "/identity/api/auth/v4.0/user/login-with-token",
+      "/identity/api/auth/v2.7/user/login-with-token",
+      "/identity/api/auth/reset-test-users",
+      "/identity/api/auth/unlock",
+      "/identity/management/user/apikey"
+    };
+    List<RequestMatcher> matchers = new ArrayList<>();
+    for (String path : paths) {
+      matchers.add(new AntPathRequestMatcher(path, HttpMethod.POST.name()));
+    }
+    return new OrRequestMatcher(matchers);
+  }
+
   @Bean
   public SecurityFilterChain securityFilterChainWeb(HttpSecurity http) throws Exception {
     http.authorizeHttpRequests(
@@ -95,7 +132,17 @@ public class WebSecurityConfig {
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .exceptionHandling(handling -> handling.authenticationEntryPoint(jwtUnauthorizedHandler));
     http.authenticationProvider(authenticationProvider());
-    http.csrf().disable();
+    // CSRF stays enabled for every route. The only exemptions are:
+    //  1. requests that explicitly present a Bearer JWT or ApiKey credential in the Authorization
+    //     header (the sole way this stateless API authenticates; browsers never attach it
+    //     ambiently, unlike cookies), and
+    //  2. an explicit list of unauthenticated POST endpoints (credentials / OTP in the body, no
+    //     ambient authority) that must work before any token or CSRF cookie exists.
+    http.csrf(
+        csrf ->
+            csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .ignoringRequestMatchers(
+                    explicitAuthorizationCredentialMatcher(), preAuthenticationPostMatcher()));
     http.cors(Customizer.withDefaults());
     return http.build();
   }

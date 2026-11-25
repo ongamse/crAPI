@@ -27,6 +27,9 @@ spec:
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.apiGatewayService.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.apiGatewayService.config.name }}
           {{- if .Values.apiGatewayService.resources }}
           resources:
             {{- toYaml .Values.apiGatewayService.resources | nindent 12 }}

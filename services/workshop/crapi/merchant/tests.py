@@ -13,7 +13,7 @@
 """
 contains all the test cases related to merchant
 """
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from utils.mock_methods import (
     get_sample_mechanic_data,
     mock_jwt_auth_required,
@@ -24,6 +24,8 @@ from crapi.mechanic.models import ServiceRequest, Mechanic
 patch("utils.jwt.jwt_auth_required", mock_jwt_auth_required).start()
 
 import bcrypt
+import requests
+from django.contrib.auth.hashers import make_password
 from django.test import TestCase, Client
 from django.utils import timezone
 from utils import messages
@@ -75,6 +77,20 @@ class MerchantTestCase(TestCase):
             "HTTP_AUTHORIZATION": "Bearer " + self.mechanic["email"]
         }
 
+        # contact_mechanic only forwards a JWT shaped bearer token. The mocked
+        # auth decorator resolves the token as a user email, so use a user
+        # whose email is JWT shaped.
+        self.jwt_token = "aGVhZGVy.cGF5bG9hZA.c2lnbmF0dXJl"
+        User.objects.create(
+            id=3,
+            email=self.jwt_token,
+            number="9123456709",
+            password=make_password(None),
+            role=User.ROLE_CHOICES.USER,
+            created_on=timezone.now(),
+        )
+        self.jwt_auth_headers = {"HTTP_AUTHORIZATION": "Bearer " + self.jwt_token}
+
         self.vehicle_company = VehicleCompany.objects.create(name="RandomCompany")
 
         self.vehicle_model = VehicleModel.objects.create(
@@ -93,7 +109,7 @@ class MerchantTestCase(TestCase):
             vehicle_model=self.vehicle_model,
         )
         self.contact_mechanic_request_body = {
-            "mechanic_api": "https://www.google.com",
+            "mechanic_api": "http://localhost:8000/workshop/api/mechanic/receive_report",
             "repeat_request_if_failed": True,
             "number_of_repeats": 5,
             "mechanic_code": self.mechanic["mechanic_code"],
@@ -133,6 +149,37 @@ class MerchantTestCase(TestCase):
             content_type="application/json"
         )
         self.assertNotEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
+
+    def test_disallowed_mechanic_api_targets(self):
+        """
+        points mechanic_api to non allowlisted / internal targets
+        should get an error message and no outbound request
+        :return: None
+        """
+        for url in (
+            "http://169.254.169.254/latest/meta-data/",
+            "http://localhost.evil.com/",
+            "http://user@localhost:8000/",
+            "file:///etc/passwd",
+            "ftp://localhost/",
+            "http://localhost:8000/",
+            "http://localhost:8000/workshop/api/mechanic/receive_report/../x",
+            "http://localhost:8000/workshop/api/mechanic/receive_report?a=b",
+            "http://localhost:8000/workshop/api/mechanic/receive_report#x",
+            "http://localhost:9999/workshop/api/mechanic/receive_report",
+        ):
+            self.contact_mechanic_request_body["mechanic_api"] = url
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
+            mock_get.assert_not_called()
 
     def test_contact_mechanic(self):
         """
@@ -140,14 +187,43 @@ class MerchantTestCase(TestCase):
         should get a valid response from mechanic_api
         :return: None
         """
-        res = self.client.post(
-            "/workshop/api/merchant/contact_mechanic",
-            self.contact_mechanic_request_body,
-            **self.user_auth_headers,
-            content_type="application/json"
-        )
+        mock_response = Mock(status_code=200, text="ok")
+        mock_response.json.return_value = {"id": 1}
+        with patch(
+            "crapi.merchant.views.requests.get", return_value=mock_response
+        ) as mock_get:
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.jwt_auth_headers,
+                content_type="application/json"
+            )
         self.assertEqual(res.status_code, 200)
-        self.assertIn("<title>Google</title>", res.json()["response_from_mechanic_api"])
+        self.assertEqual(res.json()["response_from_mechanic_api"], {"id": 1})
+        mock_get.assert_called_once()
+        # the outbound url is the server side allowlist entry, and only the
+        # fields consumed by receive_report are sent as query params
+        self.assertEqual(
+            mock_get.call_args.args[0],
+            "http://localhost:8000/workshop/api/mechanic/receive_report",
+        )
+        self.assertEqual(
+            mock_get.call_args.kwargs["params"],
+            {
+                "mechanic_code": self.mechanic["mechanic_code"],
+                "problem_details": "My Car is not working",
+                "vin": self.vehicle.vin,
+            },
+        )
+        # no request supplied header (the caller's Authorization) is forwarded
+        self.assertNotIn("headers", mock_get.call_args.kwargs)
+        self.assertNotIn("auth", mock_get.call_args.kwargs)
+        prepared = requests.Request(
+            "GET",
+            mock_get.call_args.args[0],
+            params=mock_get.call_args.kwargs["params"],
+        ).prepare()
+        self.assertNotIn("Authorization", prepared.headers)
 
     def test_repeat_missing_request(self):
         """
@@ -156,12 +232,15 @@ class MerchantTestCase(TestCase):
         :return: None
         """
         del self.contact_mechanic_request_body["repeat_request_if_failed"]
-        res = self.client.post(
-            "/workshop/api/merchant/contact_mechanic",
-            self.contact_mechanic_request_body,
-            **self.user_auth_headers,
-            content_type="application/json"
-        )
+        mock_response = Mock(status_code=200, text="ok")
+        mock_response.json.return_value = {"id": 1}
+        with patch("crapi.merchant.views.requests.get", return_value=mock_response):
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.jwt_auth_headers,
+                content_type="application/json"
+            )
         self.assertEqual(res.status_code, 200)
 
     def test_receive_report_and_get_report(self):

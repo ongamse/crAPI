@@ -15,7 +15,10 @@
 """
 contains all the views related to Merchant
 """
+import ipaddress
 import logging
+import socket
+from urllib.parse import urlparse
 import requests
 from requests.exceptions import MissingSchema, InvalidURL
 from rest_framework import status
@@ -35,6 +38,74 @@ from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
 
 
 logger = logging.getLogger()
+
+
+def resolves_to_safe_address(hostname, port):
+    """
+    checks that an (already allowlisted) host does not resolve to a link-local
+    (cloud metadata), multicast or unspecified address
+    :param hostname: allowlisted hostname
+    :param port: port that will be connected to
+    :returns True if the host may be requested, False otherwise
+    """
+    try:
+        addr_infos = socket.getaddrinfo(hostname, port)
+    except socket.gaierror:
+        # cannot resolve: the request itself will fail to connect
+        return True
+    for addr_info in addr_infos:
+        ip = ipaddress.ip_address(addr_info[4][0].split("%")[0])
+        if ip.is_link_local or ip.is_multicast or ip.is_unspecified:
+            return False
+    return True
+
+
+MECHANIC_REPORT_FIELDS = ("mechanic_code", "problem_details", "vin", "owner_id")
+
+
+def normalize_mechanic_url(url):
+    """
+    normalizes an http(s) url to (scheme, host, port, path) for comparison
+    :param url: url string
+    :returns tuple, or None if the url is not a plain http(s) url without
+        credentials, query, params or fragment
+    """
+    if not isinstance(url, str):
+        return None
+    try:
+        parsed = urlparse(url)
+        port = parsed.port
+    except ValueError:
+        return None
+    if (
+        parsed.scheme not in ("http", "https")
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+    if port is None:
+        port = 443 if parsed.scheme == "https" else 80
+    return (parsed.scheme, parsed.hostname.lower(), port, parsed.path.rstrip("/"))
+
+
+def get_allowed_mechanic_url(mechanic_api):
+    """
+    resolves the user supplied mechanic_api against the server side allowlist
+    :param mechanic_api: user supplied url
+    :returns the allowlist entry (settings string) that matches exactly on
+        scheme, host, port and path, None otherwise
+    """
+    requested = normalize_mechanic_url(mechanic_api)
+    if requested is None:
+        return None
+    for allowed_url in settings.MECHANIC_API_ALLOWED_URLS:
+        if normalize_mechanic_url(allowed_url) == requested:
+            return allowed_url
+    return None
 
 
 class ContactMechanicView(APIView):
@@ -79,16 +150,46 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        # The outbound url is a complete base url from the server side
+        # allowlist in settings; the user supplied value only selects an entry.
+        request_url = get_allowed_mechanic_url(request_data["mechanic_api"])
+        if request_url is not None:
+            allowed_parts = urlparse(request_url)
+            if not resolves_to_safe_address(
+                allowed_parts.hostname,
+                allowed_parts.port or (443 if allowed_parts.scheme == "https" else 80),
+            ):
+                request_url = None
+        if request_url is None:
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.INVALID_MECHANIC_API,
+            )
+            return Response(
+                {"message": messages.INVALID_MECHANIC_API},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # The caller is already authenticated by jwt_auth_required. The mechanic
+        # receive_report endpoint does not authenticate, so no request supplied
+        # header (in particular the caller's Authorization) is forwarded.
+        # only the fields the mechanic receive_report endpoint consumes
+        mechanic_params = {
+            field: request_data[field]
+            for field in MECHANIC_REPORT_FIELDS
+            if field in request_data
+        }
         repeat_count = 0
         while True:
-            request_url = request_data["mechanic_api"]
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
             try:
                 mechanic_response = requests.get(
                     request_url,
-                    params=request_data,
-                    headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
-                    verify=False,
+                    params=mechanic_params,
+                    allow_redirects=False,
+                    verify=True,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")

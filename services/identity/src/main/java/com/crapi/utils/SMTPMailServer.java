@@ -43,7 +43,19 @@ public class SMTPMailServer {
     boolean useMailHog = false;
     try {
       log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
+      if (containsControlChars(sendMail)) {
+        log.error("sendMail rejected: recipient contains control characters");
+        return;
+      }
+      // Strict parsing rejects malformed addresses; fail closed before any header is built.
+      InternetAddress[] emails = InternetAddress.parse(sendMail, true);
+      for (InternetAddress emailAddress : emails) {
+        emailAddress.validate();
+      }
+      if (emails.length == 0) {
+        log.error("sendMail rejected: no recipient provided");
+        return;
+      }
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -65,21 +77,86 @@ public class SMTPMailServer {
         log.info("Using Mail Configuration for sending email: " + sendMail);
       }
 
-      Message msg = new MimeMessage(session);
+      String configuredFrom = mailhogConfiguration.getFrom();
+      if (containsControlChars(configuredFrom)) {
+        log.error("sendMail rejected: sender contains control characters");
+        return;
+      }
+      InternetAddress[] fromAddresses = InternetAddress.parse(configuredFrom, true);
+      if (fromAddresses.length != 1) {
+        log.error("sendMail rejected: exactly one sender address is required");
+        return;
+      }
+      fromAddresses[0].validate();
 
-      msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
+      // Header values are rebuilt from validated/sanitized variables; body is stripped of
+      // control characters (other than tab/CR/LF) before it reaches the MIME content.
+      String safeSubject = removeControlChars(subject);
+      String safeBody = removeNonPrintableBodyChars(body);
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
-      msg.setSubject(subject);
-      msg.setContent(body, "text/html");
+      MimeMessage msg = new MimeMessage(session);
+      msg.setFrom(fromAddresses[0]);
+      msg.setRecipients(Message.RecipientType.TO, emails);
+      // Subject is RFC 2047 encoded (MimeUtility.encodeText) so it can never add header lines.
+      msg.setSubject(MimeUtility.encodeText(safeSubject, "UTF-8", "B"));
+      msg.setContent(safeBody, "text/html; charset=UTF-8");
       msg.setSentDate(new Date());
-
-      MimeBodyPart messageBodyPart = new MimeBodyPart();
-      messageBodyPart.setContent(body, "text/html");
 
       Transport.send(msg);
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  private static boolean containsControlChars(String value) {
+    if (value == null) {
+      return false;
+    }
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c < 0x20 || c == 0x7f) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Replaces CR/LF runs with a space and drops all other control characters. */
+  private static String removeControlChars(String value) {
+    if (value == null) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder(value.length());
+    boolean lastWasBreak = false;
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c == '\r' || c == '\n') {
+        if (!lastWasBreak) {
+          sb.append(' ');
+        }
+        lastWasBreak = true;
+      } else if (c < 0x20 || c == 0x7f) {
+        lastWasBreak = false;
+      } else {
+        sb.append(c);
+        lastWasBreak = false;
+      }
+    }
+    return sb.toString();
+  }
+
+  /** Drops control characters from the body except tab, CR and LF. */
+  private static String removeNonPrintableBodyChars(String value) {
+    if (value == null) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c == '\t' || c == '\r' || c == '\n' || (c >= 0x20 && c != 0x7f)) {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
   }
 }

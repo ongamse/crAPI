@@ -9,13 +9,12 @@ metadata:
     {{- end }}
 data:
   LOG_LEVEL: {{ .Values.logLevel | upper }}
-  JWT_SECRET: {{ .Values.jwtSecret }} #Used for creating a JWT. Can be anything
   APP_NAME: {{ .Values.identity.config.appName }}
   ENABLE_SHELL_INJECTION: {{ .Values.enableShellInjection | quote }}
   ENABLE_LOG4J: {{ .Values.enableLog4j | quote }}
   DB_HOST: {{ .Values.postgresdb.service.name }}
   DB_USER: {{ .Values.postgresdb.config.postgresUser }}
-  DB_PASSWORD: {{ .Values.postgresdb.config.postgresPassword }}
+  DB_PASSWORD: {{ required "postgresdb.config.postgresPassword is required" .Values.postgresdb.config.postgresPassword | quote }}
   DB_NAME: {{ .Values.postgresdb.config.postgresDbName }}
   DB_PORT: {{ .Values.postgresdb.port | quote }}
   MAILHOG_HOST: {{ .Values.mailhog.smtpService.name }}
@@ -30,10 +29,16 @@ data:
   JWT_EXPIRATION: {{ .Values.jwtExpiration | quote }}
   SMTP_STARTTLS: {{ .Values.identity.config.smtpStartTLS | quote }}
   SERVER_PORT: {{ .Values.identity.port | quote }}
+  API_GATEWAY_PASSWORD: {{ required "apiGatewayPassword is required" .Values.apiGatewayPassword | quote }}
   API_GATEWAY_URL: {{ if .Values.apiGatewayServiceInstall }}"https://{{ .Values.apiGatewayService.service.name }}"{{ else }}{{ .Values.apiGatewayServiceUrl }}{{ end }}
   TLS_ENABLED: {{ .Values.tlsEnabled | quote }}
   TLS_KEYSTORE_TYPE: {{ .Values.identity.config.keyStoreType }}
   TLS_KEYSTORE: {{ .Values.identity.config.keyStore }}
-  TLS_KEYSTORE_PASSWORD: {{ .Values.identity.config.keyStorePassword }}
-  TLS_KEY_PASSWORD: {{ .Values.identity.config.keyPassword }}
+  {{- if .Values.tlsEnabled }}
+  TLS_KEYSTORE_PASSWORD: {{ required "identity.config.keyStorePassword is required when tlsEnabled" .Values.identity.config.keyStorePassword | quote }}
+  TLS_KEY_PASSWORD: {{ required "identity.config.keyPassword is required when tlsEnabled" .Values.identity.config.keyPassword | quote }}
+  {{- else }}
+  TLS_KEYSTORE_PASSWORD: {{ .Values.identity.config.keyStorePassword | quote }}
+  TLS_KEY_PASSWORD: {{ .Values.identity.config.keyPassword | quote }}
+  {{- end }}
   TLS_KEY_ALIAS: {{ .Values.identity.config.keyAlias }}

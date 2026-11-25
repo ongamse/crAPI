@@ -22,7 +22,6 @@ from urllib.parse import unquote
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.response import Response
@@ -51,7 +50,6 @@ class SignUpView(APIView):
     Used to add a new mechanic
     """
 
-    @csrf_exempt
     def post(self, request):
         """
         creates a new Mechanic in the db
@@ -393,7 +391,19 @@ class DownloadReportView(APIView):
             )
 
         filename_from_user = unquote(filename_from_user)
-        full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
+        safe_name = os.path.basename(filename_from_user)
+        reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, "reports"))
+        full_path = os.path.realpath(os.path.join(reports_dir, safe_name))
+        if (
+            not safe_name
+            or safe_name != filename_from_user
+            or "\x00" in safe_name
+            or not full_path.startswith(reports_dir + os.sep)
+        ):
+            return Response(
+                {"message": "Invalid input."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         if os.path.exists(full_path) and os.path.isfile(full_path):
             return FileResponse(open(full_path, 'rb'))
         elif not os.path.exists(full_path):
@@ -421,7 +431,15 @@ def service_report_pdf(response_data, report_id):
     """
     reports_dir = os.path.join(settings.BASE_DIR, 'reports')
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = os.path.join(reports_dir, f"report_{report_id}")
+    safe_report_name = "report_" + os.path.basename(str(report_id))
+    real_reports_dir = os.path.realpath(reports_dir)
+    report_filepath = os.path.realpath(os.path.join(real_reports_dir, safe_report_name))
+    if (
+        not str(report_id).isascii()
+        or not str(report_id).isdigit()
+        or not report_filepath.startswith(real_reports_dir + os.sep)
+    ):
+        raise ValueError("Invalid report id")
 
     template = get_template('service_report.html')
     html_string = template.render({'service': response_data})

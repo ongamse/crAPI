@@ -81,6 +81,10 @@ func (server *Server) Run(addr string) {
 		if !is_key || key == "" {
 			key = "certs/server.key"
 		}
+		// The TLS private key is not committed to the repo; it must be supplied at runtime.
+		if info, err := os.Stat(key); err != nil || info.Size() == 0 {
+			log.Fatalf("TLS_ENABLED is set but TLS key %q is missing or empty; provide it via TLS_KEY or set TLS_ENABLED=false", key)
+		}
 		log.Println(srv.ListenAndServeTLS(certificate, key))
 	} else {
 		log.Println(srv.ListenAndServe())

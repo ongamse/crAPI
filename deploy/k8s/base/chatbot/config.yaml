@@ -4,3 +4,4 @@ metadata:
   name: crapi-chatbot-configmap
   labels:
     app: crapi-chatbot
+data: {}

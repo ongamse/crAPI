@@ -8,4 +8,5 @@ metadata:
     {{- toYaml .Values.apiGatewayService.config.labels | nindent 4 }}
 data:
     SERVER_PORT: {{ .Values.apiGatewayService.port | quote }}
+    API_GATEWAY_PASSWORD: {{ required "apiGatewayPassword is required" .Values.apiGatewayPassword | quote }}
 {{ end }}
