@@ -1,5 +1,4 @@
 import os
-from urllib.parse import quote_plus
 
 MONGO_USER = os.environ.get("MONGO_DB_USER", "admin")
 # Supplied at runtime via the MONGO_DB_PASSWORD environment variable
@@ -9,18 +8,19 @@ MONGO_HOST = os.environ.get("MONGO_DB_HOST", "mongodb")
 MONGO_PORT = os.environ.get("MONGO_DB_PORT", "27017")
 MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "crapi")
 
-MONGO_CONNECTION_URI = "mongodb://%s:%s@%s:%s/?directConnection=true" % (
-    quote_plus(MONGO_USER),
-    quote_plus(MONGO_PASSWORD),
+# Credential-free URI; the username/password are passed to the Mongo client as
+# separate keyword arguments (see MONGO_CLIENT_KWARGS) so no credentialed URL
+# string is ever built.
+MONGO_CONNECTION_URI = "mongodb://%s:%s/?directConnection=true" % (
     MONGO_HOST,
     MONGO_PORT,
 )
 
-MONGO_CONNECTION_URI_ATLAS = "mongodb+srv://%s:%s@%s?retryWrites=true&w=majority" % (
-    quote_plus(MONGO_USER),
-    quote_plus(MONGO_PASSWORD),
-    MONGO_HOST,
-)
+MONGO_CLIENT_KWARGS = {
+    "username": MONGO_USER,
+    "password": MONGO_PASSWORD,
+    "authSource": os.environ.get("MONGO_DB_AUTH_SOURCE", "admin"),
+}
 
 POSTGRES_HOST = os.environ.get("DB_HOST", "postgresdb")
 POSTGRES_PORT = os.environ.get("DB_PORT", "5432")
