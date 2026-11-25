@@ -17,6 +17,7 @@ contains all the views related to Merchant
 """
 import ipaddress
 import logging
+import re
 import socket
 from urllib.parse import urlparse
 import requests
@@ -76,6 +77,23 @@ def is_allowed_mechanic_api(url):
     return True
 
 
+SAFE_HEADER_VALUE_PATTERN = re.compile(r"[\x20-\x7e]+")
+
+
+def get_safe_authorization_header(request):
+    """
+    returns the request's Authorization header value if it is safe to forward
+    in an outbound http header (printable ASCII only, so no CR/LF or other
+    control characters), None otherwise
+    :param request: http request for the view
+    :returns the header value or None if missing / unsafe
+    """
+    value = request.META.get("HTTP_AUTHORIZATION")
+    if not isinstance(value, str) or not SAFE_HEADER_VALUE_PATTERN.fullmatch(value):
+        return None
+    return value
+
+
 class ContactMechanicView(APIView):
     """
     View for contact mechanic feature
@@ -130,6 +148,19 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        authorization = get_safe_authorization_header(request)
+        if authorization is None:
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.INVALID_TOKEN,
+            )
+            return Response(
+                {"message": messages.INVALID_TOKEN},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         repeat_count = 0
         while True:
             request_url = request_data["mechanic_api"]
@@ -139,7 +170,7 @@ class ContactMechanicView(APIView):
                     request_url,
                     params=request_data,
                     allow_redirects=False,
-                    headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
+                    headers={"Authorization": authorization},
                     verify=False,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:

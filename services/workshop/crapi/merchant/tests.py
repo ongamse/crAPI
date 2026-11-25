@@ -28,6 +28,7 @@ from django.test import TestCase, Client
 from django.utils import timezone
 from utils import messages
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
+from crapi.merchant.views import get_safe_authorization_header
 
 
 class MerchantTestCase(TestCase):
@@ -180,6 +181,30 @@ class MerchantTestCase(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["response_from_mechanic_api"], {"id": 1})
         mock_get.assert_called_once()
+        self.assertEqual(
+            mock_get.call_args.kwargs["headers"],
+            {"Authorization": self.user_auth_headers["HTTP_AUTHORIZATION"]},
+        )
+
+    def test_unsafe_authorization_header_not_forwarded(self):
+        """
+        authorization header containing CR/LF or other control characters
+        should be rejected and never forwarded to the mechanic_api
+        :return: None
+        """
+        for value in (
+            "Bearer a\r\nX-Injected: 1",
+            "Bearer a\nX-Injected: 1",
+            "Bearer a\x00b",
+            "Bearer \x7f",
+            "Bearer é",
+            "",
+            None,
+        ):
+            request = Mock(META={"HTTP_AUTHORIZATION": value})
+            self.assertIsNone(get_safe_authorization_header(request))
+        request = Mock(META={"HTTP_AUTHORIZATION": "Bearer abc.def-ghi"})
+        self.assertEqual(get_safe_authorization_header(request), "Bearer abc.def-ghi")
 
     def test_repeat_missing_request(self):
         """
