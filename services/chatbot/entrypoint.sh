@@ -29,6 +29,12 @@ if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
   fi
   echo "TLS_CERTIFICATE: $TLS_CERTIFICATE"
   echo "TLS_KEY: $TLS_KEY"
+  # The TLS private key is not baked into the image; it must be mounted or
+  # supplied via $TLS_KEY (see services/gencert.sh). Fail clearly if absent.
+  if [ ! -s "$TLS_CERTIFICATE" ] || [ ! -s "$TLS_KEY" ]; then
+    echo "ERROR: TLS_ENABLED is set but TLS certificate/key not found or empty (TLS_CERTIFICATE=$TLS_CERTIFICATE, TLS_KEY=$TLS_KEY). Provide the key material or set TLS_ENABLED=false." >&2
+    exit 1
+  fi
   uvicorn chatbot.app:app --timeout-keep-alive 600 --host 0.0.0.0 --port ${SERVER_PORT} --ssl-certfile $TLS_CERTIFICATE --ssl-keyfile $TLS_KEY --log-level=debug
 else
   uvicorn chatbot.app:app --timeout-keep-alive 600 --host 0.0.0.0 --port ${SERVER_PORT} --log-level=debug
