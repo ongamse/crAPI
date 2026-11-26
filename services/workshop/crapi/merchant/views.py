@@ -30,7 +30,11 @@ from utils import messages
 from rest_framework.pagination import LimitOffsetPagination
 from utils.logging import log_error
 from utils.helper import validate_header_value
-from utils.url_validation import validate_outbound_url, UnsafeURLError
+from utils.url_validation import (
+    validate_outbound_url,
+    outbound_get,
+    UnsafeURLError,
+)
 from crapi_site import settings
 from crapi.mechanic.models import ServiceRequest, ServiceComment
 from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
@@ -82,7 +86,7 @@ class ContactMechanicView(APIView):
             )
 
         try:
-            validate_outbound_url(
+            validated_url = validate_outbound_url(
                 request_data["mechanic_api"],
                 allowed_hosts=settings.MECHANIC_API_ALLOWED_HOSTS,
             )
@@ -108,15 +112,15 @@ class ContactMechanicView(APIView):
 
         repeat_count = 0
         while True:
-            request_url = request_data["mechanic_api"]
+            request_url = validated_url
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
             try:
-                mechanic_response = requests.get(
+                mechanic_response = outbound_get(
                     request_url,
+                    allowed_hosts=settings.MECHANIC_API_ALLOWED_HOSTS,
                     params=request_data,
                     headers={"Authorization": authorization},
                     verify=settings.OUTBOUND_TLS_VERIFY,
-                    allow_redirects=False,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")
@@ -126,6 +130,9 @@ class ContactMechanicView(APIView):
                 if repeat_count == number_of_repeats:
                     break
                 repeat_count += 1
+            except UnsafeURLError as e:
+                log_error(request.path, request.data, status.HTTP_400_BAD_REQUEST, e)
+                return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
             except (MissingSchema, InvalidURL) as e:
                 log_error(request.path, request.data, status.HTTP_400_BAD_REQUEST, e)
                 return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)

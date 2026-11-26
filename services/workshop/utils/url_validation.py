@@ -16,7 +16,12 @@ helpers to validate user supplied outbound URLs (SSRF protection)
 """
 import ipaddress
 import socket
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
+
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.connection import HTTPConnection, HTTPSConnection
+from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
 
 from utils import messages
 
@@ -63,8 +68,13 @@ def validate_outbound_url(url, allowed_hosts=()):
     if parts.username is not None or parts.password is not None:
         raise UnsafeURLError(messages.INVALID_MECHANIC_API)
 
+    # rebuild the url from the validated components (drops fragment)
+    validated_url = urlunsplit(
+        (parts.scheme.lower(), parts.netloc, parts.path, parts.query, "")
+    )
+
     if hostname.lower().rstrip(".") in allowed_hosts:
-        return url
+        return validated_url
 
     try:
         addr_infos = socket.getaddrinfo(
@@ -77,4 +87,79 @@ def validate_outbound_url(url, allowed_hosts=()):
     for addr_info in addr_infos:
         if not _is_public_address(addr_info[4][0]):
             raise UnsafeURLError(messages.MECHANIC_API_NOT_ALLOWED)
-    return url
+    return validated_url
+
+
+def _check_peer_address(sock, host, allowed_hosts):
+    """
+    verifies the address the socket really connected to is public, which
+    closes the DNS rebinding gap between validate_outbound_url and the fetch
+    """
+    if host.lower().rstrip(".") in allowed_hosts:
+        return
+    try:
+        public = _is_public_address(sock.getpeername()[0])
+    except (OSError, ValueError, IndexError):
+        public = False
+    if not public:
+        sock.close()
+        raise UnsafeURLError(messages.MECHANIC_API_NOT_ALLOWED)
+
+
+def _build_pool_classes(allowed_hosts):
+    """
+    returns http/https connection pool classes whose connections refuse to
+    talk to non public peer addresses (unless the host is allowlisted)
+    """
+
+    class _SafeHTTPConnection(HTTPConnection):
+        def _new_conn(self):
+            sock = super()._new_conn()
+            _check_peer_address(sock, self.host, allowed_hosts)
+            return sock
+
+    class _SafeHTTPSConnection(HTTPSConnection):
+        def _new_conn(self):
+            sock = super()._new_conn()
+            _check_peer_address(sock, self.host, allowed_hosts)
+            return sock
+
+    class _SafeHTTPPool(HTTPConnectionPool):
+        ConnectionCls = _SafeHTTPConnection
+
+    class _SafeHTTPSPool(HTTPSConnectionPool):
+        ConnectionCls = _SafeHTTPSConnection
+
+    return {"http": _SafeHTTPPool, "https": _SafeHTTPSPool}
+
+
+class SafeOutboundAdapter(HTTPAdapter):
+    """
+    requests adapter validating the real peer address at connect time
+    """
+
+    def __init__(self, allowed_hosts=(), *args, **kwargs):
+        self._allowed_hosts = tuple(allowed_hosts)
+        super().__init__(*args, **kwargs)
+
+    def init_poolmanager(self, *args, **kwargs):
+        super().init_poolmanager(*args, **kwargs)
+        self.poolmanager.pool_classes_by_scheme = _build_pool_classes(
+            self._allowed_hosts
+        )
+
+
+def outbound_get(url, allowed_hosts=(), **kwargs):
+    """
+    GET a url previously returned by validate_outbound_url. The connection
+    itself re-checks the peer address (DNS rebinding) and redirects are
+    never followed.
+    :raises UnsafeURLError if the connection would reach a non public address
+    """
+    kwargs["allow_redirects"] = False
+    with requests.Session() as session:
+        session.trust_env = False
+        adapter = SafeOutboundAdapter(allowed_hosts=allowed_hosts)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        return session.get(url, **kwargs)
