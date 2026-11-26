@@ -43,12 +43,15 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
-      if (sendMail == null || containsLineBreak(sendMail)) {
-        log.error("sendMail rejected: recipient is missing or contains line break characters");
+      if (sendMail == null || containsControlChars(sendMail)) {
+        log.error("sendMail rejected: recipient is missing or contains control characters");
         return;
       }
-      String safeSubject = stripLineBreaks(subject);
+      String safeSubject = stripControlChars(subject);
       InternetAddress[] emails = InternetAddress.parse(sendMail, true);
+      for (InternetAddress parsed : emails) {
+        parsed.validate();
+      }
       log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, Arrays.toString(emails));
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
@@ -86,15 +89,35 @@ public class SMTPMailServer {
     }
   }
 
-  private static boolean containsLineBreak(String value) {
-    return value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0;
+  private static boolean isHeaderBreaking(char c) {
+    return Character.isISOControl(c) || c == 0x2028 || c == 0x2029;
   }
 
-  /** Remove CR/LF so a header value can never be split into additional mail headers. */
-  private static String stripLineBreaks(String value) {
+  /** True when the value has any control or line-separator character (CR, LF, NUL, ...). */
+  static boolean containsControlChars(String value) {
+    for (int i = 0; i < value.length(); i++) {
+      if (isHeaderBreaking(value.charAt(i))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Remove control and line-separator characters so a header value can never be split into
+   * additional mail headers.
+   */
+  static String stripControlChars(String value) {
     if (value == null) {
       return null;
     }
-    return value.replace("\r", "").replace("\n", "");
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (!isHeaderBreaking(c)) {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
   }
 }

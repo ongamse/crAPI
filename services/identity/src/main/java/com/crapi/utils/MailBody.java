@@ -36,7 +36,7 @@ public class MailBody {
     body += "<tr>";
     body += "<td>Hi,</td>";
     body += "<td> </td>";
-    body += "<td>Your one time generated otp is: " + otp.getOtp() + "</td>";
+    body += "<td>Your one time generated otp is: " + escape(otp.getOtp()) + "</td>";
     body += "</tr>";
     body += "</table>";
     body += "</td>";
@@ -55,13 +55,13 @@ public class MailBody {
     String msgBody =
         "<html><body>"
             + "<font face='calibri' style = 'font-size:15px; color:#000;'>Hi "
-            + name
+            + escape(name)
             + "<font>,"
             + "<br><font face='calibri'><p style = 'font-size:15px; color:#000;'>We are glad to have you on-board. Your newly purchased vehiche details are provided below. Please add it on your crAPI dashboard.</p>"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>Your vehicle information is <b>VIN: </font><font face='calibri' font color='#0000ff'>"
-            + vehicleDetails.getVin()
+            + escape(vehicleDetails.getVin())
             + "</font></b> and <b>Pincode: <font face='calibri' font color='#0000ff'>"
-            + vehicleDetails.getPincode()
+            + escape(vehicleDetails.getPincode())
             + "</font></b></p>"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>We're here to help you build a relationship with your vehicles.</font></p>"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>Thank You & have a wonderful day !</font></p>"
@@ -145,10 +145,10 @@ public class MailBody {
     String msgBody =
         "<html><body>"
             + "<font face='calibri' style = 'font-size:15px; color:#000;'>Hi "
-            + userdetails.getName()
+            + escape(userdetails.getName())
             + "<font>,"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>We received a request to unlock your account. Please provide the following code to unlock your account: <b>"
-            + userdetails.getUser().getCode()
+            + escape(userdetails.getUser().getCode())
             + "</b></font>"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>If you haven not sent a request to unlock your account, please ignore this message.</font></p>"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>Thank You & have a wonderful day !</font></p>"
