@@ -158,8 +158,9 @@ class ProductTestCase(TestCase):
 
     def test_sql_injection(self):
         """
-        applies a SQLI query to the  apply_coupon api
-        should get a valid response and a message that proves SQLI successfully exploited
+        applies a SQLI payload to the apply_coupon api
+        the coupon code is bound as a query parameter, so the payload is treated
+        as a literal (non-existent) coupon and no user data is leaked
         :return: None
         """
         coupon_details = {
@@ -175,10 +176,8 @@ class ProductTestCase(TestCase):
         )
         logger.info(res.json())
         self.assertEqual(res.status_code, 400)
-        self.assertEqual(
-            res.json()["message"],
-            self.user.number + " " + messages.COUPON_ALREADY_APPLIED,
-        )
+        self.assertEqual(res.json()["message"], messages.COUPON_NOT_FOUND)
+        self.assertNotIn(self.user.number, json.dumps(res.json()))
 
     def create_order(self):
         """
