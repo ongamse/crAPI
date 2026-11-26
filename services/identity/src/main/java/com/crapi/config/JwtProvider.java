@@ -23,6 +23,7 @@ import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
@@ -116,11 +117,30 @@ public class JwtProvider {
    * @return username from JWT Token
    */
   public String getUserNameFromJwtToken(String token) throws ParseException {
-    SignedJWT signedJWT = SignedJWT.parse(token);
+    return getVerifiedClaims(SignedJWT.parse(token)).getSubject();
+  }
+
+  /**
+   * Verify the signature first and only then read claims. Also enforces exp/nbf when present (API
+   * keys are issued without exp and remain accepted).
+   *
+   * @throws ParseException when the signature is invalid, or the token is expired / not yet valid
+   */
+  private JWTClaimsSet getVerifiedClaims(SignedJWT signedJWT) throws ParseException {
     if (!isSignatureValid(signedJWT)) {
       throw new ParseException("JWT signature verification failed", 0);
     }
-    return signedJWT.getJWTClaimsSet().getSubject();
+    JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
+    Date now = new Date();
+    Date exp = claims.getExpirationTime();
+    if (exp != null && !exp.after(now)) {
+      throw new ParseException("JWT is expired", 0);
+    }
+    Date nbf = claims.getNotBeforeTime();
+    if (nbf != null && nbf.after(now)) {
+      throw new ParseException("JWT is not yet valid", 0);
+    }
+    return claims;
   }
 
   /**
@@ -149,9 +169,10 @@ public class JwtProvider {
    */
   public boolean validateJwtToken(String authToken) {
     try {
-      return isSignatureValid(SignedJWT.parse(authToken));
+      getVerifiedClaims(SignedJWT.parse(authToken));
+      return true;
     } catch (ParseException e) {
-      log.error("Could not parse JWT Token -> Message: %d", e);
+      log.error("Could not validate JWT Token -> Message: %d", e);
     }
 
     return false;

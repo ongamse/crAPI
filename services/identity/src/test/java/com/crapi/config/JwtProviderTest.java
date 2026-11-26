@@ -109,6 +109,50 @@ public class JwtProviderTest {
         ParseException.class, () -> jwtProvider.getUserNameFromJwtToken(jwt.serialize()));
   }
 
+  private String signedToken(JWTClaimsSet claimsSet) throws Exception {
+    SignedJWT jwt =
+        new SignedJWT(
+            new JWSHeader.Builder(JWSAlgorithm.RS256).keyID("test-key").build(), claimsSet);
+    jwt.sign(new RSASSASigner(rsaKey));
+    return jwt.serialize();
+  }
+
+  @Test
+  public void expiredTokenIsRejected() throws Exception {
+    String token =
+        signedToken(
+            new JWTClaimsSet.Builder()
+                .subject(EMAIL)
+                .expirationTime(new java.util.Date(System.currentTimeMillis() - 60_000))
+                .build());
+    Assert.assertFalse(jwtProvider.validateJwtToken(token));
+    Assert.assertThrows(ParseException.class, () -> jwtProvider.getUserNameFromJwtToken(token));
+  }
+
+  @Test
+  public void notYetValidTokenIsRejected() throws Exception {
+    String token =
+        signedToken(
+            new JWTClaimsSet.Builder()
+                .subject(EMAIL)
+                .notBeforeTime(new java.util.Date(System.currentTimeMillis() + 3_600_000))
+                .build());
+    Assert.assertFalse(jwtProvider.validateJwtToken(token));
+    Assert.assertThrows(ParseException.class, () -> jwtProvider.getUserNameFromJwtToken(token));
+  }
+
+  @Test
+  public void unexpiredTokenIsAccepted() throws Exception {
+    String token =
+        signedToken(
+            new JWTClaimsSet.Builder()
+                .subject(EMAIL)
+                .expirationTime(new java.util.Date(System.currentTimeMillis() + 3_600_000))
+                .build());
+    Assert.assertTrue(jwtProvider.validateJwtToken(token));
+    Assert.assertEquals(EMAIL, jwtProvider.getUserNameFromJwtToken(token));
+  }
+
   @Test
   public void garbageTokenFailsValidation() {
     Assert.assertFalse(jwtProvider.validateJwtToken("not-a-jwt"));
