@@ -49,6 +49,10 @@ public class SMTPMailServer {
       }
       String safeSubject = stripControlChars(subject);
       InternetAddress[] emails = InternetAddress.parse(sendMail, true);
+      if (emails.length != 1) {
+        log.error("sendMail rejected: exactly one recipient address is required");
+        return;
+      }
       for (InternetAddress parsed : emails) {
         parsed.validate();
       }
