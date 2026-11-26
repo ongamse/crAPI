@@ -139,6 +139,9 @@ workshop:
     mongoDbDriver: mongodb
     # Required at install time (--set workshop.config.secretKey=...); no default is shipped.
     secretKey:
+    # Optional (--set workshop.config.mechanicPassword=...): password of the seeded mechanic
+    # accounts. A random one is generated when empty.
+    mechanicPassword:
     filesLimit: 1000
     # Optional path to a PEM CA bundle (mounted by the operator) used to validate
     # outbound HTTPS certificates. Empty means the default trust store.
@@ -170,11 +173,11 @@ chatbot:
       app: crapi-chatbot
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    apiPassword: Admin!123
+    # Password of apiUser (--set chatbot.config.apiPassword=...); no default is shipped.
+    apiPassword:
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"
