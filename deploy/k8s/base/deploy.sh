@@ -6,6 +6,7 @@ kubectl create namespace crapi
 : "${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD}"
 : "${WORKSHOP_SECRET_KEY:?Set WORKSHOP_SECRET_KEY}"
 : "${API_GATEWAY_PASSWORD:?Set API_GATEWAY_PASSWORD}"
+# Optional: password of the chatbot API user (admin@example.com); chatbot API calls fail if unset.
 kubectl create -n crapi secret generic crapi-credentials \
   --from-literal=DB_PASSWORD="$DB_PASSWORD" \
   --from-literal=POSTGRES_PASSWORD="$DB_PASSWORD" \
@@ -13,7 +14,9 @@ kubectl create -n crapi secret generic crapi-credentials \
   --from-literal=MONGO_INITDB_ROOT_PASSWORD="$MONGO_DB_PASSWORD" \
   --from-literal=MH_MONGO_URI="admin:${MONGO_DB_PASSWORD}@mongodb:27017" \
   --from-literal=SECRET_KEY="$WORKSHOP_SECRET_KEY" \
-  --from-literal=API_GATEWAY_PASSWORD="$API_GATEWAY_PASSWORD"
+  --from-literal=API_GATEWAY_PASSWORD="$API_GATEWAY_PASSWORD" \
+  --from-literal=API_PASSWORD="${CHATBOT_API_PASSWORD:-}" \
+  --from-literal=MECHANIC_PASSWORD="${MECHANIC_PASSWORD:-}"
 #kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 
 [ -f ../keys/jwks.json ] || { echo "Provide ../keys/jwks.json (RSA signing key, see docs/setup.md)" >&2; exit 1; }

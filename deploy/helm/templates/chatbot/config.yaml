@@ -23,5 +23,4 @@ data:
     CHROMA_HOST: {{ .Values.chromadb.service.name }}
     CHROMA_PORT: {{ .Values.chromadb.port | quote }}
     API_USER: {{ .Values.chatbot.config.apiUser | quote }}
-    API_PASSWORD: {{ .Values.chatbot.config.apiPassword | quote }}
     OPENAPI_SPEC: {{ .Values.chatbot.config.openapiSpec | quote }}

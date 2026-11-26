@@ -27,7 +27,9 @@ kubectl create -n crapi secret generic crapi-credentials \
   --from-literal=MONGO_INITDB_ROOT_PASSWORD="$MONGO_DB_PASSWORD" \
   --from-literal=MH_MONGO_URI="admin:${MONGO_DB_PASSWORD}@mongodb:27017" \
   --from-literal=SECRET_KEY="$WORKSHOP_SECRET_KEY" \
-  --from-literal=API_GATEWAY_PASSWORD="$API_GATEWAY_PASSWORD"
+  --from-literal=API_GATEWAY_PASSWORD="$API_GATEWAY_PASSWORD" \
+  --from-literal=API_PASSWORD="${CHATBOT_API_PASSWORD:-}" \
+  --from-literal=MECHANIC_PASSWORD="${MECHANIC_PASSWORD:-}"
 
 [ -f ../keys/jwks.json ] || { echo "Provide ../keys/jwks.json (RSA signing key, see docs/setup.md)" >&2; exit 1; }
 

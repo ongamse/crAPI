@@ -25,6 +25,8 @@ API_KEY = None
 
 def get_api_key():
     global API_KEY
+    if not Config.API_PASSWORD:
+        raise Exception("API_PASSWORD environment variable is not set")
     # Try 5 times to get client auth
     MAX_ATTEMPTS = 5
     for i in range(MAX_ATTEMPTS):
