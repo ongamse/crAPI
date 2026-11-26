@@ -19,6 +19,9 @@ tlsKeystorePassword:
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
+# Comma separated browser origins allowed cross-origin access to the identity and workshop
+# APIs (never "*"). The bundled web UI uses same-origin proxying; add other front-ends here.
+corsAllowedOrigins: "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443"
 
 waitForK8sResources:
   enabled: True

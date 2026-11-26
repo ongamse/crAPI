@@ -12,6 +12,7 @@ data:
   APP_NAME: "crapi-identity"
   ENABLE_SHELL_INJECTION: "false"
   ENABLE_LOG4J: "true"
+  CORS_ALLOWED_ORIGINS: "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443"
   MAILHOG_HOST: mailhog
   MAILHOG_PORT: "1025"
   MAILHOG_DOMAIN: "example.com"
