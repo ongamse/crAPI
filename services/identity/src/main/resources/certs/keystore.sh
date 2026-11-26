@@ -1,4 +1,13 @@
+#!/bin/sh
+# Builds a PKCS12 keystore from a runtime-provided key/cert pair. Nothing generated here
+# should be committed. Usage:
+#   TLS_KEYSTORE_PASSWORD=<password> ./keystore.sh [path/to/server.crt] [path/to/server.key]
+set -e
+CRT="${1:-server.crt}"
+KEY="${2:-server.key}"
+if [ -z "$TLS_KEYSTORE_PASSWORD" ]; then
+  echo "TLS_KEYSTORE_PASSWORD must be set" >&2
+  exit 1
+fi
 rm -f server.p12
-rm -f server.keystore
-openssl pkcs12 -export -in server.crt -inkey server.key -out server.p12 -name identity -passout pass:passw0rd
-keytool -importkeystore -deststorepass passw0rd -destkeypass passw0rd -destkeystore server.keystore -srckeystore server.p12 -srcstoretype PKCS12 -srcstorepass passw0rd -alias identity
+openssl pkcs12 -export -in "$CRT" -inkey "$KEY" -out server.p12 -name identity -passout env:TLS_KEYSTORE_PASSWORD

@@ -11,6 +11,11 @@ apiGatewayServiceInstall: true
 # Required at install time (--set apiGatewayPassword=...); no default is shipped.
 apiGatewayPassword:
 tlsEnabled: false
+# Required only when tlsEnabled=true: name of a Secret (created by the operator, not by this
+# chart) holding server.crt, server.key and server.p12, mounted at /app/certs.
+tlsSecretName: crapi-tls
+# Required only when tlsEnabled=true (--set tlsKeystorePassword=...); password of server.p12.
+tlsKeystorePassword:
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
@@ -74,9 +79,8 @@ identity:
     smtpAuth: true
     smtpStartTLS: true
     keyStoreType: PKCS12
-    keyStore: classpath:certs/server.p12
-    keyStorePassword: passw0rd
-    keyPassword: passw0rd
+    # Keystore path inside the pod; it is provided at runtime via tlsSecretName (never baked in).
+    keyStore: file:/app/certs/server.p12
     keyAlias: identity
     # Optional path to a trust store (mounted by the operator) used to validate the
     # API gateway TLS certificate. Empty means the JVM default trust store.
