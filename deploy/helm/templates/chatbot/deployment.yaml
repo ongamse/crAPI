@@ -45,15 +45,29 @@ spec:
           args:
             - "service"
             - {{ .Values.chromadb.service.name | quote }}
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-secret
+          secret:
+            secretName: {{ .Values.tlsSecretName }}
+      {{- end }}
       containers:
         - name: {{ .Values.chatbot.name }}
           image: {{ .Values.chatbot.image }}:{{ .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - mountPath: "/app/certs"
+              name: tls-secret
+              readOnly: true
+          {{- end }}
           ports:
             - containerPort: {{ .Values.chatbot.port }}
           envFrom:
             - configMapRef:
                 name: {{ .Values.chatbot.config.name }}
+            - secretRef:
+                name: {{ .Values.credentialsSecretName }}
           {{- if .Values.chatbot.resources }}
           resources:
             {{- toYaml .Values.chatbot.resources | nindent 12 }}

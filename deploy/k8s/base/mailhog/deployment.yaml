@@ -44,6 +44,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: mailhog-configmap
+            - secretRef:
+                name: crapi-credentials
           resources:
             limits:
               cpu: "1"

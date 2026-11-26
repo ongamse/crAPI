@@ -18,11 +18,11 @@ contains all the views related to Mechanic
 import os
 import bcrypt
 import re
+import stat
 from urllib.parse import unquote
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.response import Response
@@ -51,7 +51,6 @@ class SignUpView(APIView):
     Used to add a new mechanic
     """
 
-    @csrf_exempt
     def post(self, request):
         """
         creates a new Mechanic in the db
@@ -392,20 +391,49 @@ class DownloadReportView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        filename_from_user = unquote(filename_from_user)
-        full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
-        if os.path.exists(full_path) and os.path.isfile(full_path):
-            return FileResponse(open(full_path, 'rb'))
-        elif not os.path.exists(full_path):
+        # Validate the decoded value as well: the reports directory is flat,
+        # so a legitimate name never contains a path separator, dots or NUL.
+        decoded_name = unquote(filename_from_user)
+        if not SAFE_REPORT_NAME.fullmatch(decoded_name):
             return Response(
-                {"message": f"File not found at '{full_path}'."},
+                {"message": "Invalid input."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, "reports"))
+        full_path = os.path.realpath(os.path.join(reports_dir, decoded_name))
+        # Defence in depth: the resolved path must stay inside reports_dir.
+        if os.path.commonpath([reports_dir, full_path]) != reports_dir:
+            return Response(
+                {"message": "Invalid input."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        # Open once (no symlink following) and check the opened descriptor,
+        # instead of separate exists/isfile checks followed by open().
+        try:
+            fd = os.open(full_path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        except FileNotFoundError:
+            return Response(
+                {"message": "File not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
-        else:
+        except OSError:
             return Response(
-                {"message": f"'{full_path}' is not a file."},
+                {"message": "Not a file."},
                 status=status.HTTP_403_FORBIDDEN
             )
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            os.close(fd)
+            return Response(
+                {"message": "Not a file."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return FileResponse(os.fdopen(fd, 'rb'))
+
+
+# Decoded report file names: letters, digits, underscore and colon only.
+SAFE_REPORT_NAME = re.compile(r'[A-Za-z0-9:_]+')
+
 
 def validate_filename(input: str) -> bool:
     """
@@ -419,13 +447,26 @@ def service_report_pdf(response_data, report_id):
     """
     Generates service report's PDF file from a template and saves it to the disk.
     """
-    reports_dir = os.path.join(settings.BASE_DIR, 'reports')
+    report_id_str = str(report_id)
+    if not re.fullmatch(r"[0-9]+", report_id_str):
+        raise ValueError("Invalid report_id")
+    # Build the file name only from a canonical integer and a fixed pattern.
+    report_name = "report_%d" % int(report_id_str)
+    reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, 'reports'))
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = os.path.join(reports_dir, f"report_{report_id}")
+    report_filepath = os.path.realpath(os.path.join(reports_dir, report_name))
+    if os.path.commonpath([reports_dir, report_filepath]) != reports_dir:
+        raise ValueError("Invalid report path")
 
     template = get_template('service_report.html')
     html_string = template.render({'service': response_data})
-    with open(report_filepath, "w+b") as pdf_file:
+    # Single open of the validated path, never following a symlink.
+    fd = os.open(
+        report_filepath,
+        os.O_RDWR | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0),
+        0o644,
+    )
+    with os.fdopen(fd, "w+b") as pdf_file:
         pisa.CreatePDF(src=html_string, dest=pdf_file)
 
     manage_reports_directory()

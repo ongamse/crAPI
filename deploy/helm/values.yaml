@@ -2,17 +2,26 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
+credentialsSecretName: crapi-credentials
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
+# Required at install time (--set apiGatewayPassword=...); no default is shipped.
 apiGatewayPassword:
 tlsEnabled: false
+# Required only when tlsEnabled=true: name of a Secret (created by the operator, not by this
+# chart) holding server.crt, server.key and server.p12, mounted at /app/certs.
+tlsSecretName: crapi-tls
+# Required only when tlsEnabled=true (--set tlsKeystorePassword=...); password of server.p12.
+tlsKeystorePassword:
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
+# Comma separated browser origins allowed cross-origin access to the identity and workshop
+# APIs (never "*"). The bundled web UI uses same-origin proxying; add other front-ends here.
+corsAllowedOrigins: "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443"
 
 waitForK8sResources:
   enabled: True
@@ -73,10 +82,13 @@ identity:
     smtpAuth: true
     smtpStartTLS: true
     keyStoreType: PKCS12
-    keyStore: classpath:certs/server.p12
-    keyStorePassword: passw0rd
-    keyPassword: passw0rd
+    # Keystore path inside the pod; it is provided at runtime via tlsSecretName (never baked in).
+    keyStore: file:/app/certs/server.p12
     keyAlias: identity
+    # Optional path to a trust store (mounted by the operator) used to validate the
+    # API gateway TLS certificate. Empty means the JVM default trust store.
+    apiGatewayTrustStore: ""
+    apiGatewayTrustStoreType: PKCS12
   deploymentLabels:
     app: crapi-identity
   podLabels:
@@ -125,8 +137,18 @@ workshop:
       app: crapi-workshop
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
+    # Required at install time (--set workshop.config.secretKey=...); no default is shipped.
+    secretKey:
+    # Optional (--set workshop.config.mechanicPassword=...): password of the seeded mechanic
+    # accounts. A random one is generated when empty.
+    mechanicPassword:
     filesLimit: 1000
+    # Optional path to a PEM CA bundle (mounted by the operator) used to validate
+    # outbound HTTPS certificates. Empty means the default trust store.
+    tlsCaBundle: ""
+    # Extra Host header names (list) the workshop service may be reached by, in addition to
+    # localhost, loopback, 0.0.0.0 and the service name. Wildcards are ignored by the app.
+    extraAllowedHosts: []
   deploymentLabels:
     app: crapi-workshop
   podLabels:
@@ -151,11 +173,11 @@ chatbot:
       app: crapi-chatbot
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    apiPassword: Admin!123
+    # Password of apiUser (--set chatbot.config.apiPassword=...); no default is shipped.
+    apiPassword:
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"
@@ -233,9 +255,9 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
+    # Required at install time (--set mongodb.config.mongoPassword=...); no default is shipped.
+    mongoPassword:
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:
@@ -278,7 +300,8 @@ postgresdb:
     labels:
       app: postgresdb
     postgresUser: admin
-    postgresPassword: crapisecretpassword
+    # Required at install time (--set postgresdb.config.postgresPassword=...); no default is shipped.
+    postgresPassword:
     postgresDbName: crapi
   storage:
     # type: "manual"

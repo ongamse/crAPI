@@ -24,6 +24,8 @@ from django.utils import timezone
 from django.db import models
 from django.db import connection, transaction
 import logging
+import os
+import secrets
 import traceback
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -32,6 +34,15 @@ from crapi_site import settings
 import requests
 
 logger = logging.getLogger()
+
+
+def get_mechanic_password():
+    """
+    Password for the seeded mechanic accounts. Taken from the MECHANIC_PASSWORD
+    environment variable; when unset a random one is generated so no default
+    credential is ever shipped.
+    """
+    return os.environ.get("MECHANIC_PASSWORD") or secrets.token_urlsafe(16)
 
 
 def create_products():
@@ -58,19 +69,20 @@ def create_mechanics():
     from crapi.user.models import User, UserDetails
     from crapi.mechanic.models import Mechanic
 
+    mechanic_password = get_mechanic_password()
     mechanic_details_all = [
         {
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": mechanic_password,
             "mechanic_code": "TRAC_JHN",
         },
         {
             "name": "James",
             "email": "james@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": mechanic_password,
             "mechanic_code": "TRAC_JME",
         },
     ]
@@ -217,7 +229,12 @@ def ping_identity_server():
         headers = {
             "Accept": "*/*",
         }
-        request = requests.get(identity_health_url, headers, verify=False)
+        request = requests.get(
+            identity_health_url,
+            headers=headers,
+            verify=settings.OUTBOUND_TLS_VERIFY,
+            timeout=10,
+        )
         if request.status_code == 200:
             return True
         else:

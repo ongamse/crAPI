@@ -5,4 +5,13 @@ deploy/vagrant/.vagrant
 *.local
 services/chatbot/db
 services/certs/
+# TLS private keys are provided at runtime (see services/gencert.sh); never commit them
+services/*/certs/server.key
+services/identity/src/main/resources/certs/server.key
+services/gateway-service/server.key
+deploy/docker/certs/
+*.key
 docker-compose.local.yml
+
+# RSA signing keys (JWKS) are provided at runtime; never commit them
+jwks.json

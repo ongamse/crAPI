@@ -27,6 +27,7 @@ import bcrypt
 from django.test import TestCase, Client
 from django.utils import timezone
 from utils import messages
+from utils.helper import validate_header_value
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
 
 
@@ -133,6 +134,108 @@ class MerchantTestCase(TestCase):
             content_type="application/json"
         )
         self.assertNotEqual(res.status_code, 200)
+
+    def test_mechanic_api_blocks_internal_destinations(self):
+        """
+        sets mechanic_api to loopback, link-local metadata, private and
+        non http(s) urls
+        should get a 400 and no outbound request must be made
+        :return: None
+        """
+        blocked_urls = [
+            "http://127.0.0.1:8000/workshop/api/mechanic/receive_report",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://10.0.0.5/",
+            "http://[::1]/",
+            "file:///etc/passwd",
+            "ftp://example.com/",
+            "http://user:pass@example.com/",
+        ]
+        for blocked_url in blocked_urls:
+            self.contact_mechanic_request_body["mechanic_api"] = blocked_url
+            with patch("crapi.merchant.views.outbound_get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+                self.assertEqual(res.status_code, 400, blocked_url)
+                mock_get.assert_not_called()
+
+    def test_mechanic_api_allowed_host(self):
+        """
+        adds loopback host to MECHANIC_API_ALLOWED_HOSTS
+        should reach the allowlisted destination
+        :return: None
+        """
+        self.contact_mechanic_request_body["mechanic_api"] = (
+            "http://localhost:8000/workshop/api/mechanic/receive_report"
+        )
+        with patch("crapi.merchant.views.outbound_get") as mock_get, patch(
+            "crapi.merchant.views.settings.MECHANIC_API_ALLOWED_HOSTS", ["localhost"]
+        ):
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"ok": True}
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+            self.assertEqual(res.status_code, 200)
+            mock_get.assert_called_once()
+            self.assertIsNot(mock_get.call_args.kwargs.get("verify"), False)
+
+    def test_outbound_connection_rejects_non_public_peer(self):
+        """
+        simulates a DNS rebind: the socket connects to a loopback address
+        should raise UnsafeURLError, while allowlisted hosts are permitted
+        :return: None
+        """
+        from unittest.mock import MagicMock
+        from urllib3.connection import HTTPConnection
+        from utils.url_validation import SafeOutboundAdapter, UnsafeURLError
+
+        for peer, allowed, should_block in [
+            ("127.0.0.1", (), True),
+            ("169.254.169.254", (), True),
+            ("93.184.216.34", (), False),
+            ("127.0.0.1", ("localhost",), False),
+        ]:
+            adapter = SafeOutboundAdapter(allowed_hosts=allowed)
+            conn_cls = adapter.poolmanager.pool_classes_by_scheme["http"].ConnectionCls
+            fake_sock = MagicMock()
+            fake_sock.getpeername.return_value = (peer, 80)
+            with patch.object(HTTPConnection, "_new_conn", return_value=fake_sock):
+                conn = conn_cls("localhost", 80)
+                if should_block:
+                    with self.assertRaises(UnsafeURLError):
+                        conn._new_conn()
+                    fake_sock.close.assert_called_once()
+                else:
+                    self.assertIs(conn._new_conn(), fake_sock)
+
+    def test_header_value_control_characters_rejected(self):
+        """
+        passes header values containing CR/LF/NUL/non-ascii to the validator
+        should raise ValueError, while a normal bearer value is returned as is
+        :return: None
+        """
+        bearer = "Bearer " + self.user.email
+        self.assertEqual(validate_header_value(bearer), bearer)
+        for bad_value in [
+            bearer + "\r\nX-Injected: 1",
+            bearer + "\nX-Injected: 1",
+            bearer + "\r",
+            bearer + "\x00",
+            bearer + "\x7f",
+            bearer + "é",
+            "",
+            None,
+        ]:
+            with self.assertRaises(ValueError):
+                validate_header_value(bad_value)
 
     def test_contact_mechanic(self):
         """

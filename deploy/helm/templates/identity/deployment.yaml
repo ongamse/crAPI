@@ -37,6 +37,11 @@ spec:
         - name: jwt-key-secret
           secret:
             secretName: {{ .Values.identity.jwtKeySecret.name }}
+        {{- if .Values.tlsEnabled }}
+        - name: tls-secret
+          secret:
+            secretName: {{ .Values.tlsSecretName }}
+        {{- end }}
       containers:
         - name: {{ .Values.identity.name }}
           image: {{ .Values.identity.image }}:{{ .Chart.AppVersion }}
@@ -45,11 +50,18 @@ spec:
             - mountPath: "/.keys"
               name: jwt-key-secret
               readOnly: true
+            {{- if .Values.tlsEnabled }}
+            - mountPath: "/app/certs"
+              name: tls-secret
+              readOnly: true
+            {{- end }}
           ports:
           - containerPort: {{ .Values.identity.port }}
           envFrom:
               - configMapRef:
                   name: {{ .Values.identity.config.name }}
+              - secretRef:
+                  name: {{ .Values.credentialsSecretName }}
           {{- if .Values.identity.resources }}
           resources:
             {{- toYaml .Values.identity.resources | nindent 12 }}

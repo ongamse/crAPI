@@ -20,6 +20,7 @@ import jakarta.mail.Message;
 import jakarta.mail.Session;
 import jakarta.mail.Transport;
 import jakarta.mail.internet.*;
+import java.util.Arrays;
 import java.util.Date;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,8 +43,20 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
-      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
+      if (sendMail == null || containsControlChars(sendMail)) {
+        log.error("sendMail rejected: recipient is missing or contains control characters");
+        return;
+      }
+      String safeSubject = stripControlChars(subject);
+      InternetAddress[] emails = InternetAddress.parse(sendMail, true);
+      if (emails.length != 1) {
+        log.error("sendMail rejected: exactly one recipient address is required");
+        return;
+      }
+      for (InternetAddress parsed : emails) {
+        parsed.validate();
+      }
+      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, Arrays.toString(emails));
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -62,24 +75,53 @@ public class SMTPMailServer {
       }
       if (!useMailHog) {
         session = mailConfiguration.sendmail();
-        log.info("Using Mail Configuration for sending email: " + sendMail);
+        log.info("Using Mail Configuration for sending email: " + Arrays.toString(emails));
       }
 
       Message msg = new MimeMessage(session);
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
-      msg.setSubject(subject);
+      msg.setRecipients(Message.RecipientType.TO, emails);
+      msg.setSubject(safeSubject);
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
-
-      MimeBodyPart messageBodyPart = new MimeBodyPart();
-      messageBodyPart.setContent(body, "text/html");
 
       Transport.send(msg);
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  private static boolean isHeaderBreaking(char c) {
+    return Character.isISOControl(c) || c == 0x2028 || c == 0x2029;
+  }
+
+  /** True when the value has any control or line-separator character (CR, LF, NUL, ...). */
+  static boolean containsControlChars(String value) {
+    for (int i = 0; i < value.length(); i++) {
+      if (isHeaderBreaking(value.charAt(i))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Remove control and line-separator characters so a header value can never be split into
+   * additional mail headers.
+   */
+  static String stripControlChars(String value) {
+    if (value == null) {
+      return null;
+    }
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (!isHeaderBreaking(c)) {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
   }
 }

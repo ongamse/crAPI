@@ -19,6 +19,7 @@ import com.crapi.entity.UserDetails;
 import com.crapi.entity.VehicleDetails;
 import com.crapi.model.ChangeEmailForm;
 import com.crapi.model.ChangePhoneForm;
+import org.springframework.web.util.HtmlUtils;
 
 public class MailBody {
 
@@ -35,7 +36,7 @@ public class MailBody {
     body += "<tr>";
     body += "<td>Hi,</td>";
     body += "<td> </td>";
-    body += "<td>Your one time generated otp is: " + otp.getOtp() + "</td>";
+    body += "<td>Your one time generated otp is: " + escape(otp.getOtp()) + "</td>";
     body += "</tr>";
     body += "</table>";
     body += "</td>";
@@ -54,13 +55,13 @@ public class MailBody {
     String msgBody =
         "<html><body>"
             + "<font face='calibri' style = 'font-size:15px; color:#000;'>Hi "
-            + name
+            + escape(name)
             + "<font>,"
             + "<br><font face='calibri'><p style = 'font-size:15px; color:#000;'>We are glad to have you on-board. Your newly purchased vehiche details are provided below. Please add it on your crAPI dashboard.</p>"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>Your vehicle information is <b>VIN: </font><font face='calibri' font color='#0000ff'>"
-            + vehicleDetails.getVin()
+            + escape(vehicleDetails.getVin())
             + "</font></b> and <b>Pincode: <font face='calibri' font color='#0000ff'>"
-            + vehicleDetails.getPincode()
+            + escape(vehicleDetails.getPincode())
             + "</font></b></p>"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>We're here to help you build a relationship with your vehicles.</font></p>"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>Thank You & have a wonderful day !</font></p>"
@@ -83,13 +84,13 @@ public class MailBody {
             + "<font face='calibri' style = 'font-size:15px; color:#000;'>Hi"
             + "<font>,"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>We received a request to change your account email address. The previous e-mail address is: </font><font face='calibri' font color='#0000ff'><b>"
-            + changeEmailRequest.getOld_email()
+            + escape(changeEmailRequest.getOld_email())
             + "</b></font>"
             + "<font face='calibri' style = 'font-size:15px;color:#000;'> and the new one is: <b>"
-            + changeEmailRequest.getNew_email()
+            + escape(changeEmailRequest.getNew_email())
             + "</b></font></p>"
             + "<font face='calibri' style = 'font-size:15px;color:#000;'>To complete the process, please use the following token: <b>"
-            + changeEmailRequest.getToken()
+            + escape(changeEmailRequest.getToken())
             + "</b>"
             + "<br>"
             + "<br>"
@@ -114,13 +115,13 @@ public class MailBody {
             + "<font face='calibri' style = 'font-size:15px; color:#000;'>Hi"
             + "<font>,"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>We received a request to change your account phone Number. The previous number is: </font><font face='calibri' font color='#0000ff'><b>"
-            + changePhoneRequest.getOld_number()
+            + escape(changePhoneRequest.getOld_number())
             + "</b></font>"
             + "<font face='calibri' style = 'font-size:15px;color:#000;'> and the new one is: <b>"
-            + changePhoneRequest.getNew_number()
+            + escape(changePhoneRequest.getNew_number())
             + "</b></font></p>"
             + "<font face='calibri' style = 'font-size:15px;color:#000;'>To complete the process, please use the following otp: <b>"
-            + changePhoneRequest.getOtp()
+            + escape(changePhoneRequest.getOtp())
             + "</b>"
             + "<br>"
             + "<br>"
@@ -144,10 +145,10 @@ public class MailBody {
     String msgBody =
         "<html><body>"
             + "<font face='calibri' style = 'font-size:15px; color:#000;'>Hi "
-            + userdetails.getName()
+            + escape(userdetails.getName())
             + "<font>,"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>We received a request to unlock your account. Please provide the following code to unlock your account: <b>"
-            + userdetails.getUser().getCode()
+            + escape(userdetails.getUser().getCode())
             + "</b></font>"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>If you haven not sent a request to unlock your account, please ignore this message.</font></p>"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>Thank You & have a wonderful day !</font></p>"
@@ -158,5 +159,10 @@ public class MailBody {
             + "</html>";
 
     return msgBody;
+  }
+
+  /** HTML-escape attacker-controlled text before placing it in the mail body. */
+  private static String escape(String value) {
+    return value == null ? "" : HtmlUtils.htmlEscape(value);
   }
 }

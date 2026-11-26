@@ -6,15 +6,14 @@ metadata:
     app: crapi-workshop
 data:
     IDENTITY_SERVICE: crapi-identity:8080
-    SECRET_KEY: crapi
     DB_HOST: postgresdb
     DB_USER: admin
-    DB_PASSWORD: crapisecretpassword
     DB_NAME: crapi
     DB_PORT: "5432"
     MONGO_DB_HOST: mongodb
     MONGO_DB_PORT: "27017"
     MONGO_DB_USER: admin
-    MONGO_DB_PASSWORD: crapisecretpassword
     MONGO_DB_NAME: crapi
     SERVER_PORT: "8000"
+    ALLOWED_HOSTS: "localhost,127.0.0.1,[::1],0.0.0.0,crapi-workshop"
+    CORS_ALLOWED_ORIGINS: "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443"

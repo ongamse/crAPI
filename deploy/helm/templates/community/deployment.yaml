@@ -42,15 +42,29 @@ spec:
             - "service"
             - {{ .Values.identity.service.name | quote }}
       {{- end }}
+      {{- if .Values.tlsEnabled }}
+      volumes:
+        - name: tls-secret
+          secret:
+            secretName: {{ .Values.tlsSecretName }}
+      {{- end }}
       containers:
         - name: {{ .Values.community.name }}
           image: {{ .Values.community.image }}:{{ .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
+          {{- if .Values.tlsEnabled }}
+          volumeMounts:
+            - mountPath: "/app/certs"
+              name: tls-secret
+              readOnly: true
+          {{- end }}
           ports:
             - containerPort: {{ .Values.community.port }}
           envFrom:
             - configMapRef:
                 name: {{ .Values.community.config.name }}
+            - secretRef:
+                name: {{ .Values.credentialsSecretName }}
           {{- if .Values.community.resources }}
           resources:
             {{- toYaml .Values.community.resources | nindent 12 }}

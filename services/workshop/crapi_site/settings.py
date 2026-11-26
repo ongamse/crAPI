@@ -61,11 +61,29 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Host header allowlist (comma separated) to prevent DNS rebinding / Host header attacks.
+# Wildcard entries ("*", "." and patterns containing "*") are never accepted. The default
+# covers loopback, the container health check (0.0.0.0) and the bundled service name that the
+# web proxy uses as the Host header. Add other names (ingress hostnames, etc.) via ALLOWED_HOSTS.
+DEFAULT_ALLOWED_HOSTS = "localhost,127.0.0.1,[::1],0.0.0.0,crapi-workshop"
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("ALLOWED_HOSTS", DEFAULT_ALLOWED_HOSTS).split(",")
+    if host.strip() and host.strip() != "." and "*" not in host
+]
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = DEFAULT_ALLOWED_HOSTS.split(",")
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
+# Comma separated hostnames that contact_mechanic may call even when they
+# resolve to non public addresses. Everything else must resolve to public IPs.
+MECHANIC_API_ALLOWED_HOSTS = [
+    host.strip().lower()
+    for host in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
 
 # Application definition
 
@@ -99,7 +117,19 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Cross-origin callers must be listed explicitly (comma separated, scheme://host[:port]).
+# The crAPI web UI reaches this service through its same-origin nginx proxy, so the default
+# only covers the locally published web ports. Wildcards are never accepted.
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:8888,https://localhost:8443,"
+        "http://127.0.0.1:8888,https://127.0.0.1:8443",
+    ).split(",")
+    if origin.strip() and origin.strip() != "*"
+]
 
 ROOT_URLCONF = "crapi_site.urls"
 
@@ -256,3 +286,10 @@ if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_HEALTH = "https://{}/identity/health_check".format(
         get_env_value("IDENTITY_SERVICE")
     )
+
+# TLS certificate validation for outbound HTTPS requests (identity service,
+# API gateway, mechanic API). Always on. To trust a private/self-signed CA,
+# point TLS_CA_BUNDLE (or REQUESTS_CA_BUNDLE) at a PEM CA bundle file;
+# otherwise the default trust store (certifi) is used.
+TLS_CA_BUNDLE = os.environ.get("TLS_CA_BUNDLE") or os.environ.get("REQUESTS_CA_BUNDLE")
+OUTBOUND_TLS_VERIFY = TLS_CA_BUNDLE if TLS_CA_BUNDLE else True

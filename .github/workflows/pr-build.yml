@@ -29,6 +29,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Generate ephemeral CI credentials
+        run: |
+          for v in DB_PASSWORD MONGO_DB_PASSWORD WORKSHOP_SECRET_KEY API_GATEWAY_PASSWORD; do
+            val="$(openssl rand -hex 16)"
+            echo "::add-mask::$val"
+            echo "$v=$val" >> "$GITHUB_ENV"
+          done
+          echo "SECRET_KEY=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+
       - name: Env seen prerun
         run: env
 
@@ -215,6 +224,15 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
+
+      - name: Generate ephemeral CI credentials
+        run: |
+          for v in DB_PASSWORD MONGO_DB_PASSWORD WORKSHOP_SECRET_KEY API_GATEWAY_PASSWORD; do
+            val="$(openssl rand -hex 16)"
+            echo "::add-mask::$val"
+            echo "$v=$val" >> "$GITHUB_ENV"
+          done
+          echo "SECRET_KEY=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
 
       - name: Start the database
         run: docker compose -f services/docker-database.yml up -d
