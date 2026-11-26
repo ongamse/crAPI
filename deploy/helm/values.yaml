@@ -2,12 +2,13 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
+credentialsSecretName: crapi-credentials
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
+# Required at install time (--set apiGatewayPassword=...); no default is shipped.
 apiGatewayPassword:
 tlsEnabled: false
 jwtExpiration: 604800000
@@ -125,7 +126,8 @@ workshop:
       app: crapi-workshop
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
+    # Required at install time (--set workshop.config.secretKey=...); no default is shipped.
+    secretKey:
     filesLimit: 1000
   deploymentLabels:
     app: crapi-workshop
@@ -233,9 +235,9 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
+    # Required at install time (--set mongodb.config.mongoPassword=...); no default is shipped.
+    mongoPassword:
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:
@@ -278,7 +280,8 @@ postgresdb:
     labels:
       app: postgresdb
     postgresUser: admin
-    postgresPassword: crapisecretpassword
+    # Required at install time (--set postgresdb.config.postgresPassword=...); no default is shipped.
+    postgresPassword:
     postgresDbName: crapi
   storage:
     # type: "manual"

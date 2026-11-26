@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -150,11 +152,17 @@ func GetPayMentInfo(w http.ResponseWriter, r *http.Request) {
 	w.Write(response_body)
 }
 
+// gatewayPassword is supplied through the API_GATEWAY_PASSWORD environment
+// variable; there is no built-in default.
+var gatewayPassword = os.Getenv("API_GATEWAY_PASSWORD")
+
 func checkCreds(user string, pass string) bool {
-	if user == "vendorcrapi" && pass == "Pa$$4Vendor_1" {
-		return true
+	if gatewayPassword == "" {
+		return false
 	}
-	return false
+	userOk := subtle.ConstantTimeCompare([]byte(user), []byte("vendorcrapi")) == 1
+	passOk := subtle.ConstantTimeCompare([]byte(pass), []byte(gatewayPassword)) == 1
+	return userOk && passOk
 }
 
 func maskLeft(s string) string {
@@ -168,6 +176,9 @@ func maskLeft(s string) string {
 func main() {
 	port := flag.Int("port", 443, "port number")
 	flag.Parse()
+	if gatewayPassword == "" {
+		log.Fatal("API_GATEWAY_PASSWORD environment variable must be set")
+	}
 	http.HandleFunc("/", HelloServer)
 	http.HandleFunc("/v1/vin/ownership", GetOwners)
 	http.HandleFunc("/v1/payment", GetPayMentInfo)

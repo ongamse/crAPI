@@ -42,6 +42,15 @@ mkdir /opt/crapi
 cp "$MOUNT_DIR/deploy/docker/docker-compose.yml" /opt/crapi \
     && sed -i /opt/crapi/docker-compose.yml \
     -e 's/${LISTEN_IP:-127\.0\.0\.1}:8888:80/80:80/; s/${LISTEN_IP:-127\.0\.0\.1}:8025:8025/8025:8025/'
+# Generate random credentials on the VM (never committed to git)
+umask 077
+{
+  echo "DB_PASSWORD=$(openssl rand -hex 16)"
+  echo "MONGO_DB_PASSWORD=$(openssl rand -hex 16)"
+  echo "WORKSHOP_SECRET_KEY=$(openssl rand -hex 24)"
+  echo "API_GATEWAY_PASSWORD=$(openssl rand -hex 16)"
+} > /opt/crapi/crapi.env
+umask 022
 cp "$MOUNT_DIR/deploy/vagrant/crapi.service" /etc/systemd/system/ \
     && systemctl daemon-reload \
     && systemctl enable crapi.service

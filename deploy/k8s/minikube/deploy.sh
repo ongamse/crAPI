@@ -15,6 +15,19 @@
 
 cd "$(dirname $0)"
 kubectl create namespace crapi
+# Credentials are never committed. Export these before running this script.
+: "${DB_PASSWORD:?Set DB_PASSWORD}"
+: "${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD}"
+: "${WORKSHOP_SECRET_KEY:?Set WORKSHOP_SECRET_KEY}"
+: "${API_GATEWAY_PASSWORD:?Set API_GATEWAY_PASSWORD}"
+kubectl create -n crapi secret generic crapi-credentials \
+  --from-literal=DB_PASSWORD="$DB_PASSWORD" \
+  --from-literal=POSTGRES_PASSWORD="$DB_PASSWORD" \
+  --from-literal=MONGO_DB_PASSWORD="$MONGO_DB_PASSWORD" \
+  --from-literal=MONGO_INITDB_ROOT_PASSWORD="$MONGO_DB_PASSWORD" \
+  --from-literal=MH_MONGO_URI="admin:${MONGO_DB_PASSWORD}@mongodb:27017" \
+  --from-literal=SECRET_KEY="$WORKSHOP_SECRET_KEY" \
+  --from-literal=API_GATEWAY_PASSWORD="$API_GATEWAY_PASSWORD"
 
 kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
 kubectl apply -n crapi -f ../base/rbac
