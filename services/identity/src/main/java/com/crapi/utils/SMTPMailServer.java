@@ -20,6 +20,7 @@ import jakarta.mail.Message;
 import jakarta.mail.Session;
 import jakarta.mail.Transport;
 import jakarta.mail.internet.*;
+import java.util.Arrays;
 import java.util.Date;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,8 +43,13 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
-      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
+      if (sendMail == null || containsLineBreak(sendMail)) {
+        log.error("sendMail rejected: recipient is missing or contains line break characters");
+        return;
+      }
+      String safeSubject = stripLineBreaks(subject);
+      InternetAddress[] emails = InternetAddress.parse(sendMail, true);
+      log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, Arrays.toString(emails));
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -62,24 +68,33 @@ public class SMTPMailServer {
       }
       if (!useMailHog) {
         session = mailConfiguration.sendmail();
-        log.info("Using Mail Configuration for sending email: " + sendMail);
+        log.info("Using Mail Configuration for sending email: " + Arrays.toString(emails));
       }
 
       Message msg = new MimeMessage(session);
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
-      msg.setSubject(subject);
+      msg.setRecipients(Message.RecipientType.TO, emails);
+      msg.setSubject(safeSubject);
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
-
-      MimeBodyPart messageBodyPart = new MimeBodyPart();
-      messageBodyPart.setContent(body, "text/html");
 
       Transport.send(msg);
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  private static boolean containsLineBreak(String value) {
+    return value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0;
+  }
+
+  /** Remove CR/LF so a header value can never be split into additional mail headers. */
+  private static String stripLineBreaks(String value) {
+    if (value == null) {
+      return null;
+    }
+    return value.replace("\r", "").replace("\n", "");
   }
 }
