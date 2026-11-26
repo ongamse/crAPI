@@ -29,6 +29,7 @@ from utils.jwt import jwt_auth_required
 from utils import messages
 from rest_framework.pagination import LimitOffsetPagination
 from utils.logging import log_error
+from utils.url_validation import validate_outbound_url, UnsafeURLError
 from crapi_site import settings
 from crapi.mechanic.models import ServiceRequest, ServiceComment
 from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
@@ -79,6 +80,15 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        try:
+            validate_outbound_url(
+                request_data["mechanic_api"],
+                allowed_hosts=settings.MECHANIC_API_ALLOWED_HOSTS,
+            )
+        except UnsafeURLError as e:
+            log_error(request.path, request.data, status.HTTP_400_BAD_REQUEST, e)
+            return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
         repeat_count = 0
         while True:
             request_url = request_data["mechanic_api"]
@@ -89,6 +99,7 @@ class ContactMechanicView(APIView):
                     params=request_data,
                     headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
                     verify=False,
+                    allow_redirects=False,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")

@@ -64,6 +64,13 @@ if LOG_LEVEL == "DEBUG":
 ALLOWED_HOSTS = ["*"]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
+# Comma separated hostnames that contact_mechanic may call even when they
+# resolve to non public addresses. Everything else must resolve to public IPs.
+MECHANIC_API_ALLOWED_HOSTS = [
+    host.strip().lower()
+    for host in os.environ.get("MECHANIC_API_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
 API_GATEWAY_USERNAME = "vendorcrapi"
 API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
 
