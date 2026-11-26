@@ -21,5 +21,6 @@ data:
     TLS_ENABLED: {{ .Values.tlsEnabled | quote }}
     TLS_CA_BUNDLE: {{ .Values.workshop.config.tlsCaBundle | default "" | quote }}
     FILES_LIMIT: {{ .Values.workshop.config.filesLimit | quote }}
+    ALLOWED_HOSTS: {{ (list "localhost" "127.0.0.1" "[::1]" "0.0.0.0" .Values.workshop.service.name) | concat (default (list) .Values.workshop.config.extraAllowedHosts) | join "," | quote }}
     CORS_ALLOWED_ORIGINS: {{ .Values.corsAllowedOrigins | quote }}
     MECHANIC_API_ALLOWED_HOSTS: {{ printf "localhost,127.0.0.1,%s" .Values.web.service.name | quote }}

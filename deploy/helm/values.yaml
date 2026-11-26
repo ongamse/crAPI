@@ -143,6 +143,9 @@ workshop:
     # Optional path to a PEM CA bundle (mounted by the operator) used to validate
     # outbound HTTPS certificates. Empty means the default trust store.
     tlsCaBundle: ""
+    # Extra Host header names (list) the workshop service may be reached by, in addition to
+    # localhost, loopback, 0.0.0.0 and the service name. Wildcards are ignored by the app.
+    extraAllowedHosts: []
   deploymentLabels:
     app: crapi-workshop
   podLabels:
