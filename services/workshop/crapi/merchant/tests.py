@@ -27,6 +27,7 @@ import bcrypt
 from django.test import TestCase, Client
 from django.utils import timezone
 from utils import messages
+from utils.helper import validate_header_value
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
 
 
@@ -184,6 +185,27 @@ class MerchantTestCase(TestCase):
             )
             self.assertEqual(res.status_code, 200)
             mock_get.assert_called_once()
+
+    def test_header_value_control_characters_rejected(self):
+        """
+        passes header values containing CR/LF/NUL/non-ascii to the validator
+        should raise ValueError, while a normal bearer value is returned as is
+        :return: None
+        """
+        bearer = "Bearer " + self.user.email
+        self.assertEqual(validate_header_value(bearer), bearer)
+        for bad_value in [
+            bearer + "\r\nX-Injected: 1",
+            bearer + "\nX-Injected: 1",
+            bearer + "\r",
+            bearer + "\x00",
+            bearer + "\x7f",
+            bearer + "é",
+            "",
+            None,
+        ]:
+            with self.assertRaises(ValueError):
+                validate_header_value(bad_value)
 
     def test_contact_mechanic(self):
         """
