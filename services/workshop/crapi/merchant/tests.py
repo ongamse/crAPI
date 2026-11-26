@@ -185,6 +185,7 @@ class MerchantTestCase(TestCase):
             )
             self.assertEqual(res.status_code, 200)
             mock_get.assert_called_once()
+            self.assertIsNot(mock_get.call_args.kwargs.get("verify"), False)
 
     def test_header_value_control_characters_rejected(self):
         """

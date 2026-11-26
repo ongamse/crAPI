@@ -19,5 +19,6 @@ data:
     SERVER_PORT: {{ .Values.workshop.port | quote }}
     API_GATEWAY_URL: {{ if .Values.apiGatewayServiceInstall }}"https://{{ .Values.apiGatewayService.service.name }}"{{ else }}{{ .Values.apiGatewayServiceUrl }}{{ end }}
     TLS_ENABLED: {{ .Values.tlsEnabled | quote }}
+    TLS_CA_BUNDLE: {{ .Values.workshop.config.tlsCaBundle | default "" | quote }}
     FILES_LIMIT: {{ .Values.workshop.config.filesLimit | quote }}
     MECHANIC_API_ALLOWED_HOSTS: {{ printf "localhost,127.0.0.1,%s" .Values.web.service.name | quote }}

@@ -263,3 +263,10 @@ if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_HEALTH = "https://{}/identity/health_check".format(
         get_env_value("IDENTITY_SERVICE")
     )
+
+# TLS certificate validation for outbound HTTPS requests (identity service,
+# API gateway, mechanic API). Always on. To trust a private/self-signed CA,
+# point TLS_CA_BUNDLE (or REQUESTS_CA_BUNDLE) at a PEM CA bundle file;
+# otherwise the default trust store (certifi) is used.
+TLS_CA_BUNDLE = os.environ.get("TLS_CA_BUNDLE") or os.environ.get("REQUESTS_CA_BUNDLE")
+OUTBOUND_TLS_VERIFY = TLS_CA_BUNDLE if TLS_CA_BUNDLE else True

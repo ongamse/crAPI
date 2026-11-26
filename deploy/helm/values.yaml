@@ -78,6 +78,10 @@ identity:
     keyStorePassword: passw0rd
     keyPassword: passw0rd
     keyAlias: identity
+    # Optional path to a trust store (mounted by the operator) used to validate the
+    # API gateway TLS certificate. Empty means the JVM default trust store.
+    apiGatewayTrustStore: ""
+    apiGatewayTrustStoreType: PKCS12
   deploymentLabels:
     app: crapi-identity
   podLabels:
@@ -129,6 +133,9 @@ workshop:
     # Required at install time (--set workshop.config.secretKey=...); no default is shipped.
     secretKey:
     filesLimit: 1000
+    # Optional path to a PEM CA bundle (mounted by the operator) used to validate
+    # outbound HTTPS certificates. Empty means the default trust store.
+    tlsCaBundle: ""
   deploymentLabels:
     app: crapi-workshop
   podLabels:
