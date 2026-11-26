@@ -153,7 +153,7 @@ class MerchantTestCase(TestCase):
         ]
         for blocked_url in blocked_urls:
             self.contact_mechanic_request_body["mechanic_api"] = blocked_url
-            with patch("crapi.merchant.views.requests.get") as mock_get:
+            with patch("crapi.merchant.views.outbound_get") as mock_get:
                 res = self.client.post(
                     "/workshop/api/merchant/contact_mechanic",
                     self.contact_mechanic_request_body,
@@ -172,7 +172,7 @@ class MerchantTestCase(TestCase):
         self.contact_mechanic_request_body["mechanic_api"] = (
             "http://localhost:8000/workshop/api/mechanic/receive_report"
         )
-        with patch("crapi.merchant.views.requests.get") as mock_get, patch(
+        with patch("crapi.merchant.views.outbound_get") as mock_get, patch(
             "crapi.merchant.views.settings.MECHANIC_API_ALLOWED_HOSTS", ["localhost"]
         ):
             mock_get.return_value.status_code = 200
@@ -186,6 +186,35 @@ class MerchantTestCase(TestCase):
             self.assertEqual(res.status_code, 200)
             mock_get.assert_called_once()
             self.assertIsNot(mock_get.call_args.kwargs.get("verify"), False)
+
+    def test_outbound_connection_rejects_non_public_peer(self):
+        """
+        simulates a DNS rebind: the socket connects to a loopback address
+        should raise UnsafeURLError, while allowlisted hosts are permitted
+        :return: None
+        """
+        from unittest.mock import MagicMock
+        from urllib3.connection import HTTPConnection
+        from utils.url_validation import SafeOutboundAdapter, UnsafeURLError
+
+        for peer, allowed, should_block in [
+            ("127.0.0.1", (), True),
+            ("169.254.169.254", (), True),
+            ("93.184.216.34", (), False),
+            ("127.0.0.1", ("localhost",), False),
+        ]:
+            adapter = SafeOutboundAdapter(allowed_hosts=allowed)
+            conn_cls = adapter.poolmanager.pool_classes_by_scheme["http"].ConnectionCls
+            fake_sock = MagicMock()
+            fake_sock.getpeername.return_value = (peer, 80)
+            with patch.object(HTTPConnection, "_new_conn", return_value=fake_sock):
+                conn = conn_cls("localhost", 80)
+                if should_block:
+                    with self.assertRaises(UnsafeURLError):
+                        conn._new_conn()
+                    fake_sock.close.assert_called_once()
+                else:
+                    self.assertIs(conn._new_conn(), fake_sock)
 
     def test_header_value_control_characters_rejected(self):
         """
