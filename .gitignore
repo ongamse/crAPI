@@ -12,3 +12,6 @@ services/gateway-service/server.key
 deploy/docker/certs/
 *.key
 docker-compose.local.yml
+
+# RSA signing keys (JWKS) are provided at runtime; never commit them
+jwks.json

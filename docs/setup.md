@@ -1,7 +1,7 @@
 Setup | crAPI
 =============
 
-> **Note**: Custom jwks key can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys`
+> **Note**: The identity service requires an RS256 RSA signing key as a *jwks.json* file (single-key JWKS with private components). No key is committed to the repo: generate your own (e.g. with `mkjwk` or any JWK tool) and place it in the *keys* folder of the deployment folder you use, such as `/deploy/docker/keys/jwks.json` (also `/deploy/helm/keys`, `/deploy/k8s/keys`). The file is git-ignored; the identity service refuses to start without it. Rotate the key that was previously published in this repo's git history.
 
 ## Docker and docker compose
 

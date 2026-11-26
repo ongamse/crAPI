@@ -16,6 +16,8 @@ kubectl create -n crapi secret generic crapi-credentials \
   --from-literal=API_GATEWAY_PASSWORD="$API_GATEWAY_PASSWORD"
 #kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 
+[ -f ../keys/jwks.json ] || { echo "Provide ../keys/jwks.json (RSA signing key, see docs/setup.md)" >&2; exit 1; }
+
 kubectl create -n secret generic jwt-key-secret --from-file=../keys
 kubectl apply -n crapi -f ./rbac
 kubectl apply -n crapi -f ./mongodb
