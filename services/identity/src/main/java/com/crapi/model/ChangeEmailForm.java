@@ -14,7 +14,9 @@
 
 package com.crapi.model;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -27,6 +29,11 @@ public class ChangeEmailForm {
 
   @NotBlank
   @Size(min = 3, max = 40)
+  @Email
+  @Pattern(
+      regexp = "^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Za-z0-9]"
+          + "([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$",
+      message = "Invalid e-mail address")
   private String new_email;
 
   private String token;

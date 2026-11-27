@@ -66,9 +66,25 @@ public class SMTPMailServer {
    * @param subject send mail to given email with dynamic subject and body
    */
   public void sendMail(String sendMail, String body, String subject) {
+    sendMail(validateRecipient(sendMail), body, subject);
+  }
+
+  /**
+   * Send mail to an already validated, typed recipient. The address is re-checked here so the
+   * transport never sees an address that did not pass {@link #validateRecipient(String)}.
+   *
+   * @param validatedRecipient single mailbox, normally produced by {@link
+   *     #validateRecipient(String)}
+   * @param body HTML body, dynamic values must already be encoded
+   * @param subject key selecting one of the server-controlled subject lines
+   */
+  public void sendMail(InternetAddress validatedRecipient, String body, String subject) {
     // Validate everything that is attacker influenced before any I/O. Invalid input is rejected
     // with a CRAPIExceptionHandler (HTTP 400) that the controller advice turns into a response.
-    final InternetAddress recipient = validateRecipient(sendMail);
+    if (validatedRecipient == null) {
+      throw new CRAPIExceptionHandler(INVALID_RECIPIENT_MESSAGE, 400);
+    }
+    final InternetAddress recipient = validateRecipient(validatedRecipient.getAddress());
     final String fixedSubject = resolveSubject(subject);
     final String safeBody = sanitizeBody(body);
 
@@ -119,7 +135,7 @@ public class SMTPMailServer {
    * @return validated address
    * @throws CRAPIExceptionHandler (400) when the value is not a valid single mailbox
    */
-  static InternetAddress validateRecipient(String recipient) {
+  public static InternetAddress validateRecipient(String recipient) {
     if (recipient == null || recipient.length() > MAX_ADDRESS_LENGTH) {
       throw new CRAPIExceptionHandler(INVALID_RECIPIENT_MESSAGE, 400);
     }

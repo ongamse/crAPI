@@ -30,6 +30,7 @@ import com.crapi.utils.MailBody;
 import com.crapi.utils.OTPGenerator;
 import com.crapi.utils.SMTPMailServer;
 import io.jsonwebtoken.io.IOException;
+import jakarta.mail.internet.InternetAddress;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import java.text.ParseException;
@@ -245,6 +246,9 @@ public class UserServiceImpl implements UserService {
     String token;
     User user;
     ChangeEmailRequest changeEmailRequest;
+    // Typed, validated recipient; rejects (400) anything that is not a single plain mailbox.
+    final InternetAddress newEmailAddress =
+        SMTPMailServer.validateRecipient(changeEmailForm.getNew_email());
     // Checking new email in user login table if it is already registered then not allowing that
     // email
     if (userRepository.existsByEmail(changeEmailForm.getNew_email())) {
@@ -274,7 +278,7 @@ public class UserServiceImpl implements UserService {
     changeEmailForm.setToken(token);
     changeEmailRepository.save(changeEmailRequest);
     smtpMailServer.sendMail(
-        changeEmailForm.getNew_email(),
+        newEmailAddress,
         MailBody.changeMailBody(changeEmailForm),
         "crAPI: Change Email Token");
     return new CRAPIResponse(

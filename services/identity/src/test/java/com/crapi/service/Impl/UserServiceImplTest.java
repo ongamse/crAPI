@@ -42,6 +42,7 @@ import com.crapi.repository.UserDetailsRepository;
 import com.crapi.repository.UserRepository;
 import com.crapi.service.VehicleService;
 import com.crapi.utils.SMTPMailServer;
+import jakarta.mail.internet.InternetAddress;
 import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
 import lombok.SneakyThrows;
@@ -336,13 +337,13 @@ public class UserServiceImplTest {
     Mockito.when(changeEmailRepository.findByUser(user)).thenReturn(changeEmailRequest);
     Mockito.doNothing()
         .when(smtpMailServer)
-        .sendMail(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        .sendMail(Mockito.any(InternetAddress.class), Mockito.anyString(), Mockito.anyString());
 
     CRAPIResponse crapiAPIResponse =
         userService.changeEmailRequest(getMockHttpRequest(), changeEmailForm);
 
     Mockito.verify(smtpMailServer, Mockito.times(1))
-        .sendMail(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        .sendMail(Mockito.any(InternetAddress.class), Mockito.anyString(), Mockito.anyString());
     Assertions.assertEquals(expectedMessage, crapiAPIResponse.getMessage());
     Assertions.assertEquals(HttpStatus.OK.value(), crapiAPIResponse.getStatus());
   }
@@ -360,13 +361,13 @@ public class UserServiceImplTest {
     Mockito.when(changeEmailRepository.findByUser(user)).thenReturn(null);
     Mockito.doNothing()
         .when(smtpMailServer)
-        .sendMail(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        .sendMail(Mockito.any(InternetAddress.class), Mockito.anyString(), Mockito.anyString());
 
     CRAPIResponse crapiAPIResponse =
         userService.changeEmailRequest(getMockHttpRequest(), changeEmailForm);
 
     Mockito.verify(smtpMailServer, Mockito.times(1))
-        .sendMail(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        .sendMail(Mockito.any(InternetAddress.class), Mockito.anyString(), Mockito.anyString());
     Assertions.assertEquals(expectedMessage, crapiAPIResponse.getMessage());
     Assertions.assertEquals(HttpStatus.OK.value(), crapiAPIResponse.getStatus());
   }
