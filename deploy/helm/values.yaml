@@ -19,7 +19,7 @@ corsAllowedOrigins: "http://localhost:8888,https://localhost:8443,http://127.0.0
 # (kubectl create secret generic <name> --from-file=server.key=<path>). It is mounted at
 # /app/certs/server.key in web, community, workshop and chatbot when tlsEnabled is true.
 # The private key is not shipped in the images.
-tlsKeySecret: ""
+tlsKeyRef: ""
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
@@ -84,10 +84,10 @@ identity:
     smtpStartTLS: true
     keyStoreType: PKCS12
     keyStore: classpath:certs/server.p12
-    # Passwords protecting the sample keystore bundled in the identity image
-    # (classpath:certs/server.p12). Override together with keyStore when using your own.
-    keyStorePassword: passw0rd
-    keyPassword: passw0rd
+    # Passwords of the keystore above. Not stored here; required when tlsEnabled is true:
+    # --set identity.config.keyStorePassword=... --set identity.config.keyPassword=...
+    keyStorePassword: ""
+    keyPassword: ""
     keyAlias: identity
   deploymentLabels:
     app: crapi-identity
@@ -168,13 +168,13 @@ chatbot:
       app: crapi-chatbot
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    # Login of the demo admin account seeded by the identity service (TestUsers.java);
-    # must match that seed.
-    apiPassword: Admin!123
+    # Login of the demo admin account seeded by the identity service (TestUsers.java).
+    # When empty the chatbot uses its built-in default for that seeded account; set
+    # --set chatbot.config.apiPassword=... if the seed was changed.
+    apiPassword: ""
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"
