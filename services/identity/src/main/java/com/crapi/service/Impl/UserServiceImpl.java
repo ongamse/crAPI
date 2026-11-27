@@ -189,7 +189,7 @@ public class UserServiceImpl implements UserService {
     if (user != null) {
       user.setPassword(encoder.encode(loginForm.getPassword()));
       userRepository.saveAndFlush(user);
-      return new CRAPIResponse(UserMessage.PASSWORD_GOT_RESET, 200);
+      return new CRAPIResponse(UserMessage.CREDENTIAL_GOT_RESET, 200);
     }
     throw new EntityNotFoundException(User.class, UserMessage.ERROR, loginForm.getEmail());
   }

@@ -18,18 +18,18 @@ spec:
         release: {{ .Release.Name }}
         {{- toYaml .Values.web.podLabels | nindent 8 }}
     spec:
-      {{- if and .Values.tlsEnabled .Values.tlsKeySecret }}
+      {{- if and .Values.tlsEnabled .Values.tlsKeyRef }}
       volumes:
         - name: tls-key
           secret:
-            secretName: {{ .Values.tlsKeySecret }}
+            secretName: {{ .Values.tlsKeyRef }}
             optional: true
       {{- end }}
       containers:
         - name: {{ .Values.web.name }}
           image: {{ .Values.web.image }}:{{ .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
-          {{- if and .Values.tlsEnabled .Values.tlsKeySecret }}
+          {{- if and .Values.tlsEnabled .Values.tlsKeyRef }}
           volumeMounts:
             - name: tls-key
               mountPath: /app/certs/server.key

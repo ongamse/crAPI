@@ -42,18 +42,18 @@ spec:
             - "service"
             - {{ .Values.identity.service.name | quote }}
       {{- end }}
-      {{- if and .Values.tlsEnabled .Values.tlsKeySecret }}
+      {{- if and .Values.tlsEnabled .Values.tlsKeyRef }}
       volumes:
         - name: tls-key
           secret:
-            secretName: {{ .Values.tlsKeySecret }}
+            secretName: {{ .Values.tlsKeyRef }}
             optional: true
       {{- end }}
       containers:
         - name: {{ .Values.community.name }}
           image: {{ .Values.community.image }}:{{ .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
-          {{- if and .Values.tlsEnabled .Values.tlsKeySecret }}
+          {{- if and .Values.tlsEnabled .Values.tlsKeyRef }}
           volumeMounts:
             - name: tls-key
               mountPath: /app/certs/server.key

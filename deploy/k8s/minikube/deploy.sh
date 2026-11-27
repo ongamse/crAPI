@@ -28,7 +28,7 @@ kubectl create -n crapi secret generic crapi-credentials \
   --from-literal=API_GATEWAY_PASSWORD="$API_GATEWAY_PASSWORD" \
   --from-literal=MECHANIC_DEFAULT_PASSWORD="$MECHANIC_DEFAULT_PASSWORD"
 
-kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
+kubectl create -n crapi secret generic jwt-signing-keys --from-file=../keys
 kubectl apply -n crapi -f ../base/rbac
 kubectl apply -n crapi -f ../base/mongodb
 kubectl apply -n crapi -f ../base/postgres

@@ -15,7 +15,7 @@ kubectl create -n crapi secret generic crapi-credentials \
   --from-literal=MECHANIC_DEFAULT_PASSWORD="$MECHANIC_DEFAULT_PASSWORD"
 #kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 
-kubectl create -n secret generic jwt-key-secret --from-file=../keys
+kubectl create -n secret generic jwt-signing-keys --from-file=../keys
 kubectl apply -n crapi -f ./rbac
 kubectl apply -n crapi -f ./mongodb
 kubectl apply -n crapi -f ./postgres
