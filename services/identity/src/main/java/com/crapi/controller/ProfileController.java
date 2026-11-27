@@ -22,13 +22,16 @@ import com.crapi.model.CRAPIResponse;
 import com.crapi.model.VideoForm;
 import com.crapi.service.ProfileService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.constraints.Positive;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
+@Validated
 @RequestMapping("/identity")
 public class ProfileController {
 
@@ -95,7 +98,7 @@ public class ProfileController {
    */
   @PutMapping("/api/v2/user/videos/{video_id}")
   public ResponseEntity<?> updateProfileVideo(
-      @PathVariable("video_id") Long videoId,
+      @PathVariable("video_id") @Positive Long videoId,
       @RequestBody VideoForm videoForm,
       HttpServletRequest request) {
     requireValidVideoId(videoId);

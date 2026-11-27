@@ -26,6 +26,7 @@ import com.crapi.repository.ProfileVideoRepository;
 import com.crapi.repository.UserDetailsRepository;
 import com.crapi.service.UserService;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Optional;
 import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
@@ -227,12 +228,28 @@ public class ProfileServiceImplTest {
     User admin = getOtherUser();
     admin.setRole(ERole.ROLE_ADMIN);
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(admin);
+    Mockito.when(profileVideoRepository.findAllIds()).thenReturn(List.of(1L, 5L));
     Mockito.when(profileVideoRepository.findById(1L))
         .thenReturn(Optional.of(getDummyProfileVideo()));
     CRAPIResponse crapiAPIResponse =
         profileService.deleteAdminProfileVideo(1L, getMockHttpRequest());
     Mockito.verify(profileVideoRepository, Mockito.times(1)).delete(Mockito.any());
     Assertions.assertEquals(HttpStatus.OK.value(), crapiAPIResponse.getStatus());
+  }
+
+  @Test(expected = CRAPIExceptionHandler.class)
+  @DisplayName("deleteProfileAdminVideoFailWhenAdminAndUnknownId")
+  public void deleteProfileAdminVideoFailWhenAdminAndUnknownId() {
+    User admin = getOtherUser();
+    admin.setRole(ERole.ROLE_ADMIN);
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(admin);
+    Mockito.when(profileVideoRepository.findAllIds()).thenReturn(List.of(5L));
+    try {
+      profileService.deleteAdminProfileVideo(1L, getMockHttpRequest());
+    } finally {
+      Mockito.verify(profileVideoRepository, Mockito.never()).findById(Mockito.any());
+      Mockito.verify(profileVideoRepository, Mockito.never()).delete(Mockito.any());
+    }
   }
 
   @Test(expected = CRAPIExceptionHandler.class)

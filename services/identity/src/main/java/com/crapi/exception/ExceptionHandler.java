@@ -19,6 +19,7 @@ import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import com.crapi.constant.UserMessage;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.ErrorDetails;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -42,6 +43,14 @@ public class ExceptionHandler extends ResponseEntityExceptionHandler {
   @org.springframework.web.bind.annotation.ExceptionHandler({RuntimeException.class})
   public ResponseEntity<String> handleRunTimeException(RuntimeException e) {
     return ResponseEntity.status(INTERNAL_SERVER_ERROR).body(e.getMessage());
+  }
+
+  /** Bean Validation failures on controller parameters (e.g. non-positive ids) are client errors. */
+  @org.springframework.web.bind.annotation.ExceptionHandler({ConstraintViolationException.class})
+  private ResponseEntity<Object> handleConstraintViolation(ConstraintViolationException e) {
+    CRAPIResponse cr =
+        new CRAPIResponse(UserMessage.INVALID_VIDEO_ID, HttpStatus.BAD_REQUEST.value());
+    return new ResponseEntity<Object>(cr, HttpStatus.BAD_REQUEST);
   }
 
   @org.springframework.web.bind.annotation.ExceptionHandler({CRAPIExceptionHandler.class})

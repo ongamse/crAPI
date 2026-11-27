@@ -280,7 +280,12 @@ public class ProfileServiceImpl implements ProfileService {
       return Optional.empty();
     }
     if (ERole.ROLE_ADMIN.equals(user.getRole())) {
-      return profileVideoRepository.findById(videoId);
+      // The client id is only compared in memory against the server enumerated ids; the entity is
+      // then loaded by the id taken from that server provided list element.
+      return profileVideoRepository.findAllIds().stream()
+          .filter(serverId -> serverId != null && serverId.longValue() == videoId.longValue())
+          .findFirst()
+          .flatMap(serverId -> profileVideoRepository.findById(serverId));
     }
     return findOwnedVideo(videoId, user);
   }

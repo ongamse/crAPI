@@ -15,10 +15,16 @@
 package com.crapi.repository;
 
 import com.crapi.entity.ProfileVideo;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ProfileVideoRepository extends JpaRepository<ProfileVideo, Long> {
   ProfileVideo findByUser_id(Long id);
+
+  /** Server side enumeration of every stored video id (used by the admin-only lookup). */
+  @Query("select v.id from ProfileVideo v")
+  List<Long> findAllIds();
 }
