@@ -257,6 +257,11 @@ MECHANIC_API_ALLOWED_HOSTS = [
     ).split(",")
     if host.strip()
 ]
+# Outgoing HTTPS requests always verify certificates. Set TLS_CA_BUNDLE to the
+# path of a CA bundle (e.g. the CA that signed the self-signed service
+# certificates) to trust it instead of the default trust store.
+TLS_CA_BUNDLE = os.environ.get("TLS_CA_BUNDLE") or None
+REQUESTS_VERIFY = TLS_CA_BUNDLE if TLS_CA_BUNDLE else True
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(
