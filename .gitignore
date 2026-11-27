@@ -9,3 +9,7 @@ services/gateway-service/server.key
 services/*/certs/server.key
 services/identity/src/main/resources/certs/server.key
 docker-compose.local.yml
+
+# JWKS signing keys (private key material) are never committed
+services/identity/jwks.json
+deploy/*/keys/jwks.json

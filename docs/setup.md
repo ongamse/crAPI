@@ -6,7 +6,7 @@ Setup | crAPI
 > The previous default values remain in git history and must be treated as compromised: rotate them in any environment that used them.
 > For the kubernetes scripts under `deploy/k8s`, export the same variables; the script stores them in the `crapi-credentials` secret.
 
-> **Note**: Custom jwks key can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys`
+> **Note**: Custom jwks key can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys` (git-ignored; never commit it). If no key is provided the identity service generates an ephemeral signing key at startup, so issued tokens stop working after a restart. The RSA key that used to be committed as `jwks.json` remains in git history and must be treated as compromised.
 
 ## Docker and docker compose
 
