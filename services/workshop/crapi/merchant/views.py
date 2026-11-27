@@ -86,21 +86,25 @@ def is_allowed_mechanic_api(url):
     return build_allowed_mechanic_api_url(url) is not None
 
 
-BEARER_AUTHORIZATION_RE = re.compile(r"Bearer [\x21-\x7e]+")
+BEARER_AUTHORIZATION_RE = re.compile(r"Bearer ([A-Za-z0-9\-._~+/]+=*)")
 
 
 def get_safe_authorization_header(request):
     """
-    returns the Authorization header of the request only when it is a single
-    well formed bearer credential made of printable ascii without whitespace
-    or control characters (so no CR/LF can reach an outgoing http header)
+    parses the Authorization header of the request strictly as a single bearer
+    token (token68 characters only, so no whitespace, CR, LF or NUL can pass)
+    and builds the outgoing header value from the validated token, instead of
+    forwarding the client supplied header text
     :param request: http request of the view
     :returns the header value, or None if it is missing or malformed
     """
     value = request.META.get("HTTP_AUTHORIZATION")
-    if isinstance(value, str) and BEARER_AUTHORIZATION_RE.fullmatch(value):
-        return value
-    return None
+    if not isinstance(value, str):
+        return None
+    match = BEARER_AUTHORIZATION_RE.fullmatch(value)
+    if match is None:
+        return None
+    return "Bearer " + match.group(1)
 
 
 class ContactMechanicView(APIView):
@@ -162,7 +166,7 @@ class ContactMechanicView(APIView):
         if authorization is None:
             return Response(
                 {"message": messages.INVALID_TOKEN},
-                status=status.HTTP_401_UNAUTHORIZED,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         repeat_count = 0

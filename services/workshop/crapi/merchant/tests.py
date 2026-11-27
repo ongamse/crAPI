@@ -199,6 +199,9 @@ class MerchantTestCase(TestCase):
             "Bearer abc\r\nX-Injected: 1",
             "Bearer abc\nX-Injected: 1",
             "Bearer abc def",
+            "Bearer abc\x00def",
+            "Bearer abc\r\n",
+            "Bearer abc=def",
             "Bearer ",
             "Basic abc",
             None,
@@ -207,6 +210,10 @@ class MerchantTestCase(TestCase):
         self.assertEqual(
             get_safe_authorization_header(FakeRequest("Bearer a.b-c_d")),
             "Bearer a.b-c_d",
+        )
+        self.assertEqual(
+            get_safe_authorization_header(FakeRequest("Bearer a.b-c_d==")),
+            "Bearer a.b-c_d==",
         )
 
         with patch("crapi.merchant.views.requests.get") as mock_get:
@@ -220,7 +227,7 @@ class MerchantTestCase(TestCase):
                     **self.user_auth_headers,
                     content_type="application/json"
                 )
-            self.assertEqual(res.status_code, 401)
+            self.assertEqual(res.status_code, 400)
             mock_get.assert_not_called()
 
     def test_contact_mechanic(self):
