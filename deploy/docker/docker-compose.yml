@@ -50,6 +50,7 @@ services:
       - TLS_KEYSTORE_PASSWORD=passw0rd
       - TLS_KEY_PASSWORD=passw0rd
       - TLS_KEY_ALIAS=identity
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443,http://localhost:30080,https://localhost:30443}
     depends_on:
       postgresdb:
         condition: service_healthy
@@ -145,6 +146,7 @@ services:
       - TLS_CA_BUNDLE=${TLS_CA_BUNDLE:-}
       - FILES_LIMIT=1000
       - MECHANIC_API_ALLOWED_HOSTS=${MECHANIC_API_ALLOWED_HOSTS:-localhost,127.0.0.1,crapi-web,crapi-workshop}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443,http://localhost:30080,https://localhost:30443}
     depends_on:
       postgresdb:
         condition: service_healthy

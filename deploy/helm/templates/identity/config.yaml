@@ -37,3 +37,4 @@ data:
   TLS_KEY_PASSWORD: {{ .Values.identity.config.keyPassword }}
   TLS_KEY_ALIAS: {{ .Values.identity.config.keyAlias }}
   API_GATEWAY_PASSWORD: {{ required "apiGatewayPassword must be set (--set apiGatewayPassword=...)" .Values.apiGatewayPassword | quote }}
+  CORS_ALLOWED_ORIGINS: {{ .Values.corsAllowedOrigins | quote }}

@@ -12,6 +12,9 @@ apiGatewayServiceInstall: true
 # (or via a values file kept outside version control). Rendering fails if unset.
 apiGatewayPassword: ""
 tlsEnabled: false
+# Comma separated origins (scheme://host[:port]) allowed to call identity and workshop
+# cross-origin. No wildcard; set to the public URL(s) of the crAPI web app.
+corsAllowedOrigins: "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443,http://localhost:30080,https://localhost:30443"
 # Name of a pre-created Secret holding the TLS private key under the key "server.key"
 # (kubectl create secret generic <name> --from-file=server.key=<path>). It is mounted at
 # /app/certs/server.key in web, community, workshop and chatbot when tlsEnabled is true.
