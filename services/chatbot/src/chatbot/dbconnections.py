@@ -1,7 +1,9 @@
 import os
 
 MONGO_USER = os.environ.get("MONGO_DB_USER", "admin")
-MONGO_PASSWORD = os.environ.get("MONGO_DB_PASSWORD", "crapisecretpassword")
+# Required: no hard-coded fallback. Supplied via env / secrets manager.
+# The previously committed default must be rotated (it remains in git history).
+MONGO_PASSWORD = os.environ["MONGO_DB_PASSWORD"]
 MONGO_HOST = os.environ.get("MONGO_DB_HOST", "mongodb")
 MONGO_PORT = os.environ.get("MONGO_DB_PORT", "27017")
 MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "crapi")
