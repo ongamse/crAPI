@@ -161,6 +161,46 @@ class MerchantTestCase(TestCase):
                 self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
             mock_get.assert_not_called()
 
+    def test_malformed_authorization_not_forwarded(self):
+        """
+        sends authorization headers that are not a single clean bearer token
+        should get an unauthorized response without any outbound request
+        :return: None
+        """
+        from crapi.merchant.views import get_safe_authorization_header
+
+        class FakeRequest:
+            def __init__(self, value):
+                self.META = {"HTTP_AUTHORIZATION": value}
+
+        for value in [
+            "Bearer abc\r\nX-Injected: 1",
+            "Bearer abc\nX-Injected: 1",
+            "Bearer abc def",
+            "Bearer ",
+            "Basic abc",
+            None,
+        ]:
+            self.assertIsNone(get_safe_authorization_header(FakeRequest(value)), value)
+        self.assertEqual(
+            get_safe_authorization_header(FakeRequest("Bearer a.b-c_d")),
+            "Bearer a.b-c_d",
+        )
+
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            with patch(
+                "crapi.merchant.views.get_safe_authorization_header",
+                return_value=None,
+            ):
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+            self.assertEqual(res.status_code, 401)
+            mock_get.assert_not_called()
+
     def test_contact_mechanic(self):
         """
         gives all correct field for contact mechanic

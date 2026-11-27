@@ -16,6 +16,7 @@
 contains all the views related to Merchant
 """
 import logging
+import re
 from urllib.parse import urlparse
 import requests
 from requests.exceptions import MissingSchema, InvalidURL
@@ -58,6 +59,23 @@ def is_allowed_mechanic_api(url):
     if "\\" in url or parsed.username is not None or parsed.password is not None:
         return False
     return hostname.lower() in settings.MECHANIC_API_ALLOWED_HOSTS
+
+
+BEARER_AUTHORIZATION_RE = re.compile(r"Bearer [\x21-\x7e]+")
+
+
+def get_safe_authorization_header(request):
+    """
+    returns the Authorization header of the request only when it is a single
+    well formed bearer credential made of printable ascii without whitespace
+    or control characters (so no CR/LF can reach an outgoing http header)
+    :param request: http request of the view
+    :returns the header value, or None if it is missing or malformed
+    """
+    value = request.META.get("HTTP_AUTHORIZATION")
+    if isinstance(value, str) and BEARER_AUTHORIZATION_RE.fullmatch(value):
+        return value
+    return None
 
 
 class ContactMechanicView(APIView):
@@ -115,6 +133,13 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        authorization = get_safe_authorization_header(request)
+        if authorization is None:
+            return Response(
+                {"message": messages.INVALID_TOKEN},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
         repeat_count = 0
         while True:
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
@@ -122,7 +147,7 @@ class ContactMechanicView(APIView):
                 mechanic_response = requests.get(
                     request_url,
                     params=request_data,
-                    headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
+                    headers={"Authorization": authorization},
                     verify=False,
                     allow_redirects=False,
                 )
