@@ -134,18 +134,32 @@ public class ProfileServiceImpl implements ProfileService {
   }
 
   /**
-   * @param videoForm
    * @param request getting jwt token for user from request header
-   * @return its change user profile object and return success message.
+   * @return the id of the authenticated user's own profile video, derived server side only.
    */
   @Transactional
   @Override
-  public ProfileVideo updateProfileVideo(
-      Long videoId, VideoForm videoForm, HttpServletRequest request) {
+  public Optional<Long> getOwnProfileVideoId(HttpServletRequest request) {
+    User user = userService.getUserFromToken(request);
+    if (user == null || user.getId() == null) {
+      return Optional.empty();
+    }
+    return Optional.ofNullable(profileVideoRepository.findByUser_id(user.getId()))
+        .map(ProfileVideo::getId);
+  }
+
+  /**
+   * @param videoForm
+   * @param request getting jwt token for user from request header
+   * @return its change the authenticated user's own profile video and return the updated object.
+   */
+  @Transactional
+  @Override
+  public ProfileVideo updateOwnProfileVideo(VideoForm videoForm, HttpServletRequest request) {
     User user;
     ProfileVideo profileVideo;
     user = userService.getUserFromToken(request);
-    profileVideo = findOwnedVideo(videoId, user).orElse(null);
+    profileVideo = profileVideoRepository.findByUser_id(user.getId());
     if (profileVideo != null) {
       profileVideo.setVideo_name(videoForm.getVideoName());
       profileVideo.setConversion_params(

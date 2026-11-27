@@ -102,7 +102,13 @@ public class ProfileController {
       @RequestBody VideoForm videoForm,
       HttpServletRequest request) {
     requireValidVideoId(videoId);
-    ProfileVideo profileVideo = profileService.updateProfileVideo(videoId, videoForm, request);
+    // The path id is only compared against the server derived id of the caller's own video; it is
+    // never handed to the service layer.
+    profileService
+        .getOwnProfileVideoId(request)
+        .filter(ownVideoId -> ownVideoId.equals(videoId))
+        .orElseThrow(() -> new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404));
+    ProfileVideo profileVideo = profileService.updateOwnProfileVideo(videoForm, request);
     if (profileVideo != null) return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
     else
       return ResponseEntity.status(HttpStatus.NO_CONTENT)

@@ -132,8 +132,26 @@ public class ProfileServiceImplTest {
     User user = getDummyUser();
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(user);
     Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong())).thenReturn(null);
-    profileService.updateProfileVideo(1L, getDummyVideoForm(), getMockHttpRequest());
+    profileService.updateOwnProfileVideo(getDummyVideoForm(), getMockHttpRequest());
     Mockito.verify(profileVideoRepository, Mockito.times(0)).save(Mockito.any());
+  }
+
+  @Test
+  @DisplayName("getOwnProfileVideoIdReturnsCallersVideoId")
+  public void getOwnProfileVideoIdReturnsCallersVideoId() {
+    ProfileVideo profileVideo = getDummyProfileVideo();
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
+    Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong())).thenReturn(profileVideo);
+    Optional<Long> ownId = profileService.getOwnProfileVideoId(getMockHttpRequest());
+    Assertions.assertEquals(Optional.of(profileVideo.getId()), ownId);
+  }
+
+  @Test
+  @DisplayName("getOwnProfileVideoIdEmptyWhenCallerHasNoVideo")
+  public void getOwnProfileVideoIdEmptyWhenCallerHasNoVideo() {
+    Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(getDummyUser());
+    Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong())).thenReturn(null);
+    Assertions.assertTrue(profileService.getOwnProfileVideoId(getMockHttpRequest()).isEmpty());
   }
 
   @Test
@@ -146,7 +164,7 @@ public class ProfileServiceImplTest {
     Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong())).thenReturn(profileVideo);
     Mockito.when(profileVideoRepository.save(Mockito.any())).thenReturn(profileVideo);
     ProfileVideo profileVideoResponse =
-        profileService.updateProfileVideo(1L, videoForm, getMockHttpRequest());
+        profileService.updateOwnProfileVideo(videoForm, getMockHttpRequest());
     Mockito.verify(profileVideoRepository, Mockito.times(1)).save(Mockito.any());
     Assertions.assertEquals(profileVideo.getVideo_name(), profileVideoResponse.getVideo_name());
   }
@@ -162,7 +180,7 @@ public class ProfileServiceImplTest {
     Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong())).thenReturn(profileVideo);
     Mockito.when(profileVideoRepository.save(Mockito.any())).thenReturn(profileVideo);
     ProfileVideo profileVideoResponse =
-        profileService.updateProfileVideo(1L, videoForm, getMockHttpRequest());
+        profileService.updateOwnProfileVideo(videoForm, getMockHttpRequest());
     Mockito.verify(profileVideoRepository, Mockito.times(1)).save(Mockito.any());
     Assertions.assertEquals(profileVideo.getVideo_name(), profileVideoResponse.getVideo_name());
   }
@@ -176,7 +194,7 @@ public class ProfileServiceImplTest {
     Mockito.when(userService.getUserFromToken(Mockito.any())).thenReturn(user);
     Mockito.when(profileVideoRepository.findByUser_id(Mockito.anyLong())).thenReturn(null);
     ProfileVideo profileVideoResponse =
-        profileService.updateProfileVideo(1L, videoForm, getMockHttpRequest());
+        profileService.updateOwnProfileVideo(videoForm, getMockHttpRequest());
     Mockito.verify(profileVideoRepository, Mockito.times(0)).save(Mockito.any());
   }
 
