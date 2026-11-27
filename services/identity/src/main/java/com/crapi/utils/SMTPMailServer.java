@@ -18,6 +18,7 @@ import com.crapi.config.MailConfiguration;
 import com.crapi.config.MailHogConfiguration;
 import com.crapi.exception.CRAPIExceptionHandler;
 import jakarta.mail.Message;
+import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.Transport;
 import jakarta.mail.internet.AddressException;
@@ -37,6 +38,7 @@ import org.springframework.stereotype.Component;
 public class SMTPMailServer {
   private static final int MAX_ADDRESS_LENGTH = 254;
   private static final int MAX_LOCAL_PART_LENGTH = 64;
+  private static final int MAX_BODY_LENGTH = 100_000;
   private static final String INVALID_RECIPIENT_MESSAGE = "Invalid e-mail address";
   private static final String DEFAULT_SUBJECT = "crAPI Notification";
 
@@ -66,7 +68,7 @@ public class SMTPMailServer {
    * @param subject send mail to given email with dynamic subject and body
    */
   public void sendMail(String sendMail, String body, String subject) {
-    sendMail(validateRecipient(sendMail), body, subject);
+    sendMail(toSafeAddress(sendMail), body, subject);
   }
 
   /**
@@ -84,7 +86,7 @@ public class SMTPMailServer {
     if (validatedRecipient == null) {
       throw new CRAPIExceptionHandler(INVALID_RECIPIENT_MESSAGE, 400);
     }
-    final InternetAddress recipient = validateRecipient(validatedRecipient.getAddress());
+    final InternetAddress recipient = toSafeAddress(validatedRecipient.getAddress());
     final String fixedSubject = resolveSubject(subject);
     final String safeBody = sanitizeBody(body);
 
@@ -111,17 +113,70 @@ public class SMTPMailServer {
         log.info("Using Mail Configuration for sending email");
       }
 
-      MimeMessage msg = new MimeMessage(session);
-
-      msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
-      msg.setRecipient(Message.RecipientType.TO, recipient);
-      msg.setSubject(fixedSubject, StandardCharsets.UTF_8.name());
-      msg.setText(safeBody, StandardCharsets.UTF_8.name(), "html");
-      msg.setSentDate(new Date());
+      MimeMessage msg = buildMessage(session, recipient, fixedSubject, safeBody);
 
       Transport.send(msg);
     } catch (Exception e) {
       log.error("Failed to send mail", e);
+    }
+  }
+
+  /**
+   * Assemble the outgoing message exclusively from allowlist-rebuilt values: a recipient produced
+   * by {@link #toSafeAddress(String)}, a subject from the fixed table and a body produced by {@link
+   * #sanitizeBody(String)}.
+   */
+  private MimeMessage buildMessage(
+      Session session, InternetAddress safeRecipient, String fixedSubject, String safeBody)
+      throws MessagingException {
+    MimeMessage msg = new MimeMessage(session);
+    msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
+    msg.setRecipient(Message.RecipientType.TO, safeRecipient);
+    msg.setSubject(fixedSubject, StandardCharsets.UTF_8.name());
+    msg.setText(safeBody, StandardCharsets.UTF_8.name(), "html");
+    msg.setSentDate(new Date());
+    return msg;
+  }
+
+  /**
+   * Rebuild the recipient from a character allowlist. A new string is assembled one character at a
+   * time from {@code [A-Za-z0-9._%+-@]}; any other character, or a result that differs from the
+   * input, is rejected. The {@link InternetAddress} is created from that rebuilt copy only.
+   *
+   * @throws CRAPIExceptionHandler (400) when the value is not a safe single mailbox
+   */
+  static InternetAddress toSafeAddress(String recipient) {
+    if (recipient == null || recipient.length() > MAX_ADDRESS_LENGTH) {
+      throw new CRAPIExceptionHandler(INVALID_RECIPIENT_MESSAGE, 400);
+    }
+    StringBuilder rebuilt = new StringBuilder(recipient.length());
+    for (int i = 0; i < recipient.length(); i++) {
+      char c = recipient.charAt(i);
+      boolean allowed =
+          (c >= 'a' && c <= 'z')
+              || (c >= 'A' && c <= 'Z')
+              || (c >= '0' && c <= '9')
+              || c == '.'
+              || c == '_'
+              || c == '%'
+              || c == '+'
+              || c == '-'
+              || c == '@';
+      if (!allowed) {
+        throw new CRAPIExceptionHandler(INVALID_RECIPIENT_MESSAGE, 400);
+      }
+      rebuilt.append(c);
+    }
+    String safe = rebuilt.toString();
+    if (!safe.equals(recipient) || !ADDRESS_PATTERN.matcher(safe).matches()) {
+      throw new CRAPIExceptionHandler(INVALID_RECIPIENT_MESSAGE, 400);
+    }
+    try {
+      InternetAddress address = new InternetAddress(safe, true);
+      address.validate();
+      return address;
+    } catch (AddressException e) {
+      throw new CRAPIExceptionHandler(INVALID_RECIPIENT_MESSAGE, 400);
     }
   }
 
@@ -175,8 +230,9 @@ public class SMTPMailServer {
     if (value == null) {
       return "";
     }
-    StringBuilder sb = new StringBuilder(value.length());
-    for (int i = 0; i < value.length(); i++) {
+    int limit = Math.min(value.length(), MAX_BODY_LENGTH);
+    StringBuilder sb = new StringBuilder(limit);
+    for (int i = 0; i < limit; i++) {
       char c = value.charAt(i);
       if (!Character.isISOControl(c) || c == '\t' || c == '\n' || c == '\r') {
         sb.append(c);
