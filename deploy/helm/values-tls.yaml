@@ -8,6 +8,8 @@ apiGatewayServiceInstall: false
 enableLog4j: true
 enableShellInjection: true
 tlsEnabled: true
+# Secret with the TLS private key (key name: server.key); create it before installing.
+tlsKeySecret: crapi-tls-key
 
 web:
   image: crapi/crapi-web

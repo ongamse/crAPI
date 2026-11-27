@@ -12,6 +12,11 @@ apiGatewayServiceInstall: true
 # (or via a values file kept outside version control). Rendering fails if unset.
 apiGatewayPassword: ""
 tlsEnabled: false
+# Name of a pre-created Secret holding the TLS private key under the key "server.key"
+# (kubectl create secret generic <name> --from-file=server.key=<path>). It is mounted at
+# /app/certs/server.key in web, community, workshop and chatbot when tlsEnabled is true.
+# The private key is not shipped in the images.
+tlsKeySecret: ""
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
