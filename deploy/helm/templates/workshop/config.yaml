@@ -25,4 +25,5 @@ data:
     FILES_LIMIT: {{ .Values.workshop.config.filesLimit | quote }}
     API_GATEWAY_PASSWORD: {{ required "apiGatewayPassword must be set (--set apiGatewayPassword=...)" .Values.apiGatewayPassword | quote }}
     MECHANIC_DEFAULT_PASSWORD: {{ required "workshop.config.mechanicDefaultPassword must be set" .Values.workshop.config.mechanicDefaultPassword | quote }}
+    ALLOWED_HOSTS: {{ default (printf "localhost,127.0.0.1,[::1],0.0.0.0,%s,%s,.svc,.svc.cluster.local" .Values.workshop.service.name .Values.web.service.name) .Values.workshop.config.allowedHosts | quote }}
     CORS_ALLOWED_ORIGINS: {{ .Values.corsAllowedOrigins | quote }}

@@ -140,6 +140,10 @@ workshop:
     secretKey: ""
     mechanicDefaultPassword: ""
     filesLimit: 1000
+    # Comma separated Host header allowlist for workshop (no wildcard). When empty, defaults
+    # to localhost, the loopback/health check addresses, the workshop service name, the web
+    # service name and in-cluster service DNS suffixes. Add the public hostname(s) here.
+    allowedHosts: ""
   deploymentLabels:
     app: crapi-workshop
   podLabels:
