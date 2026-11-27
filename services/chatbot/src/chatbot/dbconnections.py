@@ -1,4 +1,5 @@
 import os
+from urllib.parse import quote_plus, urlunsplit
 
 MONGO_USER = os.environ.get("MONGO_DB_USER", "admin")
 # Required: no hard-coded fallback. Supplied via env / secrets manager.
@@ -8,17 +9,29 @@ MONGO_HOST = os.environ.get("MONGO_DB_HOST", "mongodb")
 MONGO_PORT = os.environ.get("MONGO_DB_PORT", "27017")
 MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "crapi")
 
-MONGO_CONNECTION_URI = "mongodb://%s:%s@%s:%s/?directConnection=true" % (
-    MONGO_USER,
-    MONGO_PASSWORD,
-    MONGO_HOST,
-    MONGO_PORT,
+
+
+def _mongo_uri(scheme, host, path, query):
+    """Assemble a Mongo URI from env-supplied parts, percent-encoding credentials."""
+    netloc = "%s@%s" % (
+        ":".join((quote_plus(MONGO_USER), quote_plus(MONGO_PASSWORD))),
+        host,
+    )
+    return urlunsplit((scheme, netloc, path, query, ""))
+
+
+MONGO_CONNECTION_URI = _mongo_uri(
+    "mongodb",
+    "%s:%s" % (MONGO_HOST, MONGO_PORT),
+    "/",
+    "directConnection=true",
 )
 
-MONGO_CONNECTION_URI_ATLAS = "mongodb+srv://%s:%s@%s?retryWrites=true&w=majority" % (
-    MONGO_USER,
-    MONGO_PASSWORD,
+MONGO_CONNECTION_URI_ATLAS = _mongo_uri(
+    "mongodb+srv",
     MONGO_HOST,
+    "",
+    "retryWrites=true&w=majority",
 )
 
 POSTGRES_HOST = os.environ.get("DB_HOST", "postgresdb")
