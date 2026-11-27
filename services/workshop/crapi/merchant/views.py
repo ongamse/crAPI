@@ -39,6 +39,43 @@ from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
 logger = logging.getLogger()
 
 
+def build_allowed_mechanic_api_url(url):
+    """
+    validates the mechanic api url and rebuilds the outbound url from the
+    validated scheme, host, port, path and query, so that the url that is
+    requested is exactly what was checked (no parser differential between
+    the validation and the http client). The host must be in
+    settings.MECHANIC_API_ALLOWED_HOSTS.
+    :param url: url supplied by the user
+    :returns the canonical url to request, or None if it must not be requested
+    """
+    if not isinstance(url, str):
+        return None
+    url = url.strip()
+    if any(ord(char) <= 0x20 or ord(char) == 0x7F for char in url) or "\\" in url:
+        return None
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return None
+    if parsed.scheme not in ("http", "https") or not hostname:
+        return None
+    if parsed.username is not None or parsed.password is not None:
+        return None
+    hostname = hostname.lower()
+    if hostname not in settings.MECHANIC_API_ALLOWED_HOSTS:
+        return None
+    netloc = f"[{hostname}]" if ":" in hostname else hostname
+    if port is not None:
+        netloc = f"{netloc}:{port}"
+    safe_url = f"{parsed.scheme}://{netloc}{parsed.path}"
+    if parsed.query:
+        safe_url = f"{safe_url}?{parsed.query}"
+    return safe_url
+
+
 def is_allowed_mechanic_api(url):
     """
     checks that the mechanic api url is an http(s) url whose host is in
@@ -46,19 +83,7 @@ def is_allowed_mechanic_api(url):
     :param url: url supplied by the user
     :returns True if the url may be requested, False otherwise
     """
-    if not isinstance(url, str):
-        return False
-    try:
-        parsed = urlparse(url.strip())
-        hostname = parsed.hostname
-        parsed.port  # pylint: disable=pointless-statement
-    except ValueError:
-        return False
-    if parsed.scheme not in ("http", "https") or not hostname:
-        return False
-    if "\\" in url or parsed.username is not None or parsed.password is not None:
-        return False
-    return hostname.lower() in settings.MECHANIC_API_ALLOWED_HOSTS
+    return build_allowed_mechanic_api_url(url) is not None
 
 
 BEARER_AUTHORIZATION_RE = re.compile(r"Bearer [\x21-\x7e]+")
@@ -120,8 +145,8 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        request_url = request_data["mechanic_api"]
-        if not is_allowed_mechanic_api(request_url):
+        request_url = build_allowed_mechanic_api_url(request_data["mechanic_api"])
+        if request_url is None:
             log_error(
                 request.path,
                 request.data,

@@ -161,6 +161,28 @@ class MerchantTestCase(TestCase):
                 self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
             mock_get.assert_not_called()
 
+    def test_build_allowed_mechanic_api_url(self):
+        """
+        the outbound url is rebuilt from validated components and rejects
+        urls with whitespace/control characters or userinfo
+        :return: None
+        """
+        from crapi.merchant.views import build_allowed_mechanic_api_url
+
+        self.assertEqual(
+            build_allowed_mechanic_api_url(" HTTPS://WWW.Google.com:8443/a/b?x=1 "),
+            "https://www.google.com:8443/a/b?x=1",
+        )
+        for url in [
+            "https://www.google.com\t.evil.example.com/",
+            "https://www.google.com/\r\nHost: evil",
+            "https://www.google.com\\@evil.example.com/",
+            "https://user:pw@www.google.com/",
+            "https://www.google.com:badport/",
+            None,
+        ]:
+            self.assertIsNone(build_allowed_mechanic_api_url(url), url)
+
     def test_malformed_authorization_not_forwarded(self):
         """
         sends authorization headers that are not a single clean bearer token
