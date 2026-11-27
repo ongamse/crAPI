@@ -16,7 +16,6 @@
 contains all the views related to Merchant
 """
 import logging
-import re
 from urllib.parse import urlparse
 import requests
 from requests.exceptions import MissingSchema, InvalidURL
@@ -86,46 +85,10 @@ def is_allowed_mechanic_api(url):
     return build_allowed_mechanic_api_url(url) is not None
 
 
-BEARER_AUTHORIZATION_RE = re.compile(r"Bearer ([A-Za-z0-9\-._~+/]+=*)")
-
-
-def get_safe_authorization_header(request):
-    """
-    parses the Authorization header of the request strictly as a single bearer
-    token (token68 characters only, so no whitespace, CR, LF or NUL can pass)
-    and builds the outgoing header value from the validated token, instead of
-    forwarding the client supplied header text
-    :param request: http request of the view
-    :returns the header value, or None if it is missing or malformed
-    """
-    value = request.META.get("HTTP_AUTHORIZATION")
-    if not isinstance(value, str):
-        return None
-    match = BEARER_AUTHORIZATION_RE.fullmatch(value)
-    if match is None:
-        return None
-    return "Bearer " + match.group(1)
-
-
-MECHANIC_API_FIXED_HEADERS = {"Accept": "*/*"}
-
-
-def build_mechanic_api_headers(authorization):
-    """
-    builds the complete header set of the outbound mechanic api call from a
-    fixed constant mapping plus the single already validated Authorization
-    value. No other request derived key or value is ever added.
-    :param authorization: value returned by get_safe_authorization_header
-    :returns dict of headers, or None if the value is not a clean bearer value
-    """
-    if (
-        not isinstance(authorization, str)
-        or BEARER_AUTHORIZATION_RE.fullmatch(authorization) is None
-    ):
-        return None
-    headers = dict(MECHANIC_API_FIXED_HEADERS)
-    headers["Authorization"] = authorization
-    return headers
+# Constant headers of the outbound mechanic api call. The caller's credentials
+# are deliberately never forwarded to the user supplied mechanic_api url: the
+# receive_report endpoint does not require them.
+MECHANIC_API_HEADERS = {"Accept": "*/*"}
 
 
 class ContactMechanicView(APIView):
@@ -183,15 +146,6 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        mechanic_api_headers = build_mechanic_api_headers(
-            get_safe_authorization_header(request)
-        )
-        if mechanic_api_headers is None:
-            return Response(
-                {"message": messages.INVALID_TOKEN},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         repeat_count = 0
         while True:
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
@@ -199,7 +153,7 @@ class ContactMechanicView(APIView):
                 mechanic_response = requests.get(
                     request_url,
                     params=request_data,
-                    headers=mechanic_api_headers,
+                    headers=MECHANIC_API_HEADERS,
                     verify=settings.REQUESTS_VERIFY,
                     allow_redirects=False,
                 )
