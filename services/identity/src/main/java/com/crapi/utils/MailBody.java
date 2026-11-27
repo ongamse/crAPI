@@ -84,13 +84,13 @@ public class MailBody {
             + "<font face='calibri' style = 'font-size:15px; color:#000;'>Hi"
             + "<font>,"
             + "<p><font face='calibri' style = 'font-size:15px;color:#000;'>We received a request to change your account email address. The previous e-mail address is: </font><font face='calibri' font color='#0000ff'><b>"
-            + changeEmailRequest.getOld_email()
+            + HtmlUtils.htmlEscape(String.valueOf(changeEmailRequest.getOld_email()))
             + "</b></font>"
             + "<font face='calibri' style = 'font-size:15px;color:#000;'> and the new one is: <b>"
-            + changeEmailRequest.getNew_email()
+            + HtmlUtils.htmlEscape(String.valueOf(changeEmailRequest.getNew_email()))
             + "</b></font></p>"
             + "<font face='calibri' style = 'font-size:15px;color:#000;'>To complete the process, please use the following token: <b>"
-            + changeEmailRequest.getToken()
+            + HtmlUtils.htmlEscape(String.valueOf(changeEmailRequest.getToken()))
             + "</b>"
             + "<br>"
             + "<br>"
