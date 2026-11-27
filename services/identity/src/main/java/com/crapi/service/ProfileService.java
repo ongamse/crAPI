@@ -15,11 +15,11 @@
 package com.crapi.service;
 
 import com.crapi.entity.ProfileVideo;
+import com.crapi.entity.User;
 import com.crapi.entity.UserDetails;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.VideoForm;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.Optional;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface ProfileService {
@@ -30,9 +30,7 @@ public interface ProfileService {
 
   ProfileVideo uploadProfileVideo(MultipartFile file, HttpServletRequest request);
 
-  Optional<Long> getOwnProfileVideoId(HttpServletRequest request);
-
-  ProfileVideo updateOwnProfileVideo(VideoForm videoForm, HttpServletRequest request);
+  ProfileVideo updateProfileVideoOwnedBy(User principal, Long videoId, VideoForm videoForm);
 
   CRAPIResponse deleteProfileVideo(Long videoId, HttpServletRequest request);
 

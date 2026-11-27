@@ -16,11 +16,13 @@ package com.crapi.controller;
 
 import com.crapi.constant.UserMessage;
 import com.crapi.entity.ProfileVideo;
+import com.crapi.entity.User;
 import com.crapi.entity.UserDetails;
 import com.crapi.exception.CRAPIExceptionHandler;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.VideoForm;
 import com.crapi.service.ProfileService;
+import com.crapi.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Positive;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +38,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class ProfileController {
 
   @Autowired ProfileService profileService;
+
+  @Autowired UserService userService;
 
   /**
    * @param videoId
@@ -102,13 +106,14 @@ public class ProfileController {
       @RequestBody VideoForm videoForm,
       HttpServletRequest request) {
     requireValidVideoId(videoId);
-    // The path id is only compared against the server derived id of the caller's own video; it is
-    // never handed to the service layer.
-    profileService
-        .getOwnProfileVideoId(request)
-        .filter(ownVideoId -> ownVideoId.equals(videoId))
-        .orElseThrow(() -> new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404));
-    ProfileVideo profileVideo = profileService.updateOwnProfileVideo(videoForm, request);
+    // Resolve the authenticated principal from the token; the service authorizes the path id
+    // against the video owned by that principal and updates only that principal-scoped entity.
+    User principal = userService.getUserFromToken(request);
+    if (principal == null || principal.getId() == null) {
+      throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404);
+    }
+    ProfileVideo profileVideo =
+        profileService.updateProfileVideoOwnedBy(principal, videoId, videoForm);
     if (profileVideo != null) return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
     else
       return ResponseEntity.status(HttpStatus.NO_CONTENT)

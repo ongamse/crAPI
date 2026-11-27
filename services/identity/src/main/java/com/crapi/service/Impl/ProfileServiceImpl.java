@@ -134,42 +134,31 @@ public class ProfileServiceImpl implements ProfileService {
   }
 
   /**
-   * @param request getting jwt token for user from request header
-   * @return the id of the authenticated user's own profile video, derived server side only.
+   * @param principal the authenticated user resolved from the token by the controller
+   * @param videoId path id supplied by the client; only authorized, never used as a query key
+   * @param videoForm new video name / conversion params
+   * @return the principal's own profile video after the update. Throws 404 when the principal has
+   *     no video or the supplied id is not the id of that video.
    */
   @Transactional
   @Override
-  public Optional<Long> getOwnProfileVideoId(HttpServletRequest request) {
-    User user = userService.getUserFromToken(request);
-    if (user == null || user.getId() == null) {
-      return Optional.empty();
+  public ProfileVideo updateProfileVideoOwnedBy(User principal, Long videoId, VideoForm videoForm) {
+    if (principal == null || principal.getId() == null) {
+      throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404);
     }
-    return Optional.ofNullable(profileVideoRepository.findByUser_id(user.getId()))
-        .map(ProfileVideo::getId);
-  }
-
-  /**
-   * @param videoForm
-   * @param request getting jwt token for user from request header
-   * @return its change the authenticated user's own profile video and return the updated object.
-   */
-  @Transactional
-  @Override
-  public ProfileVideo updateOwnProfileVideo(VideoForm videoForm, HttpServletRequest request) {
-    User user;
-    ProfileVideo profileVideo;
-    user = userService.getUserFromToken(request);
-    profileVideo = profileVideoRepository.findByUser_id(user.getId());
-    if (profileVideo != null) {
-      profileVideo.setVideo_name(videoForm.getVideoName());
-      profileVideo.setConversion_params(
-          (videoForm.getConversion_params() != null
-              ? videoForm.getConversion_params()
-              : profileVideo.getConversion_params()));
-      profileVideoRepository.save(profileVideo);
-      return profileVideo;
-    }
-    throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE + user.getEmail(), 404);
+    ProfileVideo profileVideo =
+        findOwnedVideo(videoId, principal)
+            .orElseThrow(
+                () ->
+                    new CRAPIExceptionHandler(
+                        UserMessage.SORRY_DIDNT_GET_PROFILE + principal.getEmail(), 404));
+    profileVideo.setVideo_name(videoForm.getVideoName());
+    profileVideo.setConversion_params(
+        (videoForm.getConversion_params() != null
+            ? videoForm.getConversion_params()
+            : profileVideo.getConversion_params()));
+    profileVideoRepository.save(profileVideo);
+    return profileVideo;
   }
 
   /**
