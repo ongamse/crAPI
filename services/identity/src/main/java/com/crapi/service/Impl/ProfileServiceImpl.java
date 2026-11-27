@@ -32,7 +32,6 @@ import com.crapi.utils.ProfileValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
-import java.util.Objects;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -141,11 +140,12 @@ public class ProfileServiceImpl implements ProfileService {
    */
   @Transactional
   @Override
-  public ProfileVideo updateProfileVideo(VideoForm videoForm, HttpServletRequest request) {
+  public ProfileVideo updateProfileVideo(
+      Long videoId, VideoForm videoForm, HttpServletRequest request) {
     User user;
     ProfileVideo profileVideo;
     user = userService.getUserFromToken(request);
-    profileVideo = profileVideoRepository.findByUser_id(user.getId());
+    profileVideo = findOwnedVideo(videoId, user).orElse(null);
     if (profileVideo != null) {
       profileVideo.setVideo_name(videoForm.getVideoName());
       profileVideo.setConversion_params(
@@ -167,10 +167,8 @@ public class ProfileServiceImpl implements ProfileService {
   @Override
   public CRAPIResponse deleteProfileVideo(Long videoId, HttpServletRequest request) {
     Optional<ProfileVideo> optionalProfileVideo;
-    ProfileVideo profileVideo;
     User user = userService.getUserFromToken(request);
-    optionalProfileVideo =
-        profileVideoRepository.findById(videoId).filter(video -> isOwnerOrAdmin(video, user));
+    optionalProfileVideo = findOwnedOrAdminVideo(videoId, user);
     if (optionalProfileVideo.isPresent()) {
       return new CRAPIResponse(UserMessage.THIS_IS_ADMIN_FUNCTION, 403);
     }
@@ -188,8 +186,7 @@ public class ProfileServiceImpl implements ProfileService {
     Optional<ProfileVideo> optionalProfileVideo;
     ProfileVideo profileVideo;
     User user = userService.getUserFromToken(request);
-    optionalProfileVideo =
-        profileVideoRepository.findById(videoId).filter(video -> isOwnerOrAdmin(video, user));
+    optionalProfileVideo = findOwnedOrAdminVideo(videoId, user);
     if (optionalProfileVideo.isPresent()) {
       profileVideo = optionalProfileVideo.get();
       profileVideo.setUser(null);
@@ -225,8 +222,7 @@ public class ProfileServiceImpl implements ProfileService {
       if (xForwardedHost == null) {
         if (videoId != null && videoId > 0) {
           User user = userService.getUserFromToken(request);
-          Optional<ProfileVideo> optionalProfileVideo =
-              profileVideoRepository.findById(videoId).filter(video -> isOwner(video, user));
+          Optional<ProfileVideo> optionalProfileVideo = findOwnedVideo(videoId, user);
           if (optionalProfileVideo.isPresent() && !enable_shell_injection) {
             profileVideo = optionalProfileVideo.get();
             if (ProfileValidator.checkContains(profileVideo.getConversion_params())) {
@@ -263,22 +259,25 @@ public class ProfileServiceImpl implements ProfileService {
   }
 
   /**
-   * @return true only when the video belongs to the authenticated user (fails closed on nulls)
+   * @return the video only when it belongs to the authenticated user; the ownership constraint is
+   *     part of the single repository lookup (fails closed on nulls)
    */
-  private boolean isOwner(ProfileVideo video, User user) {
-    return video != null
-        && user != null
-        && video.getUser() != null
-        && user.getId() != null
-        && Objects.equals(video.getUser().getId(), user.getId());
+  private Optional<ProfileVideo> findOwnedVideo(Long videoId, User user) {
+    if (videoId == null || user == null || user.getId() == null) {
+      return Optional.empty();
+    }
+    return profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
   }
 
   /**
-   * @return true when the video belongs to the authenticated user or the user is an admin
+   * @return the video only when it belongs to the authenticated user or the user is an admin; the
+   *     constraint is part of the single repository lookup (fails closed on nulls)
    */
-  private boolean isOwnerOrAdmin(ProfileVideo video, User user) {
-    return video != null
-        && user != null
-        && (isOwner(video, user) || ERole.ROLE_ADMIN.equals(user.getRole()));
+  private Optional<ProfileVideo> findOwnedOrAdminVideo(Long videoId, User user) {
+    if (videoId == null || user == null || user.getId() == null) {
+      return Optional.empty();
+    }
+    return profileVideoRepository.findByIdForOwnerOrAdmin(
+        videoId, user.getId(), ERole.ROLE_ADMIN.equals(user.getRole()));
   }
 }

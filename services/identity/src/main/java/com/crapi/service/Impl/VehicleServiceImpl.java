@@ -149,13 +149,12 @@ public class VehicleServiceImpl implements VehicleService {
     Random random = new Random();
     User requestUser = userService.getUserFromToken(request);
     try {
-      vehicleDetails = vehicleDetailsRepository.findByUuid(carId);
-      // Only the owner of the vehicle may read its location; fail closed otherwise.
-      if (vehicleDetails != null
-          && requestUser != null
-          && requestUser.getId() != null
-          && vehicleDetails.getOwner() != null
-          && requestUser.getId().equals(vehicleDetails.getOwner().getId())) {
+      // Only the owner of the vehicle may read its location: the owner is part of the single
+      // repository lookup, so a foreign carId is never loaded. Fail closed otherwise.
+      if (carId != null && requestUser != null && requestUser.getId() != null) {
+        vehicleDetails = vehicleDetailsRepository.findByUuidAndOwner_id(carId, requestUser.getId());
+      }
+      if (vehicleDetails != null) {
         // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);
         // vehicleDetails.setVehicleLocation(getVehicleLocationList().get(random.nextInt(getVehicleLocationList().size())));
         if (vehicleDetails.getOwner() != null) {
