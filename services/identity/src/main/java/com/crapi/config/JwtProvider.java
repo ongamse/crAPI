@@ -147,7 +147,7 @@ public class JwtProvider {
     try {
       Jws<Claims> jws =
           Jwts.parser().verifyWith(this.keyPair.getPublic()).build().parseSignedClaims(token);
-      if (!JWSAlgorithm.RS256.getName().equals(jws.getHeader().getAlgorithm())) {
+      if (!Jwts.SIG.RS256.getId().equals(jws.getHeader().getAlgorithm())) {
         throw new ParseException("Unsupported JWT algorithm", 0);
       }
       return jws.getPayload();
