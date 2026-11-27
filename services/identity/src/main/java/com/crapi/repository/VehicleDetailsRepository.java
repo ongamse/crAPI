@@ -26,6 +26,9 @@ public interface VehicleDetailsRepository extends JpaRepository<VehicleDetails, 
 
   VehicleDetails findByUuid(UUID uuid);
 
+  /** Fetch a vehicle by uuid only when it is owned by the given user (single scoped lookup). */
+  VehicleDetails findByUuidAndOwner_id(UUID uuid, Long ownerId);
+
   List<VehicleDetails> findAllByOwner_id(Long id);
 
   VehicleDetails findByVehicleLocation_id(Long carId);
