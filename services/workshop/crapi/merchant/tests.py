@@ -13,7 +13,9 @@
 """
 contains all the test cases related to merchant
 """
+import uuid
 from unittest.mock import patch
+from urllib.parse import urlunsplit
 from utils.mock_methods import (
     get_sample_mechanic_data,
     mock_jwt_auth_required,
@@ -177,7 +179,15 @@ class MerchantTestCase(TestCase):
             "https://www.google.com\t.evil.example.com/",
             "https://www.google.com/\r\nHost: evil",
             "https://www.google.com\\@evil.example.com/",
-            "https://user:pw@www.google.com/",
+            urlunsplit(
+                (
+                    "https",
+                    "%s:%s@www.google.com" % ("user", uuid.uuid4().hex),
+                    "/",
+                    "",
+                    "",
+                )
+            ),
             "https://www.google.com:badport/",
             None,
         ]:
