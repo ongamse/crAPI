@@ -142,14 +142,20 @@ public class VehicleServiceImpl implements VehicleService {
    */
   @Transactional
   @Override
-  public VehicleLocationResponse getVehicleLocation(UUID carId) {
+  public VehicleLocationResponse getVehicleLocation(UUID carId, HttpServletRequest request) {
     VehicleDetails vehicleDetails = null;
     VehicleLocationResponse vehicleLocationForm = null;
     UserDetails userDetails = null;
     Random random = new Random();
+    User requestUser = userService.getUserFromToken(request);
     try {
       vehicleDetails = vehicleDetailsRepository.findByUuid(carId);
-      if (vehicleDetails != null) {
+      // Only the owner of the vehicle may read its location; fail closed otherwise.
+      if (vehicleDetails != null
+          && requestUser != null
+          && requestUser.getId() != null
+          && vehicleDetails.getOwner() != null
+          && requestUser.getId().equals(vehicleDetails.getOwner().getId())) {
         // vehicleDetails = vehicleDetailsRepository.findByVehicleLocation_id(carId);
         // vehicleDetails.setVehicleLocation(getVehicleLocationList().get(random.nextInt(getVehicleLocationList().size())));
         if (vehicleDetails.getOwner() != null) {
