@@ -246,9 +246,8 @@ public class UserServiceImpl implements UserService {
     String token;
     User user;
     ChangeEmailRequest changeEmailRequest;
-    // Typed, validated recipient; rejects (400) anything that is not a single plain mailbox.
-    final InternetAddress newEmailAddress =
-        SMTPMailServer.validateRecipient(changeEmailForm.getNew_email());
+    // Reject (400) anything that is not a single plain mailbox before it is persisted.
+    SMTPMailServer.validateRecipient(changeEmailForm.getNew_email());
     // Checking new email in user login table if it is already registered then not allowing that
     // email
     if (userRepository.existsByEmail(changeEmailForm.getNew_email())) {
@@ -276,11 +275,13 @@ public class UserServiceImpl implements UserService {
       changeEmailRequest.setOldEmail(changeEmailForm.getOld_email());
     }
     changeEmailForm.setToken(token);
-    changeEmailRepository.save(changeEmailRequest);
+    final ChangeEmailRequest persistedRequest = changeEmailRepository.save(changeEmailRequest);
+    // The recipient is read back from the persisted pending-change record (not from the request
+    // DTO) and re-validated as a single plain mailbox before it reaches the mail transport.
+    final InternetAddress persistedRecipient =
+        SMTPMailServer.validateRecipient(persistedRequest.getNewEmail());
     smtpMailServer.sendMail(
-        newEmailAddress,
-        MailBody.changeMailBody(changeEmailForm),
-        "crAPI: Change Email Token");
+        persistedRecipient, MailBody.changeMailBody(changeEmailForm), "crAPI: Change Email Token");
     return new CRAPIResponse(
         UserMessage.CHANGE_EMAIL_MESSAGE + changeEmailForm.getNew_email(), 200);
   }

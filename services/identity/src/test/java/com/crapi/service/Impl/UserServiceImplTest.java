@@ -342,8 +342,13 @@ public class UserServiceImplTest {
     CRAPIResponse crapiAPIResponse =
         userService.changeEmailRequest(getMockHttpRequest(), changeEmailForm);
 
+    // The mail recipient must be the address read back from the persisted request.
+    org.mockito.ArgumentCaptor<InternetAddress> recipient =
+        org.mockito.ArgumentCaptor.forClass(InternetAddress.class);
     Mockito.verify(smtpMailServer, Mockito.times(1))
-        .sendMail(Mockito.any(InternetAddress.class), Mockito.anyString(), Mockito.anyString());
+        .sendMail(
+            recipient.capture(), Mockito.anyString(), Mockito.eq("crAPI: Change Email Token"));
+    Assertions.assertEquals(changeEmailRequest.getNewEmail(), recipient.getValue().getAddress());
     Assertions.assertEquals(expectedMessage, crapiAPIResponse.getMessage());
     Assertions.assertEquals(HttpStatus.OK.value(), crapiAPIResponse.getStatus());
   }
