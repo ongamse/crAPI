@@ -107,6 +107,27 @@ def get_safe_authorization_header(request):
     return "Bearer " + match.group(1)
 
 
+MECHANIC_API_FIXED_HEADERS = {"Accept": "*/*"}
+
+
+def build_mechanic_api_headers(authorization):
+    """
+    builds the complete header set of the outbound mechanic api call from a
+    fixed constant mapping plus the single already validated Authorization
+    value. No other request derived key or value is ever added.
+    :param authorization: value returned by get_safe_authorization_header
+    :returns dict of headers, or None if the value is not a clean bearer value
+    """
+    if (
+        not isinstance(authorization, str)
+        or BEARER_AUTHORIZATION_RE.fullmatch(authorization) is None
+    ):
+        return None
+    headers = dict(MECHANIC_API_FIXED_HEADERS)
+    headers["Authorization"] = authorization
+    return headers
+
+
 class ContactMechanicView(APIView):
     """
     View for contact mechanic feature
@@ -162,8 +183,10 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        authorization = get_safe_authorization_header(request)
-        if authorization is None:
+        mechanic_api_headers = build_mechanic_api_headers(
+            get_safe_authorization_header(request)
+        )
+        if mechanic_api_headers is None:
             return Response(
                 {"message": messages.INVALID_TOKEN},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -176,7 +199,7 @@ class ContactMechanicView(APIView):
                 mechanic_response = requests.get(
                     request_url,
                     params=request_data,
-                    headers={"Authorization": authorization},
+                    headers=mechanic_api_headers,
                     verify=settings.REQUESTS_VERIFY,
                     allow_redirects=False,
                 )

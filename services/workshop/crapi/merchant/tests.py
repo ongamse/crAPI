@@ -216,6 +216,15 @@ class MerchantTestCase(TestCase):
             "Bearer a.b-c_d==",
         )
 
+        from crapi.merchant.views import build_mechanic_api_headers
+
+        self.assertEqual(
+            build_mechanic_api_headers("Bearer a.b-c_d"),
+            {"Accept": "*/*", "Authorization": "Bearer a.b-c_d"},
+        )
+        for value in [None, "Bearer abc\r\nX-Injected: 1", "Basic abc", "Bearer "]:
+            self.assertIsNone(build_mechanic_api_headers(value), value)
+
         with patch("crapi.merchant.views.requests.get") as mock_get:
             with patch(
                 "crapi.merchant.views.get_safe_authorization_header",
