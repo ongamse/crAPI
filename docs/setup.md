@@ -1,6 +1,11 @@
 Setup | crAPI
 =============
 
+> **Credentials**: no passwords are stored in the repo. Before starting crAPI, export the following (for example `export DB_PASSWORD="$(openssl rand -hex 16)"`), or add them to your own untracked `.env` next to the compose file: `DB_PASSWORD`, `MONGO_DB_PASSWORD`, `SECRET_KEY`, `API_GATEWAY_PASSWORD`, `MECHANIC_DEFAULT_PASSWORD`.
+> For Helm pass `--set postgresdb.config.postgresPassword=... --set mongodb.config.mongoPassword=... --set workshop.config.secretKey=... --set workshop.config.mechanicDefaultPassword=... --set apiGatewayPassword=...`.
+> The previous default values remain in git history and must be treated as compromised: rotate them in any environment that used them.
+> For the kubernetes scripts under `deploy/k8s`, export the same variables; the script stores them in the `crapi-credentials` secret.
+
 > **Note**: Custom jwks key can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys`
 
 ## Docker and docker compose

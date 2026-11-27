@@ -2,13 +2,15 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
-apiGatewayPassword:
+# Credentials below are intentionally empty. Supply them at install time, e.g.
+# helm install ... --set apiGatewayPassword=... --set mongodb.config.mongoPassword=...
+# (or via a values file kept outside version control). Rendering fails if unset.
+apiGatewayPassword: ""
 tlsEnabled: false
 jwtExpiration: 604800000
 openAIApiKey: ""
@@ -74,6 +76,8 @@ identity:
     smtpStartTLS: true
     keyStoreType: PKCS12
     keyStore: classpath:certs/server.p12
+    # Passwords protecting the sample keystore bundled in the identity image
+    # (classpath:certs/server.p12). Override together with keyStore when using your own.
     keyStorePassword: passw0rd
     keyPassword: passw0rd
     keyAlias: identity
@@ -125,7 +129,8 @@ workshop:
       app: crapi-workshop
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
+    secretKey: ""
+    mechanicDefaultPassword: ""
     filesLimit: 1000
   deploymentLabels:
     app: crapi-workshop
@@ -155,6 +160,8 @@ chatbot:
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
+    # Login of the demo admin account seeded by the identity service (TestUsers.java);
+    # must match that seed.
     apiPassword: Admin!123
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
@@ -233,9 +240,8 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
+    mongoPassword: ""
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:
@@ -278,7 +284,7 @@ postgresdb:
     labels:
       app: postgresdb
     postgresUser: admin
-    postgresPassword: crapisecretpassword
+    postgresPassword: ""
     postgresDbName: crapi
   storage:
     # type: "manual"

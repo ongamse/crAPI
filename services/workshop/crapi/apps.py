@@ -51,20 +51,26 @@ def create_products():
 def create_mechanics():
     from crapi.user.models import User, UserDetails
     from crapi.mechanic.models import Mechanic
+    from django.conf import settings
+
+    default_password = settings.MECHANIC_DEFAULT_PASSWORD
+    if not default_password:
+        logger.error("MECHANIC_DEFAULT_PASSWORD is not set. Skipping mechanic seeding")
+        return
 
     mechanic_details_all = [
         {
             "name": "Jhon",
             "email": "jhon@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": default_password,
             "mechanic_code": "TRAC_JHN",
         },
         {
             "name": "James",
             "email": "james@example.com",
             "number": "",
-            "password": "Admin1@#",
+            "password": default_password,
             "mechanic_code": "TRAC_JME",
         },
     ]

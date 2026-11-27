@@ -65,7 +65,11 @@ ALLOWED_HOSTS = ["*"]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
+
+# Initial password for the seeded demo mechanics. Supplied via the environment;
+# when unset the mechanics are not seeded (fail closed).
+MECHANIC_DEFAULT_PASSWORD = os.environ.get("MECHANIC_DEFAULT_PASSWORD", "")
 
 # Application definition
 
