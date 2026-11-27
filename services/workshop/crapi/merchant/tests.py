@@ -24,12 +24,13 @@ from crapi.mechanic.models import ServiceRequest, Mechanic
 patch("utils.jwt.jwt_auth_required", mock_jwt_auth_required).start()
 
 import bcrypt
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.utils import timezone
 from utils import messages
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
 
 
+@override_settings(MECHANIC_API_ALLOWED_HOSTS=["www.google.com"])
 class MerchantTestCase(TestCase):
     """
     contains all the test cases related to merchant
@@ -133,6 +134,32 @@ class MerchantTestCase(TestCase):
             content_type="application/json"
         )
         self.assertNotEqual(res.status_code, 200)
+
+    def test_mechanic_api_host_not_allowed(self):
+        """
+        gives mechanic_api urls that point to hosts outside the allowlist
+        should get a bad request response without any outbound request
+        :return: None
+        """
+        blocked_urls = [
+            "http://169.254.169.254/latest/meta-data/",
+            "http://crapi-identity:8080/identity/api/auth/login",
+            "file:///etc/passwd",
+            "http://localhost@evil.example.com/",
+            "ftp://localhost/",
+        ]
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            for url in blocked_urls:
+                self.contact_mechanic_request_body["mechanic_api"] = url
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+                self.assertEqual(res.status_code, 400, url)
+                self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
+            mock_get.assert_not_called()
 
     def test_contact_mechanic(self):
         """
