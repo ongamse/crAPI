@@ -8,6 +8,9 @@ apiGatewayServiceInstall: false
 enableLog4j: true
 enableShellInjection: true
 tlsEnabled: true
+# With TLS on, also pass --set identity.config.keyStorePassword=... --set identity.config.keyPassword=...
+# Secret with the TLS private key (key name: server.key); create it before installing.
+tlsKeyRef: crapi-tls-key
 
 web:
   image: crapi/crapi-web

@@ -18,11 +18,21 @@ import java.util.Random;
 
 public class GenerateVIN {
 
-  static String charsequence = "ABCDEFGHJKLMNPRSTUVWXYZ"; // I, O, Q are excluded
-  static String num = "0123456789";
+  static String charsequence = buildAlphabet('A', 'Z', "IOQ"); // I, O, Q are excluded
+  static String num = buildAlphabet('0', '9', "");
   String vin = "";
   String pincode = "";
   Random random;
+
+  private static String buildAlphabet(char first, char last, String excluded) {
+    StringBuilder sb = new StringBuilder();
+    for (char c = first; c <= last; c++) {
+      if (excluded.indexOf(c) < 0) {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
+  }
 
   public GenerateVIN() {
     random = new Random();

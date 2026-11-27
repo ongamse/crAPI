@@ -6,5 +6,5 @@ metadata:
     release: {{ .Release.Name }}
     {{- toYaml .Values.mailhog.config.labels | nindent 4 }}
 data:
-  MH_MONGO_URI: {{ .Values.mongodb.config.mongoUri }}
+  MH_MONGO_URI: {{ printf "%s:%s@%s:%v" .Values.mongodb.config.mongoUser (required "mongodb.config.mongoPassword must be set" .Values.mongodb.config.mongoPassword) .Values.mongodb.service.name .Values.mongodb.port | quote }}
   MH_STORAGE: {{ .Values.mailhog.config.mailhogStorage }}

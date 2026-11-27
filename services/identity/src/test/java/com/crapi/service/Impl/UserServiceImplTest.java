@@ -42,6 +42,7 @@ import com.crapi.repository.UserDetailsRepository;
 import com.crapi.repository.UserRepository;
 import com.crapi.service.VehicleService;
 import com.crapi.utils.SMTPMailServer;
+import jakarta.mail.internet.InternetAddress;
 import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
 import lombok.SneakyThrows;
@@ -92,7 +93,7 @@ public class UserServiceImplTest {
     LoginForm loginForm = getDummyLoginForm();
     User user = new User("email@example.com", "9798789212", "Pass", ERole.ROLE_USER);
     CRAPIResponse crapiAPIResponse = new CRAPIResponse();
-    crapiAPIResponse.setMessage(UserMessage.PASSWORD_GOT_RESET);
+    crapiAPIResponse.setMessage(UserMessage.CREDENTIAL_GOT_RESET);
     crapiAPIResponse.setStatus(200);
     Mockito.doReturn(user).when(userService).getUserFromToken(Mockito.any());
     Mockito.when(encoder.encode(Mockito.anyString())).thenReturn("newPassword");
@@ -106,7 +107,7 @@ public class UserServiceImplTest {
     LoginForm loginForm = getDummyLoginForm();
     User user = getDummyUser();
     CRAPIResponse crapiAPIResponse = new CRAPIResponse();
-    crapiAPIResponse.setMessage(UserMessage.PASSWORD_GOT_RESET);
+    crapiAPIResponse.setMessage(UserMessage.CREDENTIAL_GOT_RESET);
     crapiAPIResponse.setStatus(200);
     Mockito.doReturn(null).when(userService).getUserFromToken(Mockito.any());
     userService.resetPassword(loginForm, getMockHttpRequest());
@@ -242,7 +243,7 @@ public class UserServiceImplTest {
   @Test
   public void testUpdateUserPassword() {
     User user = getDummyUser();
-    String samplePassword = "samplePassword";
+    String samplePassword = java.util.UUID.randomUUID().toString();
     Mockito.when(userRepository.findByEmail(user.getEmail())).thenReturn(user);
     Mockito.when(userRepository.saveAndFlush(Mockito.any())).thenReturn(user);
     userService.updateUserPassword(samplePassword, getDummyUser().getEmail());
@@ -336,13 +337,18 @@ public class UserServiceImplTest {
     Mockito.when(changeEmailRepository.findByUser(user)).thenReturn(changeEmailRequest);
     Mockito.doNothing()
         .when(smtpMailServer)
-        .sendMail(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        .sendMail(Mockito.any(InternetAddress.class), Mockito.anyString(), Mockito.anyString());
 
     CRAPIResponse crapiAPIResponse =
         userService.changeEmailRequest(getMockHttpRequest(), changeEmailForm);
 
+    // The mail recipient must be the address read back from the persisted request.
+    org.mockito.ArgumentCaptor<InternetAddress> recipient =
+        org.mockito.ArgumentCaptor.forClass(InternetAddress.class);
     Mockito.verify(smtpMailServer, Mockito.times(1))
-        .sendMail(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        .sendMail(
+            recipient.capture(), Mockito.anyString(), Mockito.eq("crAPI: Change Email Token"));
+    Assertions.assertEquals(changeEmailRequest.getNewEmail(), recipient.getValue().getAddress());
     Assertions.assertEquals(expectedMessage, crapiAPIResponse.getMessage());
     Assertions.assertEquals(HttpStatus.OK.value(), crapiAPIResponse.getStatus());
   }
@@ -360,13 +366,13 @@ public class UserServiceImplTest {
     Mockito.when(changeEmailRepository.findByUser(user)).thenReturn(null);
     Mockito.doNothing()
         .when(smtpMailServer)
-        .sendMail(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        .sendMail(Mockito.any(InternetAddress.class), Mockito.anyString(), Mockito.anyString());
 
     CRAPIResponse crapiAPIResponse =
         userService.changeEmailRequest(getMockHttpRequest(), changeEmailForm);
 
     Mockito.verify(smtpMailServer, Mockito.times(1))
-        .sendMail(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        .sendMail(Mockito.any(InternetAddress.class), Mockito.anyString(), Mockito.anyString());
     Assertions.assertEquals(expectedMessage, crapiAPIResponse.getMessage());
     Assertions.assertEquals(HttpStatus.OK.value(), crapiAPIResponse.getStatus());
   }

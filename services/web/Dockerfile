@@ -33,6 +33,7 @@ COPY --from=build /app/build /usr/share/nginx/html
 COPY ./nginx-wrapper.sh /etc/nginx/nginx-wrapper.sh
 COPY ./nginx.conf.template /etc/nginx/conf.d/default.conf.template
 COPY ./nginx.ssl.conf.template /etc/nginx/conf.d/default.ssl.conf.template
+COPY ./nginx.nokey.conf.template /etc/nginx/conf.d/default.nokey.conf.template
 RUN mkdir -p /app
 COPY ./certs /app/certs
 RUN echo "daemon off;" >> /usr/local/openresty/nginx/conf/nginx.conf

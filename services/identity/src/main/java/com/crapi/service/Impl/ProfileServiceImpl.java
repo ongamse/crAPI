@@ -18,6 +18,7 @@ import com.crapi.constant.UserMessage;
 import com.crapi.entity.ProfileVideo;
 import com.crapi.entity.User;
 import com.crapi.entity.UserDetails;
+import com.crapi.enums.ERole;
 import com.crapi.exception.CRAPIExceptionHandler;
 import com.crapi.exception.IOExceptionHandler;
 import com.crapi.model.CRAPIResponse;
@@ -133,27 +134,31 @@ public class ProfileServiceImpl implements ProfileService {
   }
 
   /**
-   * @param videoForm
-   * @param request getting jwt token for user from request header
-   * @return its change user profile object and return success message.
+   * @param principal the authenticated user resolved from the token by the controller
+   * @param videoId path id supplied by the client; only authorized, never used as a query key
+   * @param videoForm new video name / conversion params
+   * @return the principal's own profile video after the update. Throws 404 when the principal has
+   *     no video or the supplied id is not the id of that video.
    */
   @Transactional
   @Override
-  public ProfileVideo updateProfileVideo(VideoForm videoForm, HttpServletRequest request) {
-    User user;
-    ProfileVideo profileVideo;
-    user = userService.getUserFromToken(request);
-    profileVideo = profileVideoRepository.findByUser_id(user.getId());
-    if (profileVideo != null) {
-      profileVideo.setVideo_name(videoForm.getVideoName());
-      profileVideo.setConversion_params(
-          (videoForm.getConversion_params() != null
-              ? videoForm.getConversion_params()
-              : profileVideo.getConversion_params()));
-      profileVideoRepository.save(profileVideo);
-      return profileVideo;
+  public ProfileVideo updateProfileVideoOwnedBy(User principal, Long videoId, VideoForm videoForm) {
+    if (principal == null || principal.getId() == null) {
+      throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404);
     }
-    throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE + user.getEmail(), 404);
+    ProfileVideo profileVideo =
+        findOwnedVideo(videoId, principal)
+            .orElseThrow(
+                () ->
+                    new CRAPIExceptionHandler(
+                        UserMessage.SORRY_DIDNT_GET_PROFILE + principal.getEmail(), 404));
+    profileVideo.setVideo_name(videoForm.getVideoName());
+    profileVideo.setConversion_params(
+        (videoForm.getConversion_params() != null
+            ? videoForm.getConversion_params()
+            : profileVideo.getConversion_params()));
+    profileVideoRepository.save(profileVideo);
+    return profileVideo;
   }
 
   /**
@@ -165,8 +170,8 @@ public class ProfileServiceImpl implements ProfileService {
   @Override
   public CRAPIResponse deleteProfileVideo(Long videoId, HttpServletRequest request) {
     Optional<ProfileVideo> optionalProfileVideo;
-    ProfileVideo profileVideo;
-    optionalProfileVideo = profileVideoRepository.findById(videoId);
+    User user = userService.getUserFromToken(request);
+    optionalProfileVideo = findOwnedOrAdminVideo(videoId, user);
     if (optionalProfileVideo.isPresent()) {
       return new CRAPIResponse(UserMessage.THIS_IS_ADMIN_FUNCTION, 403);
     }
@@ -183,8 +188,8 @@ public class ProfileServiceImpl implements ProfileService {
   public CRAPIResponse deleteAdminProfileVideo(Long videoId, HttpServletRequest request) {
     Optional<ProfileVideo> optionalProfileVideo;
     ProfileVideo profileVideo;
-    optionalProfileVideo = profileVideoRepository.findById(videoId);
     User user = userService.getUserFromToken(request);
+    optionalProfileVideo = findOwnedOrAdminVideo(videoId, user);
     if (optionalProfileVideo.isPresent()) {
       profileVideo = optionalProfileVideo.get();
       profileVideo.setUser(null);
@@ -219,7 +224,8 @@ public class ProfileServiceImpl implements ProfileService {
     try {
       if (xForwardedHost == null) {
         if (videoId != null && videoId > 0) {
-          Optional<ProfileVideo> optionalProfileVideo = profileVideoRepository.findById(videoId);
+          User user = userService.getUserFromToken(request);
+          Optional<ProfileVideo> optionalProfileVideo = findOwnedVideo(videoId, user);
           if (optionalProfileVideo.isPresent() && !enable_shell_injection) {
             profileVideo = optionalProfileVideo.get();
             if (ProfileValidator.checkContains(profileVideo.getConversion_params())) {
@@ -253,5 +259,37 @@ public class ProfileServiceImpl implements ProfileService {
       log.error("unable to convert video -> Message: %d ", exception);
       throw new IOExceptionHandler(ProfileServiceImpl.class, UserMessage.ERROR);
     }
+  }
+
+  /**
+   * @return the video only when it is the authenticated user's own video. The caller's own video is
+   *     loaded first and the validated id is matched against it, so the client supplied id is never
+   *     used as a query value (fails closed on nulls / non-positive ids)
+   */
+  private Optional<ProfileVideo> findOwnedVideo(Long videoId, User user) {
+    if (videoId == null || videoId <= 0 || user == null || user.getId() == null) {
+      return Optional.empty();
+    }
+    return Optional.ofNullable(profileVideoRepository.findByUser_id(user.getId()))
+        .filter(video -> video.getId() == videoId.longValue());
+  }
+
+  /**
+   * @return the video when it is the caller's own video, or when the caller has an admin role. The
+   *     admin path is an explicit role check; all other callers only ever see their own video.
+   */
+  private Optional<ProfileVideo> findOwnedOrAdminVideo(Long videoId, User user) {
+    if (videoId == null || videoId <= 0 || user == null || user.getId() == null) {
+      return Optional.empty();
+    }
+    if (ERole.ROLE_ADMIN.equals(user.getRole())) {
+      // The client id is only compared in memory against the server enumerated ids; the entity is
+      // then loaded by the id taken from that server provided list element.
+      return profileVideoRepository.findAllIds().stream()
+          .filter(serverId -> serverId != null && serverId.longValue() == videoId.longValue())
+          .findFirst()
+          .flatMap(serverId -> profileVideoRepository.findById(serverId));
+    }
+    return findOwnedVideo(videoId, user);
   }
 }

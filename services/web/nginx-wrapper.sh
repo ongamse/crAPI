@@ -17,9 +17,17 @@
 if [ "$TLS_ENABLED" = "true" ] || [ "$TLS_ENABLED" = "1" ]; then
     export HTTP_PROTOCOL=https
     export NGINX_TEMPLATE=/etc/nginx/conf.d/default.ssl.conf.template
+    if [ ! -s /app/certs/server.key ]; then
+        echo "TLS_ENABLED is set but /app/certs/server.key is missing; mount the private key (see services/gencert.sh)" >&2
+        exit 1
+    fi
 else
     export HTTP_PROTOCOL=http
     export NGINX_TEMPLATE=/etc/nginx/conf.d/default.conf.template
+    # The TLS private key is not baked into the image. Without a mounted key, serve plain HTTP only.
+    if [ ! -s /app/certs/server.key ]; then
+        export NGINX_TEMPLATE=/etc/nginx/conf.d/default.nokey.conf.template
+    fi
 fi
 ls -al /app/certs
 env

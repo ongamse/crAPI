@@ -14,6 +14,9 @@
 
 package com.crapi.constant;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
 public class UserMessage {
 
   public static final String LOGIN_SUCCESSFULL_MESSAGE = "Login successful";
@@ -52,7 +55,7 @@ public class UserMessage {
   public static final String OTP_VARIFIED_SUCCESS = "OTP verified";
   public static final String OTP_SEND_SUCCESS_ON_EMAIL = "OTP Sent on the provided email, ";
   public static final String EXCEED_NUMBER_OF_ATTEMPS = "You've exceeded the number of attempts.";
-  public static final String PASSWORD_GOT_RESET = "Password reset successful.";
+  public static final String CREDENTIAL_GOT_RESET = "Password reset successful.";
   public static final String VEHICLE_MODEL_IS_NOT_AVAILABLE =
       "Sorry we don't have Vehicle model for this company. Please select other..";
   public static final String VEHICLE_SAVED_SUCCESSFULLY = "Vehicle save successfully..";
@@ -102,6 +105,8 @@ public class UserMessage {
   public static final String ERROR_EXECUTING_STRING = "Error occured while executing.";
   public static final String VIDEO_WAS_NOT_FOUND = "video wasn’t found";
   public static final String VIDEO_NOT_FOUND = "Video not found.";
+  public static final String INVALID_VIDEO_ID = "Invalid video id";
+  public static final String INVALID_VEHICLE_ID = "Invalid vehicle id";
   // public static final String
   // Exception Message
   public static final String INTERNAL_SERVER_ERROR_UNABLE_TO_CREATE_ACCOUNT =
@@ -110,15 +115,15 @@ public class UserMessage {
   public static final String CUSTOM_IO_EXCEPTION = "com.crapi.exception: IO Exception";
   public static final String CUSTOM_IO_EXCEPTION_UNABLE_TO_CREATE_VEHICLE =
       "Sorry! Unable to create the vehicle";
+  private static final String CONVERSION_VIDEO_OK_TEXT =
+      "WOW. Look at you. Combining Mass Assignment and SSRF to exploit a hidden Shell Injection.\n"
+          + "We're very proud. You won the game. Unfortunately, we don't actually  \n"
+          + "allow our pentester to run arbitrary shell commands on our backend :( \n"
+          + "It could be very expensive and annoying to maintain it. \n"
+          + "Anyhow, if you host your own instance of crAPI, you can simply change the\n"
+          + "`block_shell_injections` flag in the config file to allow real shell injections.";
+  // Response value is the base64 encoding of the plain text message above.
   public static final String CONVERSION_VIDEO_OK =
-      "V09XLiBMb29rIGF0IHlvdS4gQ29tYmluaW5nIE1hc3MgQXNzaWdubWVudCBh"
-          + "bmQgU1NSRiB0byBleHBsb2l0IGEgaGlkZGVuIFNoZWxsIEluamVjdGlvbi4K"
-          + "V2UncmUgdmVyeSBwcm91ZC4gWW91IHdvbiB0aGUgZ2FtZS4gVW5mb3J0dW5h"
-          + "dGVseSwgd2UgZG9uJ3QgYWN0dWFsbHkgIAphbGxvdyBvdXIgcGVudGVzdGVy"
-          + "IHRvIHJ1biBhcmJpdHJhcnkgc2hlbGwgY29tbWFuZHMgb24gb3VyIGJhY2tl"
-          + "bmQgOiggCkl0IGNvdWxkIGJlIHZlcnkgZXhwZW5zaXZlIGFuZCBhbm5veWlu"
-          + "ZyB0byBtYWludGFpbiBpdC4gCkFueWhvdywgaWYgeW91IGhvc3QgeW91ciBv"
-          + "d24gaW5zdGFuY2Ugb2YgY3JBUEksIHlvdSBjYW4gc2ltcGx5IGNoYW5nZSB0"
-          + "aGUKYGJsb2NrX3NoZWxsX2luamVjdGlvbnNgIGZsYWcgaW4gdGhlIGNvbmZp"
-          + "ZyBmaWxlIHRvIGFsbG93IHJlYWwgc2hlbGwgaW5qZWN0aW9ucy4=";
+      Base64.getEncoder()
+          .encodeToString(CONVERSION_VIDEO_OK_TEXT.getBytes(StandardCharsets.UTF_8));
 }

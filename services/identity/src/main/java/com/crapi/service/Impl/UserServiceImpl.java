@@ -30,6 +30,7 @@ import com.crapi.utils.MailBody;
 import com.crapi.utils.OTPGenerator;
 import com.crapi.utils.SMTPMailServer;
 import io.jsonwebtoken.io.IOException;
+import jakarta.mail.internet.InternetAddress;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import java.text.ParseException;
@@ -189,7 +190,7 @@ public class UserServiceImpl implements UserService {
     if (user != null) {
       user.setPassword(encoder.encode(loginForm.getPassword()));
       userRepository.saveAndFlush(user);
-      return new CRAPIResponse(UserMessage.PASSWORD_GOT_RESET, 200);
+      return new CRAPIResponse(UserMessage.CREDENTIAL_GOT_RESET, 200);
     }
     throw new EntityNotFoundException(User.class, UserMessage.ERROR, loginForm.getEmail());
   }
@@ -245,6 +246,8 @@ public class UserServiceImpl implements UserService {
     String token;
     User user;
     ChangeEmailRequest changeEmailRequest;
+    // Reject (400) anything that is not a single plain mailbox before it is persisted.
+    SMTPMailServer.validateRecipient(changeEmailForm.getNew_email());
     // Checking new email in user login table if it is already registered then not allowing that
     // email
     if (userRepository.existsByEmail(changeEmailForm.getNew_email())) {
@@ -272,11 +275,13 @@ public class UserServiceImpl implements UserService {
       changeEmailRequest.setOldEmail(changeEmailForm.getOld_email());
     }
     changeEmailForm.setToken(token);
-    changeEmailRepository.save(changeEmailRequest);
+    final ChangeEmailRequest persistedRequest = changeEmailRepository.save(changeEmailRequest);
+    // The recipient is read back from the persisted pending-change record (not from the request
+    // DTO) and re-validated as a single plain mailbox before it reaches the mail transport.
+    final InternetAddress persistedRecipient =
+        SMTPMailServer.validateRecipient(persistedRequest.getNewEmail());
     smtpMailServer.sendMail(
-        changeEmailForm.getNew_email(),
-        MailBody.changeMailBody(changeEmailForm),
-        "crAPI: Change Email Token");
+        persistedRecipient, MailBody.changeMailBody(changeEmailForm), "crAPI: Change Email Token");
     return new CRAPIResponse(
         UserMessage.CHANGE_EMAIL_MESSAGE + changeEmailForm.getNew_email(), 200);
   }

@@ -16,6 +16,7 @@
 contains all the views related to Merchant
 """
 import logging
+from urllib.parse import urlparse
 import requests
 from requests.exceptions import MissingSchema, InvalidURL
 from rest_framework import status
@@ -35,6 +36,59 @@ from .serializers import ContactMechanicSerializer, UserServiceRequestSerializer
 
 
 logger = logging.getLogger()
+
+
+def build_allowed_mechanic_api_url(url):
+    """
+    validates the mechanic api url and rebuilds the outbound url from the
+    validated scheme, host, port, path and query, so that the url that is
+    requested is exactly what was checked (no parser differential between
+    the validation and the http client). The host must be in
+    settings.MECHANIC_API_ALLOWED_HOSTS.
+    :param url: url supplied by the user
+    :returns the canonical url to request, or None if it must not be requested
+    """
+    if not isinstance(url, str):
+        return None
+    url = url.strip()
+    if any(ord(char) <= 0x20 or ord(char) == 0x7F for char in url) or "\\" in url:
+        return None
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return None
+    if parsed.scheme not in ("http", "https") or not hostname:
+        return None
+    if parsed.username is not None or parsed.password is not None:
+        return None
+    hostname = hostname.lower()
+    if hostname not in settings.MECHANIC_API_ALLOWED_HOSTS:
+        return None
+    netloc = f"[{hostname}]" if ":" in hostname else hostname
+    if port is not None:
+        netloc = f"{netloc}:{port}"
+    safe_url = f"{parsed.scheme}://{netloc}{parsed.path}"
+    if parsed.query:
+        safe_url = f"{safe_url}?{parsed.query}"
+    return safe_url
+
+
+def is_allowed_mechanic_api(url):
+    """
+    checks that the mechanic api url is an http(s) url whose host is in
+    settings.MECHANIC_API_ALLOWED_HOSTS
+    :param url: url supplied by the user
+    :returns True if the url may be requested, False otherwise
+    """
+    return build_allowed_mechanic_api_url(url) is not None
+
+
+# Constant headers of the outbound mechanic api call. The caller's credentials
+# are deliberately never forwarded to the user supplied mechanic_api url: the
+# receive_report endpoint does not require them.
+MECHANIC_API_HEADERS = {"Accept": "*/*"}
 
 
 class ContactMechanicView(APIView):
@@ -79,16 +133,29 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        request_url = build_allowed_mechanic_api_url(request_data["mechanic_api"])
+        if request_url is None:
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.INVALID_MECHANIC_API,
+            )
+            return Response(
+                {"message": messages.INVALID_MECHANIC_API},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         repeat_count = 0
         while True:
-            request_url = request_data["mechanic_api"]
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
             try:
                 mechanic_response = requests.get(
                     request_url,
                     params=request_data,
-                    headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
-                    verify=False,
+                    headers=MECHANIC_API_HEADERS,
+                    verify=settings.REQUESTS_VERIFY,
+                    allow_redirects=False,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")

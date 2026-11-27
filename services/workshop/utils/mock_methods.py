@@ -31,6 +31,13 @@ which can be used during testing
 logger = logging.getLogger()
 
 
+def fake_credential() -> str:
+    """
+    generates a random throwaway credential for test fixtures
+    """
+    return Faker().password()
+
+
 def get_sample_mechanic_data():
     """
     gives mechanic data which can be used for testing
@@ -41,7 +48,7 @@ def get_sample_mechanic_data():
         "email": "mechraju@crapi.com",
         "mechanic_code": "TRAC_MEC_3",
         "number": "9123456708",
-        "password": "admin",
+        "password": fake_credential(),
     }
 
 
@@ -54,7 +61,7 @@ def get_sample_user_data():
         "name": "TestUser",
         "email": "test@crapi.com",
         "number": "9123456708",
-        "password": "password",
+        "password": fake_credential(),
     }
 
 
@@ -89,7 +96,7 @@ def get_sample_admin_user():
         "name": "Admin 1",
         "email": "admin1@crapi.com",
         "number": "9123456700",
-        "password": "password1",
+        "password": fake_credential(),
         "role": User.ROLE_CHOICES.ADMIN,
     }
 

@@ -13,7 +13,9 @@
 """
 contains all the test cases related to merchant
 """
+import uuid
 from unittest.mock import patch
+from urllib.parse import urlunsplit
 from utils.mock_methods import (
     get_sample_mechanic_data,
     mock_jwt_auth_required,
@@ -24,12 +26,13 @@ from crapi.mechanic.models import ServiceRequest, Mechanic
 patch("utils.jwt.jwt_auth_required", mock_jwt_auth_required).start()
 
 import bcrypt
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.utils import timezone
 from utils import messages
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
 
 
+@override_settings(MECHANIC_API_ALLOWED_HOSTS=["www.google.com"])
 class MerchantTestCase(TestCase):
     """
     contains all the test cases related to merchant
@@ -133,6 +136,82 @@ class MerchantTestCase(TestCase):
             content_type="application/json"
         )
         self.assertNotEqual(res.status_code, 200)
+
+    def test_mechanic_api_host_not_allowed(self):
+        """
+        gives mechanic_api urls that point to hosts outside the allowlist
+        should get a bad request response without any outbound request
+        :return: None
+        """
+        blocked_urls = [
+            "http://169.254.169.254/latest/meta-data/",
+            "http://crapi-identity:8080/identity/api/auth/login",
+            "file:///etc/passwd",
+            "http://localhost@evil.example.com/",
+            "ftp://localhost/",
+        ]
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            for url in blocked_urls:
+                self.contact_mechanic_request_body["mechanic_api"] = url
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+                self.assertEqual(res.status_code, 400, url)
+                self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
+            mock_get.assert_not_called()
+
+    def test_build_allowed_mechanic_api_url(self):
+        """
+        the outbound url is rebuilt from validated components and rejects
+        urls with whitespace/control characters or userinfo
+        :return: None
+        """
+        from crapi.merchant.views import build_allowed_mechanic_api_url
+
+        self.assertEqual(
+            build_allowed_mechanic_api_url(" HTTPS://WWW.Google.com:8443/a/b?x=1 "),
+            "https://www.google.com:8443/a/b?x=1",
+        )
+        for url in [
+            "https://www.google.com\t.evil.example.com/",
+            "https://www.google.com/\r\nHost: evil",
+            "https://www.google.com\\@evil.example.com/",
+            urlunsplit(
+                (
+                    "https",
+                    "%s:%s@www.google.com" % ("user", uuid.uuid4().hex),
+                    "/",
+                    "",
+                    "",
+                )
+            ),
+            "https://www.google.com:badport/",
+            None,
+        ]:
+            self.assertIsNone(build_allowed_mechanic_api_url(url), url)
+
+    def test_authorization_not_forwarded(self):
+        """
+        the caller's credentials must never be sent to the user supplied
+        mechanic_api url; only the constant header set is sent
+        :return: None
+        """
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {}
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+            self.assertEqual(res.status_code, 200)
+            mock_get.assert_called_once()
+            self.assertEqual(mock_get.call_args.kwargs["headers"], {"Accept": "*/*"})
+            self.assertFalse(mock_get.call_args.kwargs["allow_redirects"])
 
     def test_contact_mechanic(self):
         """

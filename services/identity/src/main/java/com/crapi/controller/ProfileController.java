@@ -16,23 +16,30 @@ package com.crapi.controller;
 
 import com.crapi.constant.UserMessage;
 import com.crapi.entity.ProfileVideo;
+import com.crapi.entity.User;
 import com.crapi.entity.UserDetails;
+import com.crapi.exception.CRAPIExceptionHandler;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.VideoForm;
 import com.crapi.service.ProfileService;
+import com.crapi.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.constraints.Positive;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-@CrossOrigin
 @RestController
+@Validated
 @RequestMapping("/identity")
 public class ProfileController {
 
   @Autowired ProfileService profileService;
+
+  @Autowired UserService userService;
 
   /**
    * @param videoId
@@ -42,6 +49,7 @@ public class ProfileController {
   @GetMapping("/api/v2/user/videos/{video_id}")
   public ResponseEntity<?> getProfileVideo(
       @PathVariable("video_id") Long videoId, HttpServletRequest request) {
+    requireValidVideoId(videoId);
     ProfileVideo profileVideo = profileService.getProfileVideo(videoId, request);
     if (profileVideo != null) {
       return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
@@ -94,10 +102,18 @@ public class ProfileController {
    */
   @PutMapping("/api/v2/user/videos/{video_id}")
   public ResponseEntity<?> updateProfileVideo(
-      @PathVariable("video_id") Long videoId,
+      @PathVariable("video_id") @Positive Long videoId,
       @RequestBody VideoForm videoForm,
       HttpServletRequest request) {
-    ProfileVideo profileVideo = profileService.updateProfileVideo(videoForm, request);
+    requireValidVideoId(videoId);
+    // Resolve the authenticated principal from the token; the service authorizes the path id
+    // against the video owned by that principal and updates only that principal-scoped entity.
+    User principal = userService.getUserFromToken(request);
+    if (principal == null || principal.getId() == null) {
+      throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404);
+    }
+    ProfileVideo profileVideo =
+        profileService.updateProfileVideoOwnedBy(principal, videoId, videoForm);
     if (profileVideo != null) return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
     else
       return ResponseEntity.status(HttpStatus.NO_CONTENT)
@@ -113,6 +129,7 @@ public class ProfileController {
   @DeleteMapping("/api/v2/user/videos/{video_id}")
   public ResponseEntity<?> deleteVideo(
       @PathVariable("video_id") Long videoId, HttpServletRequest request) {
+    requireValidVideoId(videoId);
     CRAPIResponse deleteProfileResponse = profileService.deleteProfileVideo(videoId, request);
     if (deleteProfileResponse != null && deleteProfileResponse.getStatus() == 200) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN).body(deleteProfileResponse);
@@ -129,6 +146,7 @@ public class ProfileController {
   @DeleteMapping("/api/v2/admin/videos/{video_id}")
   public ResponseEntity<CRAPIResponse> deleteVideoBOLA(
       @PathVariable("video_id") Long videoId, HttpServletRequest request) {
+    requireValidVideoId(videoId);
     CRAPIResponse deleteProfileResponse = profileService.deleteAdminProfileVideo(videoId, request);
     if (deleteProfileResponse != null && deleteProfileResponse.getStatus() == 200) {
       return ResponseEntity.status(HttpStatus.OK).body(deleteProfileResponse);
@@ -145,6 +163,9 @@ public class ProfileController {
   @GetMapping("api/v2/user/videos/convert_video")
   public ResponseEntity<?> convertVideoEndPoint(
       @RequestParam(required = false) Long video_id, HttpServletRequest request) {
+    if (video_id != null && video_id <= 0) {
+      throw new CRAPIExceptionHandler(UserMessage.CONVERT_VIDEO_PARAM_IS_MISSING, 400);
+    }
     CRAPIResponse convertVideoResponse = profileService.convertVideo(video_id, request);
     if (convertVideoResponse != null && convertVideoResponse.getStatus() == 200) {
       return ResponseEntity.status(HttpStatus.OK).body(convertVideoResponse);
@@ -153,5 +174,12 @@ public class ProfileController {
           .body(convertVideoResponse);
     }
     return ResponseEntity.status(HttpStatus.FORBIDDEN).body(convertVideoResponse);
+  }
+
+  /** Reject client supplied video ids that are not positive before they reach the service. */
+  private static void requireValidVideoId(Long videoId) {
+    if (videoId == null || videoId <= 0) {
+      throw new CRAPIExceptionHandler(UserMessage.INVALID_VIDEO_ID, 400);
+    }
   }
 }

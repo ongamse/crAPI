@@ -14,9 +14,22 @@
 
 package com.crapi.utils;
 
+import java.security.SecureRandom;
+
 public class EmailTokenGenerator {
-  static String charsequence = "abcdefghijklmnopqrstuvwxzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  static String num = "0123456789";
+  static String charsequence = buildAlphabet('a', 'z', "y") + buildAlphabet('A', 'Z', "");
+  static String num = buildAlphabet('0', '9', "");
+  private static final SecureRandom secureRandom = new SecureRandom();
+
+  private static String buildAlphabet(char first, char last, String excluded) {
+    StringBuilder sb = new StringBuilder();
+    for (char c = first; c <= last; c++) {
+      if (excluded.indexOf(c) < 0) {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
+  }
 
   /**
    * @param length
@@ -33,13 +46,13 @@ public class EmailTokenGenerator {
 
   public static String randomCharacter(String characters) {
     int n = characters.length();
-    int r = (int) (n * Math.random());
+    int r = secureRandom.nextInt(n);
     return characters.substring(r, r + 1);
   }
 
   public static String randomNumber(String characters) {
     int n = num.length();
-    int r = (int) (n * Math.random());
+    int r = secureRandom.nextInt(n);
     return num.substring(r, r + 1);
   }
 }

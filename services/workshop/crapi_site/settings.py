@@ -61,11 +61,26 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Host header allowlist (comma separated, no wildcard) to prevent DNS rebinding.
+# The default covers local access, the container health check (0.0.0.0), the
+# docker-compose / helm / k8s service names and in-cluster service DNS names.
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,[::1],0.0.0.0,crapi-workshop,crapi-web,"
+        ".svc,.svc.cluster.local",
+    ).split(",")
+    if host.strip() and host.strip() != "*"
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
+
+# Initial password for the seeded demo mechanics. Supplied via the environment;
+# when unset the mechanics are not seeded (fail closed).
+MECHANIC_DEFAULT_PASSWORD = os.environ.get("MECHANIC_DEFAULT_PASSWORD", "")
 
 # Application definition
 
@@ -99,7 +114,17 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Origins allowed to call the API cross-origin (comma separated, no wildcard).
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,"
+        "https://127.0.0.1:8443,http://localhost:30080,https://localhost:30443",
+    ).split(",")
+    if origin.strip()
+]
 
 ROOT_URLCONF = "crapi_site.urls"
 
@@ -245,6 +270,19 @@ IDENTITY_LOGIN = "http://{}/identity/api/auth/login".format(
 IDENTITY_HEALTH = "http://{}/identity/health_check".format(
     get_env_value("IDENTITY_SERVICE")
 )
+# Hostnames that the contact mechanic feature is allowed to call back into.
+MECHANIC_API_ALLOWED_HOSTS = [
+    host.strip().lower()
+    for host in os.environ.get(
+        "MECHANIC_API_ALLOWED_HOSTS", "localhost,127.0.0.1,crapi-web,crapi-workshop"
+    ).split(",")
+    if host.strip()
+]
+# Outgoing HTTPS requests always verify certificates. Set TLS_CA_BUNDLE to the
+# path of a CA bundle (e.g. the CA that signed the self-signed service
+# certificates) to trust it instead of the default trust store.
+TLS_CA_BUNDLE = os.environ.get("TLS_CA_BUNDLE") or None
+REQUESTS_VERIFY = TLS_CA_BUNDLE if TLS_CA_BUNDLE else True
 TLS_ENABLED = os.environ.get("TLS_ENABLED")
 if TLS_ENABLED and (TLS_ENABLED.lower() in ["true", "1", "yes"]):
     IDENTITY_VERIFY = "https://{}/identity/api/auth/verify".format(

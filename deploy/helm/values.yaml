@@ -2,14 +2,24 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
-apiGatewayPassword:
+# Credentials below are intentionally empty. Supply them at install time, e.g.
+# helm install ... --set apiGatewayPassword=... --set mongodb.config.mongoPassword=...
+# (or via a values file kept outside version control). Rendering fails if unset.
+apiGatewayPassword: ""
 tlsEnabled: false
+# Comma separated origins (scheme://host[:port]) allowed to call identity and workshop
+# cross-origin. No wildcard; set to the public URL(s) of the crAPI web app.
+corsAllowedOrigins: "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443,http://localhost:30080,https://localhost:30443"
+# Name of a pre-created Secret holding the TLS private key under the key "server.key"
+# (kubectl create secret generic <name> --from-file=server.key=<path>). It is mounted at
+# /app/certs/server.key in web, community, workshop and chatbot when tlsEnabled is true.
+# The private key is not shipped in the images.
+tlsKeyRef: ""
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
@@ -74,8 +84,10 @@ identity:
     smtpStartTLS: true
     keyStoreType: PKCS12
     keyStore: classpath:certs/server.p12
-    keyStorePassword: passw0rd
-    keyPassword: passw0rd
+    # Passwords of the keystore above. Not stored here; required when tlsEnabled is true:
+    # --set identity.config.keyStorePassword=... --set identity.config.keyPassword=...
+    keyStorePassword: ""
+    keyPassword: ""
     keyAlias: identity
   deploymentLabels:
     app: crapi-identity
@@ -125,8 +137,13 @@ workshop:
       app: crapi-workshop
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
+    secretKey: ""
+    mechanicDefaultPassword: ""
     filesLimit: 1000
+    # Comma separated Host header allowlist for workshop (no wildcard). When empty, defaults
+    # to localhost, the loopback/health check addresses, the workshop service name, the web
+    # service name and in-cluster service DNS suffixes. Add the public hostname(s) here.
+    allowedHosts: ""
   deploymentLabels:
     app: crapi-workshop
   podLabels:
@@ -151,11 +168,13 @@ chatbot:
       app: crapi-chatbot
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    apiPassword: Admin!123
+    # Login of the demo admin account seeded by the identity service (TestUsers.java).
+    # When empty the chatbot uses its built-in default for that seeded account; set
+    # --set chatbot.config.apiPassword=... if the seed was changed.
+    apiPassword: ""
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"
@@ -233,9 +252,8 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
+    mongoPassword: ""
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:
@@ -278,7 +296,7 @@ postgresdb:
     labels:
       app: postgresdb
     postgresUser: admin
-    postgresPassword: crapisecretpassword
+    postgresPassword: ""
     postgresDbName: crapi
   storage:
     # type: "manual"

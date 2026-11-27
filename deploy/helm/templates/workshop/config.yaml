@@ -8,18 +8,22 @@ metadata:
 data:
     LOG_LEVEL: {{ .Values.logLevel | upper }}
     IDENTITY_SERVICE: {{ .Values.identity.service.name }}:{{ .Values.identity.port }}
-    SECRET_KEY: {{ .Values.workshop.config.secretKey }}
+    SECRET_KEY: {{ required "workshop.config.secretKey must be set" .Values.workshop.config.secretKey | quote }}
     DB_HOST: {{ .Values.postgresdb.service.name }}
     DB_USER: {{ .Values.postgresdb.config.postgresUser }}
-    DB_PASSWORD: {{ .Values.postgresdb.config.postgresPassword }}
+    DB_PASSWORD: {{ required "postgresdb.config.postgresPassword must be set" .Values.postgresdb.config.postgresPassword | quote }}
     DB_NAME: {{ .Values.postgresdb.config.postgresDbName }}
     DB_PORT: {{ .Values.postgresdb.port | quote }}
     MONGO_DB_HOST: {{ .Values.mongodb.service.name }}
     MONGO_DB_PORT: {{ .Values.mongodb.port | quote }}
     MONGO_DB_USER: {{ .Values.mongodb.config.mongoUser }}
-    MONGO_DB_PASSWORD: {{ .Values.mongodb.config.mongoPassword }}
+    MONGO_DB_PASSWORD: {{ required "mongodb.config.mongoPassword must be set" .Values.mongodb.config.mongoPassword | quote }}
     MONGO_DB_NAME: {{ .Values.mongodb.config.mongoDbName }}
     SERVER_PORT: {{ .Values.workshop.port | quote }}
     API_GATEWAY_URL: {{ if .Values.apiGatewayServiceInstall }}"https://{{ .Values.apiGatewayService.service.name }}"{{ else }}{{ .Values.apiGatewayServiceUrl }}{{ end }}
     TLS_ENABLED: {{ .Values.tlsEnabled | quote }}
     FILES_LIMIT: {{ .Values.workshop.config.filesLimit | quote }}
+    API_GATEWAY_PASSWORD: {{ required "apiGatewayPassword must be set (--set apiGatewayPassword=...)" .Values.apiGatewayPassword | quote }}
+    MECHANIC_DEFAULT_PASSWORD: {{ required "workshop.config.mechanicDefaultPassword must be set" .Values.workshop.config.mechanicDefaultPassword | quote }}
+    ALLOWED_HOSTS: {{ default (printf "localhost,127.0.0.1,[::1],0.0.0.0,%s,%s,.svc,.svc.cluster.local" .Values.workshop.service.name .Values.web.service.name) .Values.workshop.config.allowedHosts | quote }}
+    CORS_ALLOWED_ORIGINS: {{ .Values.corsAllowedOrigins | quote }}
