@@ -259,25 +259,29 @@ public class ProfileServiceImpl implements ProfileService {
   }
 
   /**
-   * @return the video only when it belongs to the authenticated user; the ownership constraint is
-   *     part of the single repository lookup (fails closed on nulls)
+   * @return the video only when it is the authenticated user's own video. The caller's own video is
+   *     loaded first and the validated id is matched against it, so the client supplied id is never
+   *     used as a query value (fails closed on nulls / non-positive ids)
    */
   private Optional<ProfileVideo> findOwnedVideo(Long videoId, User user) {
-    if (videoId == null || user == null || user.getId() == null) {
+    if (videoId == null || videoId <= 0 || user == null || user.getId() == null) {
       return Optional.empty();
     }
-    return profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
+    return Optional.ofNullable(profileVideoRepository.findByUser_id(user.getId()))
+        .filter(video -> video.getId() == videoId.longValue());
   }
 
   /**
-   * @return the video only when it belongs to the authenticated user or the user is an admin; the
-   *     constraint is part of the single repository lookup (fails closed on nulls)
+   * @return the video when it is the caller's own video, or when the caller has an admin role. The
+   *     admin path is an explicit role check; all other callers only ever see their own video.
    */
   private Optional<ProfileVideo> findOwnedOrAdminVideo(Long videoId, User user) {
-    if (videoId == null || user == null || user.getId() == null) {
+    if (videoId == null || videoId <= 0 || user == null || user.getId() == null) {
       return Optional.empty();
     }
-    return profileVideoRepository.findByIdForOwnerOrAdmin(
-        videoId, user.getId(), ERole.ROLE_ADMIN.equals(user.getRole()));
+    if (ERole.ROLE_ADMIN.equals(user.getRole())) {
+      return profileVideoRepository.findById(videoId);
+    }
+    return findOwnedVideo(videoId, user);
   }
 }

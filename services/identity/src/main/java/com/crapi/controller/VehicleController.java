@@ -16,6 +16,7 @@ package com.crapi.controller;
 
 import com.crapi.constant.UserMessage;
 import com.crapi.entity.VehicleDetails;
+import com.crapi.exception.CRAPIExceptionHandler;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.VehicleForm;
 import com.crapi.model.VehicleLocationResponse;
@@ -106,11 +107,25 @@ public class VehicleController {
    */
   @GetMapping("/vehicle/{carId}/location")
   public ResponseEntity<?> getLocationBOLA(
-      @PathVariable("carId") UUID carId, HttpServletRequest request) {
-    VehicleLocationResponse vehicleDetails = vehicleService.getVehicleLocation(carId, request);
+      @PathVariable("carId") String carId, HttpServletRequest request) {
+    VehicleLocationResponse vehicleDetails =
+        vehicleService.getVehicleLocation(parseCanonicalUuid(carId), request);
     if (vehicleDetails != null) return ResponseEntity.ok().body(vehicleDetails);
     else
       return ResponseEntity.status(HttpStatus.NOT_FOUND)
           .body(new CRAPIResponse(UserMessage.DID_NOT_GET_VEHICLE_FOR_USER));
+  }
+
+  /** Accept only canonical UUID text; anything else is rejected before reaching the service. */
+  private static UUID parseCanonicalUuid(String value) {
+    try {
+      UUID parsed = UUID.fromString(value);
+      if (parsed.toString().equalsIgnoreCase(value)) {
+        return parsed;
+      }
+    } catch (IllegalArgumentException | NullPointerException e) {
+      // fall through to the bad request below
+    }
+    throw new CRAPIExceptionHandler(UserMessage.INVALID_VEHICLE_ID, 400);
   }
 }

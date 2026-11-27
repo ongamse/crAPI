@@ -17,6 +17,7 @@ package com.crapi.controller;
 import com.crapi.constant.UserMessage;
 import com.crapi.entity.ProfileVideo;
 import com.crapi.entity.UserDetails;
+import com.crapi.exception.CRAPIExceptionHandler;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.VideoForm;
 import com.crapi.service.ProfileService;
@@ -41,6 +42,7 @@ public class ProfileController {
   @GetMapping("/api/v2/user/videos/{video_id}")
   public ResponseEntity<?> getProfileVideo(
       @PathVariable("video_id") Long videoId, HttpServletRequest request) {
+    requireValidVideoId(videoId);
     ProfileVideo profileVideo = profileService.getProfileVideo(videoId, request);
     if (profileVideo != null) {
       return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
@@ -96,6 +98,7 @@ public class ProfileController {
       @PathVariable("video_id") Long videoId,
       @RequestBody VideoForm videoForm,
       HttpServletRequest request) {
+    requireValidVideoId(videoId);
     ProfileVideo profileVideo = profileService.updateProfileVideo(videoId, videoForm, request);
     if (profileVideo != null) return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
     else
@@ -112,6 +115,7 @@ public class ProfileController {
   @DeleteMapping("/api/v2/user/videos/{video_id}")
   public ResponseEntity<?> deleteVideo(
       @PathVariable("video_id") Long videoId, HttpServletRequest request) {
+    requireValidVideoId(videoId);
     CRAPIResponse deleteProfileResponse = profileService.deleteProfileVideo(videoId, request);
     if (deleteProfileResponse != null && deleteProfileResponse.getStatus() == 200) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN).body(deleteProfileResponse);
@@ -128,6 +132,7 @@ public class ProfileController {
   @DeleteMapping("/api/v2/admin/videos/{video_id}")
   public ResponseEntity<CRAPIResponse> deleteVideoBOLA(
       @PathVariable("video_id") Long videoId, HttpServletRequest request) {
+    requireValidVideoId(videoId);
     CRAPIResponse deleteProfileResponse = profileService.deleteAdminProfileVideo(videoId, request);
     if (deleteProfileResponse != null && deleteProfileResponse.getStatus() == 200) {
       return ResponseEntity.status(HttpStatus.OK).body(deleteProfileResponse);
@@ -144,6 +149,9 @@ public class ProfileController {
   @GetMapping("api/v2/user/videos/convert_video")
   public ResponseEntity<?> convertVideoEndPoint(
       @RequestParam(required = false) Long video_id, HttpServletRequest request) {
+    if (video_id != null && video_id <= 0) {
+      throw new CRAPIExceptionHandler(UserMessage.CONVERT_VIDEO_PARAM_IS_MISSING, 400);
+    }
     CRAPIResponse convertVideoResponse = profileService.convertVideo(video_id, request);
     if (convertVideoResponse != null && convertVideoResponse.getStatus() == 200) {
       return ResponseEntity.status(HttpStatus.OK).body(convertVideoResponse);
@@ -152,5 +160,12 @@ public class ProfileController {
           .body(convertVideoResponse);
     }
     return ResponseEntity.status(HttpStatus.FORBIDDEN).body(convertVideoResponse);
+  }
+
+  /** Reject client supplied video ids that are not positive before they reach the service. */
+  private static void requireValidVideoId(Long videoId) {
+    if (videoId == null || videoId <= 0) {
+      throw new CRAPIExceptionHandler(UserMessage.INVALID_VIDEO_ID, 400);
+    }
   }
 }
