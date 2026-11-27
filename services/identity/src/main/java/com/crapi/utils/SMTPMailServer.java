@@ -43,7 +43,7 @@ public class SMTPMailServer {
     boolean useMailHog = false;
     try {
       log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
+      InternetAddress[] emails = parseRecipients(sendMail);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -69,17 +69,81 @@ public class SMTPMailServer {
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
-      msg.setSubject(subject);
-      msg.setContent(body, "text/html");
+      String safeSubject = sanitizeHeaderValue(subject);
+      String safeBody = sanitizeBody(body);
+
+      msg.setRecipients(Message.RecipientType.TO, emails);
+      msg.setSubject(safeSubject);
+      msg.setContent(safeBody, "text/html");
       msg.setSentDate(new Date());
 
       MimeBodyPart messageBodyPart = new MimeBodyPart();
-      messageBodyPart.setContent(body, "text/html");
+      messageBodyPart.setContent(safeBody, "text/html");
 
       Transport.send(msg);
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  /**
+   * Parse and strictly validate recipient addresses. Rejects any value containing control
+   * characters (CR/LF header injection) or that is not a syntactically valid address.
+   *
+   * @param recipients comma separated list of addresses
+   * @return validated addresses
+   * @throws AddressException if the value is empty, contains control characters or is invalid
+   */
+  static InternetAddress[] parseRecipients(String recipients) throws AddressException {
+    if (recipients == null || recipients.trim().isEmpty()) {
+      throw new AddressException("Recipient address is empty");
+    }
+    for (int i = 0; i < recipients.length(); i++) {
+      if (Character.isISOControl(recipients.charAt(i))) {
+        throw new AddressException("Recipient address contains control characters");
+      }
+    }
+    InternetAddress[] addresses = InternetAddress.parse(recipients, true);
+    if (addresses.length == 0) {
+      throw new AddressException("Recipient address is empty");
+    }
+    for (InternetAddress address : addresses) {
+      address.validate();
+    }
+    return addresses;
+  }
+
+  /**
+   * Neutralize header values: strip CR/LF and any other control characters so the value cannot
+   * terminate the header and inject new ones.
+   */
+  static String sanitizeHeaderValue(String value) {
+    if (value == null) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      sb.append(Character.isISOControl(c) ? ' ' : c);
+    }
+    return sb.toString().trim();
+  }
+
+  /**
+   * Remove control characters from the body other than normal whitespace (tab, CR, LF). Line breaks
+   * are legitimate inside a MIME body, which is encoded separately from the headers.
+   */
+  static String sanitizeBody(String value) {
+    if (value == null) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (!Character.isISOControl(c) || c == '\t' || c == '\n' || c == '\r') {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
   }
 }
