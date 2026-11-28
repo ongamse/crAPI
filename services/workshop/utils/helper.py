@@ -1,12 +1,7 @@
 import ipaddress
-import re
 import socket
 from base64 import b64encode
 from urllib.parse import urlsplit
-
-# RFC 6750 b64token charset (JWT: base64url segments joined by dots), plus
-# "@" because the unit-test auth mock uses the user's e-mail as the token.
-_BEARER_RE = re.compile(r"Bearer (?P<token>[A-Za-z0-9\-._~+/@]+=*)")
 
 # Only the mechanic "receive_report" endpoint is a legitimate callback target
 # for the contact mechanic feature.
@@ -16,39 +11,6 @@ MECHANIC_API_PATH_SUFFIX = "/api/mechanic/receive_report"
 def basic_auth(username, password=""):
     token = b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
     return f"Basic {token}"
-
-
-def validate_header_value(value):
-    """
-    Validates a request derived value before it is forwarded in an outbound
-    HTTP header. Rejects CR/LF and any other control character to prevent
-    header injection / response splitting.
-    :param value: header value taken from the incoming request
-    :returns the value unchanged if safe, or None if it is not allowed
-    """
-    if not isinstance(value, str) or not value:
-        return None
-    for char in value:
-        if not 0x20 <= ord(char) <= 0x7E:
-            return None
-    return value
-
-
-def build_bearer_authorization(value):
-    """
-    Parses an incoming Authorization header value as a strict
-    "Bearer <token>" structure and re-assembles a fresh header from the
-    matched token, so no part of the raw inbound header is forwarded.
-    :param value: Authorization header value taken from the incoming request
-    :returns "Bearer <token>" built from the matched token, or None if the
-        value is not a well formed bearer credential
-    """
-    if validate_header_value(value) is None:
-        return None
-    match = _BEARER_RE.fullmatch(value)
-    if match is None:
-        return None
-    return "Bearer " + match.group("token")
 
 
 def _is_blocked_address(address):

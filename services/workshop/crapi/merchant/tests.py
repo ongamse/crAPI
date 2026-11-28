@@ -27,7 +27,6 @@ import bcrypt
 from django.test import TestCase, Client
 from django.utils import timezone
 from utils import messages
-from utils.helper import build_bearer_authorization, validate_header_value
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
 
 
@@ -166,50 +165,25 @@ class MerchantTestCase(TestCase):
             self.assertEqual(res.status_code, 400, url)
             self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
 
-    def test_authorization_header_injection_rejected(self):
+    def test_authorization_header_not_forwarded(self):
         """
-        an Authorization header containing CR/LF or control characters
-        must not be forwarded to the mechanic api
+        the caller's own Authorization header must never be forwarded to the
+        user supplied mechanic api
         :return: None
         """
-        self.assertEqual(validate_header_value("Bearer abc.def"), "Bearer abc.def")
-        for bad in (
-            None,
-            "",
-            "Bearer abc\r\nX-Injected: 1",
-            "Bearer abc\nX-Injected: 1",
-            "Bearer abc\x00",
-            "Bearer abc\x7f",
-        ):
-            self.assertIsNone(validate_header_value(bad), repr(bad))
-            self.assertIsNone(build_bearer_authorization(bad), repr(bad))
-        # the header is re-assembled from a strictly parsed bearer token
-        self.assertEqual(
-            build_bearer_authorization("Bearer aB-_.9Z+/=="), "Bearer aB-_.9Z+/=="
-        )
-        for malformed in (
-            "Basic abc",
-            "Bearer",
-            "Bearer ",
-            "Bearer a b",
-            "Bearer abc, Other xyz",
-            "Bearer abc;X-Injected: 1",
-            "bearer abc",
-        ):
-            self.assertIsNone(build_bearer_authorization(malformed), repr(malformed))
         with patch("crapi.merchant.views.requests.get") as mock_get:
-            with patch(
-                "crapi.merchant.views.build_bearer_authorization", return_value=None
-            ):
-                res = self.client.post(
-                    "/workshop/api/merchant/contact_mechanic",
-                    self.contact_mechanic_request_body,
-                    **self.user_auth_headers,
-                    content_type="application/json"
-                )
-            mock_get.assert_not_called()
-        self.assertEqual(res.status_code, 400)
-        self.assertEqual(res.json()["message"], messages.INVALID_TOKEN)
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"message": "ok"}
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
+        self.assertEqual(res.status_code, 200)
+        mock_get.assert_called_once()
+        self.assertNotIn("headers", mock_get.call_args.kwargs)
+        self.assertFalse(mock_get.call_args.kwargs.get("allow_redirects"))
 
     def test_contact_mechanic(self):
         """
