@@ -62,6 +62,12 @@ spec:
                 secretKeyRef:
                   name: {{ include "crapi.credentialsSecretName" . }}
                   key: MONGO_DB_PASSWORD
+            - name: API_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "crapi.credentialsSecretName" . }}
+                  key: ADMIN_PASSWORD
+                  optional: true
           envFrom:
             - configMapRef:
                 name: {{ .Values.chatbot.config.name }}

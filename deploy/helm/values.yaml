@@ -19,6 +19,9 @@ credentials:
   workshopSecretKey: ""
   apiGatewayPassword: ""
   smtpPass: ""
+  # Optional: password of the seeded demo admin account (also used by the chatbot login).
+  # Leave empty for the documented demo password.
+  adminPassword: ""
 tlsEnabled: false
 jwtExpiration: 604800000
 openAIApiKey: ""
@@ -167,9 +170,6 @@ chatbot:
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    # Login of the demo admin account created by the identity service seed data
-    # (TestUsers.java); it must match that seeded account, so it is not a deployment secret.
-    apiPassword: Admin!123
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"

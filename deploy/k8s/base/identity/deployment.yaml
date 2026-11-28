@@ -50,6 +50,12 @@ spec:
                 secretKeyRef:
                   name: crapi-credentials
                   key: API_GATEWAY_PASSWORD
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: ADMIN_PASSWORD
+                  optional: true
           envFrom:
               - configMapRef:
                   name: crapi-identity-configmap

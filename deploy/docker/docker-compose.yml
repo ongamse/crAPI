@@ -43,6 +43,7 @@ services:
       - API_GATEWAY_URL=https://api.mypremiumdealership.com
       - API_GATEWAY_PASSWORD=${API_GATEWAY_PASSWORD:?Set API_GATEWAY_PASSWORD (see .env.example)}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - TLS_KEYSTORE_TYPE=PKCS12
       - TLS_KEYSTORE=classpath:certs/server.p12
@@ -174,7 +175,7 @@ services:
       - MONGO_DB_PASSWORD=${MONGO_DB_PASSWORD:?Set MONGO_DB_PASSWORD (see .env.example)}
       - MONGO_DB_NAME=crapi
       - API_USER=admin@example.com
-      - API_PASSWORD=Admin!123
+      - API_PASSWORD=${ADMIN_PASSWORD:-}
       - OPENAPI_SPEC=/app/resources/crapi-openapi-spec.json
       - DEFAULT_MODEL=gpt-4o-mini
       - CHROMA_HOST=chromadb
