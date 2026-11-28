@@ -122,11 +122,9 @@ public class ProfileServiceImpl implements ProfileService {
     if (videoId == null || user == null) {
       return null;
     }
-    ProfileVideo ownedVideo = profileVideoRepository.findByUser_id(user.getId());
-    if (ownedVideo != null && ownedVideo.getId() == videoId) {
-      return ownedVideo;
-    }
-    return null;
+    // owner id comes from the authenticated principal; the request id is only
+    // ever used together with it in one ownership-scoped query
+    return profileVideoRepository.findByIdAndUser_id(videoId, user.getId());
   }
 
   /**
@@ -140,11 +138,9 @@ public class ProfileServiceImpl implements ProfileService {
     User user;
     ProfileVideo profileVideo;
     user = userService.getUserFromToken(request);
-    profileVideo = profileVideoRepository.findByUser_id(user.getId());
+    profileVideo = findOwnedVideo(videoId, user);
     if (profileVideo != null) {
-      if (profileVideo.getId() == videoId) {
-        return profileVideo;
-      }
+      return profileVideo;
     }
     throw new CRAPIExceptionHandler(UserMessage.VIDEO_NOT_FOUND, 404);
   }
@@ -199,11 +195,11 @@ public class ProfileServiceImpl implements ProfileService {
   public CRAPIResponse deleteAdminProfileVideo(Long videoId, HttpServletRequest request) {
     ProfileVideo profileVideo;
     User user = userService.getUserFromToken(request);
-    if (user.getRole() == ERole.ROLE_ADMIN) {
-      profileVideo = profileVideoRepository.findById(videoId).orElse(null);
-    } else {
-      profileVideo = findOwnedVideo(videoId, user);
-    }
+    profileVideo =
+        (videoId == null || user == null)
+            ? null
+            : profileVideoRepository.findByIdForRequester(
+                videoId, user.getId(), ERole.ROLE_ADMIN);
     if (profileVideo != null) {
       profileVideo.setUser(null);
       profileVideoRepository.delete(profileVideo);
