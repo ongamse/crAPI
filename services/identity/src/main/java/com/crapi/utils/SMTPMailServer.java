@@ -42,6 +42,10 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
+      if (containsLineBreak(sendMail) || containsLineBreak(subject)) {
+        log.warn("sendMail rejected: CR/LF characters are not allowed in recipient or subject");
+        return;
+      }
       log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
       InternetAddress[] emails = InternetAddress.parse(sendMail);
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
@@ -69,7 +73,7 @@ public class SMTPMailServer {
 
       msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
 
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
+      msg.setRecipients(Message.RecipientType.TO, emails);
       msg.setSubject(subject);
       msg.setContent(body, "text/html");
       msg.setSentDate(new Date());
@@ -81,5 +85,10 @@ public class SMTPMailServer {
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  /** Header values (recipients, subject) must not contain CR or LF to prevent header injection. */
+  private static boolean containsLineBreak(String value) {
+    return value != null && (value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0);
   }
 }
