@@ -30,7 +30,7 @@ public interface VehicleService {
 
   List<VehicleDetails> getVehicleDetails(HttpServletRequest request);
 
-  VehicleLocationResponse getVehicleLocation(UUID carId, HttpServletRequest request);
+  VehicleLocationResponse getVehicleLocation(UUID carId, User user);
 
   CRAPIResponse checkVehicle(VehicleForm vehicleDetails, HttpServletRequest request);
 

@@ -129,15 +129,13 @@ public class ProfileServiceImpl implements ProfileService {
 
   /**
    * @param videoId
-   * @param request getting jwt token for user from request header
+   * @param user authenticated user resolved by the caller
    * @return get profile video details.
    */
   @Transactional
   @Override
-  public ProfileVideo getProfileVideo(Long videoId, HttpServletRequest request) {
-    User user;
+  public ProfileVideo getProfileVideo(Long videoId, User user) {
     ProfileVideo profileVideo;
-    user = userService.getUserFromToken(request);
     profileVideo = findOwnedVideo(videoId, user);
     if (profileVideo != null) {
       return profileVideo;
@@ -147,16 +145,13 @@ public class ProfileServiceImpl implements ProfileService {
 
   /**
    * @param videoForm
-   * @param request getting jwt token for user from request header
+   * @param user authenticated user resolved by the caller
    * @return its change user profile object and return success message.
    */
   @Transactional
   @Override
-  public ProfileVideo updateProfileVideo(
-      Long videoId, VideoForm videoForm, HttpServletRequest request) {
-    User user;
+  public ProfileVideo updateProfileVideo(Long videoId, VideoForm videoForm, User user) {
     ProfileVideo profileVideo;
-    user = userService.getUserFromToken(request);
     profileVideo = findOwnedVideo(videoId, user);
     if (profileVideo != null) {
       profileVideo.setVideo_name(videoForm.getVideoName());
@@ -172,13 +167,12 @@ public class ProfileServiceImpl implements ProfileService {
 
   /**
    * @param videoId
-   * @param request
+   * @param user authenticated user resolved by the caller
    * @return boolean for delete object it perform by admin
    */
   @Transactional
   @Override
-  public CRAPIResponse deleteProfileVideo(Long videoId, HttpServletRequest request) {
-    User user = userService.getUserFromToken(request);
+  public CRAPIResponse deleteProfileVideo(Long videoId, User user) {
     if (findOwnedVideo(videoId, user) != null) {
       return new CRAPIResponse(UserMessage.THIS_IS_ADMIN_FUNCTION, 403);
     }
@@ -187,14 +181,13 @@ public class ProfileServiceImpl implements ProfileService {
 
   /**
    * @param videoId
-   * @param request
+   * @param user authenticated user resolved by the caller
    * @return boolean for delete object if perform by admin
    */
   @Transactional
   @Override
-  public CRAPIResponse deleteAdminProfileVideo(Long videoId, HttpServletRequest request) {
+  public CRAPIResponse deleteAdminProfileVideo(Long videoId, User user) {
     ProfileVideo profileVideo;
-    User user = userService.getUserFromToken(request);
     profileVideo =
         (videoId == null || user == null)
             ? null
@@ -210,12 +203,13 @@ public class ProfileServiceImpl implements ProfileService {
 
   /**
    * @param videoId
+   * @param user authenticated user resolved by the caller
    * @return fetching profile object by user id and performing the operation according to conversion
    *     param
    */
   @Transactional
   @Override
-  public CRAPIResponse convertVideo(Long videoId, HttpServletRequest request) {
+  public CRAPIResponse convertVideo(Long videoId, User user, HttpServletRequest request) {
     BashCommand conversionShell = new BashCommand();
     ProfileVideo profileVideo;
     String host = request.getHeader(HttpHeaders.HOST);
@@ -233,7 +227,6 @@ public class ProfileServiceImpl implements ProfileService {
     try {
       if (xForwardedHost == null) {
         if (videoId != null && videoId > 0) {
-          User user = userService.getUserFromToken(request);
           Optional<ProfileVideo> optionalProfileVideo =
               Optional.ofNullable(findOwnedVideo(videoId, user));
           if (optionalProfileVideo.isPresent() && !enable_shell_injection) {

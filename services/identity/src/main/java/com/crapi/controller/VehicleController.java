@@ -15,11 +15,13 @@
 package com.crapi.controller;
 
 import com.crapi.constant.UserMessage;
+import com.crapi.entity.User;
 import com.crapi.entity.VehicleDetails;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.VehicleForm;
 import com.crapi.model.VehicleLocationResponse;
 import com.crapi.model.VehicleOwnership;
+import com.crapi.service.UserService;
 import com.crapi.service.VehicleOwnershipService;
 import com.crapi.service.VehicleService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,6 +40,8 @@ public class VehicleController {
   @Autowired VehicleService vehicleService;
 
   @Autowired VehicleOwnershipService vehicleOwnershipService;
+
+  @Autowired UserService userService;
 
   /**
    * @param vehicleDetails
@@ -107,7 +111,8 @@ public class VehicleController {
   @GetMapping("/vehicle/{carId}/location")
   public ResponseEntity<?> getLocationBOLA(
       @PathVariable("carId") UUID carId, HttpServletRequest request) {
-    VehicleLocationResponse vehicleDetails = vehicleService.getVehicleLocation(carId, request);
+    User user = userService.getUserFromToken(request);
+    VehicleLocationResponse vehicleDetails = vehicleService.getVehicleLocation(carId, user);
     if (vehicleDetails != null) return ResponseEntity.ok().body(vehicleDetails);
     else
       return ResponseEntity.status(HttpStatus.NOT_FOUND)
