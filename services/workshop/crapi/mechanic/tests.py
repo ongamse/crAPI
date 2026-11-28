@@ -314,3 +314,18 @@ class MechanicServiceWorkFlowTestCase(TestCase):
         self.assertEqual(comments.status_code, 200)
         print(comments.json())
         self.assertEqual(len(comments.json()), comments_len + 1)
+
+
+class ReportPathTest(TestCase):
+    """
+    Tests that report paths are confined to the reports directory
+    """
+
+    def test_resolve_report_path_confined(self):
+        from crapi.mechanic.views import resolve_report_path
+
+        self.assertIsNotNone(resolve_report_path("report_1"))
+        self.assertIsNone(resolve_report_path("../etc/passwd"))
+        self.assertIsNone(resolve_report_path("/etc/passwd"))
+        self.assertIsNone(resolve_report_path("report_1/../../x"))
+        self.assertIsNone(resolve_report_path(""))

@@ -393,7 +393,12 @@ class DownloadReportView(APIView):
             )
 
         filename_from_user = unquote(filename_from_user)
-        full_path = os.path.abspath(os.path.join(settings.BASE_DIR, "reports",  filename_from_user))
+        full_path = resolve_report_path(filename_from_user)
+        if full_path is None:
+            return Response(
+                {"message": "Invalid input."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         if os.path.exists(full_path) and os.path.isfile(full_path):
             return FileResponse(open(full_path, 'rb'))
         elif not os.path.exists(full_path):
@@ -415,13 +420,31 @@ def validate_filename(input: str) -> bool:
     return bool(url_encoded_pattern.fullmatch(input))
 
 
+def resolve_report_path(filename: str):
+    """
+    Resolves filename inside the reports directory. Returns the canonical
+    path, or None if the name is invalid or escapes the reports directory.
+    """
+    if not filename or "\x00" in filename:
+        return None
+    reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, "reports"))
+    candidate = os.path.realpath(os.path.join(reports_dir, filename))
+    if os.path.commonpath([reports_dir, candidate]) != reports_dir:
+        return None
+    if candidate == reports_dir:
+        return None
+    return candidate
+
+
 def service_report_pdf(response_data, report_id):
     """
     Generates service report's PDF file from a template and saves it to the disk.
     """
     reports_dir = os.path.join(settings.BASE_DIR, 'reports')
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = os.path.join(reports_dir, f"report_{report_id}")
+    report_filepath = resolve_report_path(f"report_{report_id}")
+    if report_filepath is None:
+        raise ValueError("Invalid report id")
 
     template = get_template('service_report.html')
     html_string = template.render({'service': response_data})
