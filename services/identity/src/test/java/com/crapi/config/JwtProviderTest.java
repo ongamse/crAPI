@@ -99,6 +99,45 @@ public class JwtProviderTest {
   }
 
   @Test
+  public void malformedAndNullTokensAreRejected() {
+    Assert.assertFalse(jwtProvider.validateJwtToken(null));
+    Assert.assertFalse(jwtProvider.validateJwtToken("not-a-jwt"));
+    Assert.assertFalse(jwtProvider.validateJwtToken("a.b"));
+    Assert.assertThrows(ParseException.class, () -> jwtProvider.getUserNameFromJwtToken(null));
+    Assert.assertThrows(ParseException.class, () -> jwtProvider.getUserNameFromJwtToken("a.b.c"));
+  }
+
+  @Test
+  public void tamperedPayloadIsRejectedBeforeClaimsAreRead() throws Exception {
+    String token = signRs256(rsaKey, new Date(System.currentTimeMillis() + 60000));
+    String[] parts = token.split("\\.");
+    String forgedPayload =
+        Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString("{\"sub\":\"admin@example.com\"}".getBytes(StandardCharsets.UTF_8));
+    String forged = parts[0] + "." + forgedPayload + "." + parts[2];
+    Assert.assertFalse(jwtProvider.validateJwtToken(forged));
+    Assert.assertThrows(ParseException.class, () -> jwtProvider.getUserNameFromJwtToken(forged));
+  }
+
+  @Test
+  public void attackerControlledHeaderFieldsAreIgnored() throws Exception {
+    RSAKey other = new RSAKeyGenerator(2048).algorithm(JWSAlgorithm.RS256).generate();
+    JWSHeader header =
+        new JWSHeader.Builder(JWSAlgorithm.RS256)
+            .keyID("test-key")
+            .jwkURL(new java.net.URI("http://attacker.example/jwks.json"))
+            .jwk(other.toPublicJWK())
+            .build();
+    JWTClaimsSet claims = new JWTClaimsSet.Builder().subject("admin@example.com").build();
+    SignedJWT jwt = new SignedJWT(header, claims);
+    jwt.sign(new RSASSASigner(other));
+    String token = jwt.serialize();
+    Assert.assertFalse(jwtProvider.validateJwtToken(token));
+    Assert.assertThrows(ParseException.class, () -> jwtProvider.getUserNameFromJwtToken(token));
+  }
+
+  @Test
   public void hmacTokenSignedWithPublicKeyIsRejected() throws Exception {
     byte[] secret = rsaKey.toPublicKey().getEncoded();
     byte[] padded = java.util.Arrays.copyOf(secret, Math.max(secret.length, 32));

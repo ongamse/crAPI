@@ -25,12 +25,14 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
-import com.nimbusds.jwt.SignedJWT;
+import com.nimbusds.jose.util.Base64URL;
+import com.nimbusds.jwt.JWTClaimsSet;
 import io.jsonwebtoken.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.text.ParseException;
 import java.util.*;
@@ -133,29 +135,38 @@ public class JwtProvider {
    * @return username from JWT Token
    */
   public String getUserNameFromJwtToken(String token) throws ParseException {
-    SignedJWT signedJWT = SignedJWT.parse(token);
-    if (!isSignatureValid(signedJWT)) {
-      throw new ParseException("Invalid JWT signature", 0);
-    }
-    return signedJWT.getJWTClaimsSet().getSubject();
+    return verifiedClaims(token).getSubject();
   }
 
   /**
-   * Verify the token signature against the server's own RSA public key. Only RS256 is accepted;
-   * the algorithm, key id and key URL supplied in the token header are never used to select the
-   * verification key.
+   * Verify the token signature against the server's own RSA public key and only then decode the
+   * claims from the verified payload. Verification always uses a locally constructed RS256 header,
+   * so the algorithm, key id and key URL supplied in the (unverified) token header are never used
+   * to select the key or algorithm, and no claim is read before the signature has been checked.
+   *
+   * @throws ParseException when the token is malformed, unsigned or the signature is invalid
    */
-  private boolean isSignatureValid(SignedJWT signedJWT) {
+  private JWTClaimsSet verifiedClaims(String token) throws ParseException {
+    if (token == null) {
+      throw new ParseException("Missing JWT", 0);
+    }
+    String[] parts = token.split("\\.", -1);
+    if (parts.length != 3 || parts[0].isEmpty() || parts[1].isEmpty() || parts[2].isEmpty()) {
+      throw new ParseException("Invalid JWT format", 0);
+    }
     try {
-      if (!JWSAlgorithm.RS256.equals(signedJWT.getHeader().getAlgorithm())) {
-        log.debug("Unsupported JWT algorithm");
-        return false;
+      byte[] signingInput = (parts[0] + "." + parts[1]).getBytes(StandardCharsets.US_ASCII);
+      boolean valid =
+          new RSASSAVerifier(this.publicRSAKey)
+              .verify(new JWSHeader(JWSAlgorithm.RS256), signingInput, Base64URL.from(parts[2]));
+      if (!valid) {
+        throw new ParseException("Invalid JWT signature", 0);
       }
-      return signedJWT.verify(new RSASSAVerifier(this.publicRSAKey));
     } catch (JOSEException e) {
       log.error("JWT signature verification failed -> Message: %d", e);
-      return false;
+      throw new ParseException("Invalid JWT signature", 0);
     }
+    return JWTClaimsSet.parse(Base64URL.from(parts[1]).decodeToString());
   }
 
   /**
@@ -164,18 +175,14 @@ public class JwtProvider {
    */
   public boolean validateJwtToken(String authToken) {
     try {
-      SignedJWT signedJWT = SignedJWT.parse(authToken);
-      if (!isSignatureValid(signedJWT)) {
-        return false;
-      }
-      Date expiration = signedJWT.getJWTClaimsSet().getExpirationTime();
+      Date expiration = verifiedClaims(authToken).getExpirationTime();
       if (expiration != null && expiration.before(new Date())) {
         log.debug("JWT expired");
         return false;
       }
       return true;
     } catch (ParseException e) {
-      log.error("Could not parse JWT Token -> Message: %d", e);
+      log.error("Could not validate JWT Token -> Message: %d", e);
     }
 
     return false;
