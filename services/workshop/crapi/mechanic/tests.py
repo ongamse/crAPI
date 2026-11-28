@@ -321,11 +321,26 @@ class ReportPathTest(TestCase):
     Tests that report paths are confined to the reports directory
     """
 
-    def test_resolve_report_path_confined(self):
-        from crapi.mechanic.views import resolve_report_path
+    def test_find_report_file_only_returns_existing_entries(self):
+        import os
+        import shutil
+        import tempfile
+        from unittest import mock
+        from crapi.mechanic import views
 
-        self.assertIsNotNone(resolve_report_path("report_1"))
-        self.assertIsNone(resolve_report_path("../etc/passwd"))
-        self.assertIsNone(resolve_report_path("/etc/passwd"))
-        self.assertIsNone(resolve_report_path("report_1/../../x"))
-        self.assertIsNone(resolve_report_path(""))
+        tmp_base = tempfile.mkdtemp()
+        try:
+            reports_dir = os.path.join(tmp_base, "reports")
+            os.makedirs(reports_dir)
+            with open(os.path.join(reports_dir, "report_1"), "wb") as f:
+                f.write(b"x")
+            with mock.patch.object(views.settings, "BASE_DIR", tmp_base):
+                found = views.find_report_file("report_1")
+                self.assertEqual(found, os.path.join(reports_dir, "report_1"))
+                self.assertIsNone(views.find_report_file("report_2"))
+                self.assertIsNone(views.find_report_file("../etc/passwd"))
+                self.assertIsNone(views.find_report_file("/etc/passwd"))
+                self.assertIsNone(views.find_report_file("report_1/../../x"))
+                self.assertIsNone(views.find_report_file(""))
+        finally:
+            shutil.rmtree(tmp_base)

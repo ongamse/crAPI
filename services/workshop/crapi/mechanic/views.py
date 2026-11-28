@@ -238,7 +238,7 @@ class GetReportView(APIView):
             )
         serializer = MechanicServiceRequestSerializer(service_request)
         response_data = dict(serializer.data)
-        service_report_pdf(response_data, report_id)
+        service_report_pdf(response_data, service_request.id)
         return Response(response_data, status=status.HTTP_200_OK)
 
 
@@ -391,24 +391,18 @@ class DownloadReportView(APIView):
             )
 
         filename_from_user = unquote(filename_from_user)
-        full_path = resolve_report_path(filename_from_user)
+        full_path = find_report_file(filename_from_user)
         if full_path is None:
             return Response(
-                {"message": "Invalid input."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if os.path.exists(full_path) and os.path.isfile(full_path):
-            return FileResponse(open(full_path, 'rb'))
-        elif not os.path.exists(full_path):
-            return Response(
-                {"message": f"File not found at '{full_path}'."},
+                {"message": "File not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
-        else:
-            return Response(
-                {"message": f"'{full_path}' is not a file."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        if os.path.isfile(full_path):
+            return FileResponse(open(full_path, 'rb'))
+        return Response(
+            {"message": "Requested report is not a file."},
+            status=status.HTTP_403_FORBIDDEN
+        )
 
 def validate_filename(input: str) -> bool:
     """
@@ -418,31 +412,36 @@ def validate_filename(input: str) -> bool:
     return bool(url_encoded_pattern.fullmatch(input))
 
 
-def resolve_report_path(filename: str):
+def find_report_file(filename: str):
     """
-    Resolves filename inside the reports directory. Returns the canonical
-    path, or None if the name is invalid or escapes the reports directory.
+    Looks up a report by name among the entries that actually exist in the
+    reports directory. The returned path is built from the directory entry
+    produced by the filesystem listing, never from the requested name, so the
+    requested value is only ever compared against existing entry names.
+    Returns None when no entry matches.
     """
-    if not filename or "\x00" in filename:
+    if not filename:
         return None
-    reports_dir = os.path.realpath(os.path.join(settings.BASE_DIR, "reports"))
-    candidate = os.path.realpath(os.path.join(reports_dir, filename))
-    if os.path.commonpath([reports_dir, candidate]) != reports_dir:
+    reports_dir = os.path.join(settings.BASE_DIR, "reports")
+    try:
+        with os.scandir(reports_dir) as entries:
+            for entry in entries:
+                if entry.name == filename:
+                    return entry.path
+    except OSError:
         return None
-    if candidate == reports_dir:
-        return None
-    return candidate
+    return None
 
 
 def service_report_pdf(response_data, report_id):
     """
     Generates service report's PDF file from a template and saves it to the disk.
+    :param report_id: primary key (int) of a ServiceRequest loaded from the db
     """
     reports_dir = os.path.join(settings.BASE_DIR, 'reports')
     os.makedirs(reports_dir, exist_ok=True)
-    report_filepath = resolve_report_path(f"report_{report_id}")
-    if report_filepath is None:
-        raise ValueError("Invalid report id")
+    # "%d" guarantees the file name is "report_<digits>" with no separators
+    report_filepath = os.path.join(reports_dir, "report_%d" % int(report_id))
 
     template = get_template('service_report.html')
     html_string = template.render({'service': response_data})
