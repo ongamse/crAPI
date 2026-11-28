@@ -16,10 +16,12 @@ package com.crapi.controller;
 
 import com.crapi.constant.UserMessage;
 import com.crapi.entity.ProfileVideo;
+import com.crapi.entity.User;
 import com.crapi.entity.UserDetails;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.VideoForm;
 import com.crapi.service.ProfileService;
+import com.crapi.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -27,12 +29,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-@CrossOrigin
 @RestController
 @RequestMapping("/identity")
 public class ProfileController {
 
   @Autowired ProfileService profileService;
+
+  @Autowired UserService userService;
 
   /**
    * @param videoId
@@ -42,7 +45,8 @@ public class ProfileController {
   @GetMapping("/api/v2/user/videos/{video_id}")
   public ResponseEntity<?> getProfileVideo(
       @PathVariable("video_id") Long videoId, HttpServletRequest request) {
-    ProfileVideo profileVideo = profileService.getProfileVideo(videoId, request);
+    User user = userService.getUserFromToken(request);
+    ProfileVideo profileVideo = profileService.getProfileVideo(videoId, user);
     if (profileVideo != null) {
       return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
     } else {
@@ -97,7 +101,8 @@ public class ProfileController {
       @PathVariable("video_id") Long videoId,
       @RequestBody VideoForm videoForm,
       HttpServletRequest request) {
-    ProfileVideo profileVideo = profileService.updateProfileVideo(videoForm, request);
+    User user = userService.getUserFromToken(request);
+    ProfileVideo profileVideo = profileService.updateProfileVideo(videoId, videoForm, user);
     if (profileVideo != null) return ResponseEntity.status(HttpStatus.OK).body(profileVideo);
     else
       return ResponseEntity.status(HttpStatus.NO_CONTENT)
@@ -113,7 +118,8 @@ public class ProfileController {
   @DeleteMapping("/api/v2/user/videos/{video_id}")
   public ResponseEntity<?> deleteVideo(
       @PathVariable("video_id") Long videoId, HttpServletRequest request) {
-    CRAPIResponse deleteProfileResponse = profileService.deleteProfileVideo(videoId, request);
+    User user = userService.getUserFromToken(request);
+    CRAPIResponse deleteProfileResponse = profileService.deleteProfileVideo(videoId, user);
     if (deleteProfileResponse != null && deleteProfileResponse.getStatus() == 200) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN).body(deleteProfileResponse);
     } else {
@@ -129,7 +135,8 @@ public class ProfileController {
   @DeleteMapping("/api/v2/admin/videos/{video_id}")
   public ResponseEntity<CRAPIResponse> deleteVideoBOLA(
       @PathVariable("video_id") Long videoId, HttpServletRequest request) {
-    CRAPIResponse deleteProfileResponse = profileService.deleteAdminProfileVideo(videoId, request);
+    User user = userService.getUserFromToken(request);
+    CRAPIResponse deleteProfileResponse = profileService.deleteAdminProfileVideo(videoId, user);
     if (deleteProfileResponse != null && deleteProfileResponse.getStatus() == 200) {
       return ResponseEntity.status(HttpStatus.OK).body(deleteProfileResponse);
     }
@@ -145,7 +152,8 @@ public class ProfileController {
   @GetMapping("api/v2/user/videos/convert_video")
   public ResponseEntity<?> convertVideoEndPoint(
       @RequestParam(required = false) Long video_id, HttpServletRequest request) {
-    CRAPIResponse convertVideoResponse = profileService.convertVideo(video_id, request);
+    User user = userService.getUserFromToken(request);
+    CRAPIResponse convertVideoResponse = profileService.convertVideo(video_id, user, request);
     if (convertVideoResponse != null && convertVideoResponse.getStatus() == 200) {
       return ResponseEntity.status(HttpStatus.OK).body(convertVideoResponse);
     } else if (convertVideoResponse != null && convertVideoResponse.getStatus() != 200) {

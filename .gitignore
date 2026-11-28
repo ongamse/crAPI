@@ -5,4 +5,10 @@ deploy/vagrant/.vagrant
 *.local
 services/chatbot/db
 services/certs/
+# Private keys are generated locally (services/gencert.sh) or mounted at runtime; never commit them
+services/**/server.key
+services/gateway-service/private.key
 docker-compose.local.yml
+# JWKS signing keys contain RSA private members; supply locally / mount at runtime, never commit
+services/identity/jwks.json
+deploy/*/keys/jwks.json

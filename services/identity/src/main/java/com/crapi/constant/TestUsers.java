@@ -20,7 +20,19 @@ import java.util.ArrayList;
 import lombok.Getter;
 
 public class TestUsers {
+  /**
+   * Optional environment variable that sets the password of the seeded admin account. When unset
+   * or blank the documented demo password (see chatbot/retrieval/instructions/users.md) is used.
+   * The chatbot service logs in as this account, so give it the same value (API_PASSWORD).
+   */
+  public static final String ADMIN_PASSWORD_ENV = "ADMIN_PASSWORD";
+
   @Getter public ArrayList<SeedUser> users = new ArrayList<SeedUser>();
+
+  private static String adminPassword() {
+    String configured = System.getenv(ADMIN_PASSWORD_ENV);
+    return (configured == null || configured.isBlank()) ? "Admin!123" : configured;
+  }
 
   public TestUsers() {
     users.add(
@@ -76,7 +88,7 @@ public class TestUsers {
             "Admin",
             "admin@example.com",
             "9010203040",
-            "Admin!123",
+            adminPassword(),
             ERole.ROLE_ADMIN,
             "f5c506f5-3af2-4120-926c-64ad8b10ddc2",
             "6NBBY70FWUM324316",

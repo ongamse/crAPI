@@ -18,6 +18,23 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 5002
+        env:
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: DB_PASSWORD
+          - name: MONGO_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: MONGO_DB_PASSWORD
+          - name: API_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: ADMIN_PASSWORD
+                optional: true
         envFrom:
             - configMapRef:
                 name: crapi-chatbot-configmap

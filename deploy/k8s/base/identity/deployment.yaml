@@ -23,16 +23,39 @@ spec:
         - name: jwt-key-secret
           secret:
             secretName: jwt-key-secret
+            optional: true
       containers:
         - name: crapi-identity
           image: crapi/crapi-identity:latest
           volumeMounts:
-            - mountPath: "/.keys"
+            - mountPath: "/app/keys"
               name: jwt-key-secret
               readOnly: true
           imagePullPolicy: Always
           ports:
           - containerPort: 8080
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: DB_PASSWORD
+            - name: SMTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: SMTP_PASS
+            - name: API_GATEWAY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: API_GATEWAY_PASSWORD
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crapi-credentials
+                  key: ADMIN_PASSWORD
+                  optional: true
           envFrom:
               - configMapRef:
                   name: crapi-identity-configmap

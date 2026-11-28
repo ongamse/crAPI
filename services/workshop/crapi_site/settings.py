@@ -61,11 +61,22 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Comma separated list of Host header values this service will serve (no
+# wildcard, to prevent DNS rebinding / Host header attacks). Defaults cover
+# localhost, the in-container health check, and the docker-compose / k8s /
+# helm service names used by the web client proxy.
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,[::1],0.0.0.0,crapi-workshop,workshop",
+    ).split(",")
+    if host.strip() and host.strip() != "*"
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
-API_GATEWAY_PASSWORD = "Pa$$4Vendor_1"
+API_GATEWAY_PASSWORD = get_env_value("API_GATEWAY_PASSWORD")
 
 # Application definition
 
@@ -99,7 +110,16 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Comma separated list of origins allowed to make cross-origin requests.
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:8888,https://localhost:8443,"
+        "http://127.0.0.1:8888,https://127.0.0.1:8443",
+    ).split(",")
+    if origin.strip() and origin.strip() != "*"
+]
 
 ROOT_URLCONF = "crapi_site.urls"
 

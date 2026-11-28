@@ -27,6 +27,7 @@ from crapi.mechanic.serializers import (
 )
 from utils.jwt import jwt_auth_required
 from utils import messages
+from utils.helper import validate_mechanic_api_url
 from rest_framework.pagination import LimitOffsetPagination
 from utils.logging import log_error
 from crapi_site import settings
@@ -79,16 +80,27 @@ class ContactMechanicView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        request_url = validate_mechanic_api_url(request_data["mechanic_api"])
+        if request_url is None:
+            log_error(
+                request.path,
+                request.data,
+                status.HTTP_400_BAD_REQUEST,
+                messages.INVALID_MECHANIC_API,
+            )
+            return Response(
+                {"message": messages.INVALID_MECHANIC_API},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         repeat_count = 0
         while True:
-            request_url = request_data["mechanic_api"]
             logger.info(f"Repeat count: {repeat_count}, mechanic_api: {request_url}")
             try:
                 mechanic_response = requests.get(
                     request_url,
                     params=request_data,
-                    headers={"Authorization": request.META.get("HTTP_AUTHORIZATION")},
-                    verify=False,
+                    allow_redirects=False,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
                     logger.info(f"Got a valid response at repeat count: {repeat_count}")

@@ -314,3 +314,33 @@ class MechanicServiceWorkFlowTestCase(TestCase):
         self.assertEqual(comments.status_code, 200)
         print(comments.json())
         self.assertEqual(len(comments.json()), comments_len + 1)
+
+
+class ReportPathTest(TestCase):
+    """
+    Tests that report paths are confined to the reports directory
+    """
+
+    def test_find_report_file_only_returns_existing_entries(self):
+        import os
+        import shutil
+        import tempfile
+        from unittest import mock
+        from crapi.mechanic import views
+
+        tmp_base = tempfile.mkdtemp()
+        try:
+            reports_dir = os.path.join(tmp_base, "reports")
+            os.makedirs(reports_dir)
+            with open(os.path.join(reports_dir, "report_1"), "wb") as f:
+                f.write(b"x")
+            with mock.patch.object(views.settings, "BASE_DIR", tmp_base):
+                found = views.find_report_file("report_1")
+                self.assertEqual(found, os.path.join(reports_dir, "report_1"))
+                self.assertIsNone(views.find_report_file("report_2"))
+                self.assertIsNone(views.find_report_file("../etc/passwd"))
+                self.assertIsNone(views.find_report_file("/etc/passwd"))
+                self.assertIsNone(views.find_report_file("report_1/../../x"))
+                self.assertIsNone(views.find_report_file(""))
+        finally:
+            shutil.rmtree(tmp_base)

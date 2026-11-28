@@ -15,11 +15,13 @@
 package com.crapi.controller;
 
 import com.crapi.constant.UserMessage;
+import com.crapi.entity.User;
 import com.crapi.entity.VehicleDetails;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.VehicleForm;
 import com.crapi.model.VehicleLocationResponse;
 import com.crapi.model.VehicleOwnership;
+import com.crapi.service.UserService;
 import com.crapi.service.VehicleOwnershipService;
 import com.crapi.service.VehicleService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,7 +33,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@CrossOrigin
 @RestController
 @RequestMapping("/identity/api/v2")
 public class VehicleController {
@@ -39,6 +40,8 @@ public class VehicleController {
   @Autowired VehicleService vehicleService;
 
   @Autowired VehicleOwnershipService vehicleOwnershipService;
+
+  @Autowired UserService userService;
 
   /**
    * @param vehicleDetails
@@ -106,8 +109,10 @@ public class VehicleController {
    * @return VehicleDetails on given car_id.
    */
   @GetMapping("/vehicle/{carId}/location")
-  public ResponseEntity<?> getLocationBOLA(@PathVariable("carId") UUID carId) {
-    VehicleLocationResponse vehicleDetails = vehicleService.getVehicleLocation(carId);
+  public ResponseEntity<?> getLocationBOLA(
+      @PathVariable("carId") UUID carId, HttpServletRequest request) {
+    User user = userService.getUserFromToken(request);
+    VehicleLocationResponse vehicleDetails = vehicleService.getVehicleLocation(carId, user);
     if (vehicleDetails != null) return ResponseEntity.ok().body(vehicleDetails);
     else
       return ResponseEntity.status(HttpStatus.NOT_FOUND)

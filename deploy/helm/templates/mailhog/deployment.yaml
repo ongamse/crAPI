@@ -49,6 +49,14 @@ spec:
           - containerPort: {{ .Values.mailhog.smtpPort }}
             name: smtp
             protocol: TCP
+          env:
+            - name: MONGO_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "crapi.credentialsSecretName" . }}
+                  key: MONGO_DB_PASSWORD
+            - name: MH_MONGO_URI
+              value: {{ printf "%s:$(MONGO_DB_PASSWORD)@%s:%v" .Values.mongodb.config.mongoUser .Values.mongodb.service.name .Values.mongodb.port | quote }}
           envFrom:
             - configMapRef:
                 name: {{ .Values.mailhog.config.name }}

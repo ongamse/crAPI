@@ -31,6 +31,27 @@ spec:
         imagePullPolicy: Always  
         ports:
         - containerPort: 8000
+        env:
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: DB_PASSWORD
+          - name: MONGO_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: MONGO_DB_PASSWORD
+          - name: SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: SECRET_KEY
+          - name: API_GATEWAY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: crapi-credentials
+                key: API_GATEWAY_PASSWORD
         envFrom:
             - configMapRef:
                 name: crapi-workshop-configmap

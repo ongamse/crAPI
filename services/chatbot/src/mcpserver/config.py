@@ -11,4 +11,4 @@ class Config:
     CHROMA_PERSIST_DIRECTORY = os.getenv("CHROMA_PERSIST_DIRECTORY", "/app/vectorstore")
     OPENAPI_SPEC = os.getenv("OPENAPI_SPEC", "/app/resources/crapi-openapi-spec.json")
     API_USER = os.getenv("API_USER", "admin@example.com")
-    API_PASSWORD = os.getenv("API_PASSWORD", "Admin!123")
+    API_PASSWORD = os.getenv("API_PASSWORD") or "Admin!123"

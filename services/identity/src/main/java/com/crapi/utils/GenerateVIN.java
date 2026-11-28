@@ -14,6 +14,7 @@
 
 package com.crapi.utils;
 
+import java.security.SecureRandom;
 import java.util.Random;
 
 public class GenerateVIN {
@@ -25,7 +26,8 @@ public class GenerateVIN {
   Random random;
 
   public GenerateVIN() {
-    random = new Random();
+    // The pincode generated here guards vehicle ownership, so it must not be predictable.
+    random = new SecureRandom();
   }
 
   public GenerateVIN(long seed) {

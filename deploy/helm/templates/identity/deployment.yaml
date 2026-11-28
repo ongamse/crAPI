@@ -37,16 +37,39 @@ spec:
         - name: jwt-key-secret
           secret:
             secretName: {{ .Values.identity.jwtKeySecret.name }}
+            optional: true
       containers:
         - name: {{ .Values.identity.name }}
           image: {{ .Values.identity.image }}:{{ .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           volumeMounts:
-            - mountPath: "/.keys"
+            - mountPath: "/app/keys"
               name: jwt-key-secret
               readOnly: true
           ports:
           - containerPort: {{ .Values.identity.port }}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "crapi.credentialsSecretName" . }}
+                  key: DB_PASSWORD
+            - name: SMTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "crapi.credentialsSecretName" . }}
+                  key: SMTP_PASS
+            - name: API_GATEWAY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "crapi.credentialsSecretName" . }}
+                  key: API_GATEWAY_PASSWORD
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "crapi.credentialsSecretName" . }}
+                  key: ADMIN_PASSWORD
+                  optional: true
           envFrom:
               - configMapRef:
                   name: {{ .Values.identity.config.name }}

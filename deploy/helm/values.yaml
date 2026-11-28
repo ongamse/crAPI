@@ -2,17 +2,35 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jwtSecret: crapi
 enableLog4j: true
 enableShellInjection: true
 imagePullPolicy: Always
 apiGatewayServiceUrl: https://api.mypremiumdealership.com
 apiGatewayServiceInstall: true
-apiGatewayPassword:
+# Credentials are NOT stored here. By default the chart creates a Secret with random values
+# (and keeps them on upgrade). To choose your own, either create a Secret yourself with the keys
+# DB_PASSWORD, MONGO_DB_PASSWORD, SECRET_KEY, API_GATEWAY_PASSWORD and SMTP_PASS and set
+# credentials.existingSecret, or pass values at install time, e.g.
+#   helm install crapi . --set credentials.dbPassword=...
+credentials:
+  existingSecret: ""
+  dbPassword: ""
+  mongoPassword: ""
+  workshopSecretKey: ""
+  apiGatewayPassword: ""
+  smtpPass: ""
+  # Optional: password of the seeded demo admin account (also used by the chatbot login).
+  # Leave empty for the documented demo password.
+  adminPassword: ""
 tlsEnabled: false
 jwtExpiration: 604800000
 openAIApiKey: ""
 logLevel: INFO
+# Comma separated list of origins allowed by CORS on identity and workshop (no wildcard)
+corsAllowedOrigins: "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443,http://localhost:30080,https://localhost:30443"
+# Extra comma separated Host header values accepted by workshop (no wildcard).
+# The workshop service name, localhost and 127.0.0.1 are always allowed.
+allowedHosts: ""
 
 waitForK8sResources:
   enabled: True
@@ -68,7 +86,6 @@ identity:
     smtpHost: "smtp.example.com"
     smtpPort: 587
     smtpEmail: "user@example.com"
-    smtpPass: "xxxxxxxxxxxxxx"
     smtpFrom: "no-reply@example.com"
     smtpAuth: true
     smtpStartTLS: true
@@ -125,7 +142,6 @@ workshop:
       app: crapi-workshop
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     filesLimit: 1000
   deploymentLabels:
     app: crapi-workshop
@@ -151,11 +167,9 @@ chatbot:
       app: crapi-chatbot
     postgresDbDriver: postgres
     mongoDbDriver: mongodb
-    secretKey: crapi
     defaultModel: gpt-4o-mini
     chromaPersistDirectory: /app/vectorstore
     apiUser: admin@example.com
-    apiPassword: Admin!123
     openapiSpec: /app/resources/crapi-openapi-spec.json
   storage:
     # type: "manual"
@@ -233,9 +247,7 @@ mongodb:
     labels:
       app: mongodb
     mongoUser: admin
-    mongoPassword: crapisecretpassword
     mongoDbName: crapi
-    mongoUri: "admin:crapisecretpassword@mongodb:27017"
   storage: 
     # type: "manual"
     # pv:
@@ -278,7 +290,6 @@ postgresdb:
     labels:
       app: postgresdb
     postgresUser: admin
-    postgresPassword: crapisecretpassword
     postgresDbName: crapi
   storage:
     # type: "manual"

@@ -16,13 +16,15 @@ package com.crapi.utils;
 
 import com.crapi.config.MailConfiguration;
 import com.crapi.config.MailHogConfiguration;
-import jakarta.mail.Message;
 import jakarta.mail.Session;
 import jakarta.mail.Transport;
-import jakarta.mail.internet.*;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeMessage;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -42,8 +44,16 @@ public class SMTPMailServer {
     Session session = mailhogConfiguration.sendmail();
     boolean useMailHog = false;
     try {
+      if (containsLineBreak(sendMail) || containsLineBreak(subject)) {
+        log.warn("sendMail rejected: CR/LF characters are not allowed in recipient or subject");
+        return;
+      }
       log.info("sendMail  mhogDomain: {}, emails: {}", mhogDomain, sendMail);
-      InternetAddress[] emails = InternetAddress.parse(sendMail);
+      // strict parsing: only RFC 822 compliant addresses, no free-form header content
+      InternetAddress[] emails = InternetAddress.parse(sendMail, true);
+      for (InternetAddress emailAddress : emails) {
+        emailAddress.validate();
+      }
       if (mhogDomain != null && !mhogDomain.isEmpty()) {
         if (mailConfiguration.getHost().trim().endsWith(mhogDomain)) {
           log.info(
@@ -65,21 +75,24 @@ public class SMTPMailServer {
         log.info("Using Mail Configuration for sending email: " + sendMail);
       }
 
-      Message msg = new MimeMessage(session);
+      MimeMessage msg = new MimeMessage(session);
+      MimeMessageHelper helper = new MimeMessageHelper(msg, StandardCharsets.UTF_8.name());
 
-      msg.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
-
-      msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sendMail));
-      msg.setSubject(subject);
-      msg.setContent(body, "text/html");
-      msg.setSentDate(new Date());
-
-      MimeBodyPart messageBodyPart = new MimeBodyPart();
-      messageBodyPart.setContent(body, "text/html");
+      helper.setFrom(new InternetAddress(mailhogConfiguration.getFrom(), false));
+      helper.setTo(emails);
+      // setSubject encodes the value as an RFC 2047 header word, never as raw header text.
+      helper.setSubject(subject == null ? "" : subject);
+      helper.setText(body == null ? "" : body, true);
+      helper.setSentDate(new Date());
 
       Transport.send(msg);
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  /** Header values (recipients, subject) must not contain CR or LF to prevent header injection. */
+  private static boolean containsLineBreak(String value) {
+    return value != null && (value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0);
   }
 }

@@ -15,6 +15,7 @@
 package com.crapi.service;
 
 import com.crapi.entity.ProfileVideo;
+import com.crapi.entity.User;
 import com.crapi.entity.UserDetails;
 import com.crapi.model.CRAPIResponse;
 import com.crapi.model.VideoForm;
@@ -25,15 +26,15 @@ public interface ProfileService {
 
   UserDetails uploadProfilePicture(MultipartFile file, HttpServletRequest request);
 
-  ProfileVideo getProfileVideo(Long videoId, HttpServletRequest request);
+  ProfileVideo getProfileVideo(Long videoId, User user);
 
   ProfileVideo uploadProfileVideo(MultipartFile file, HttpServletRequest request);
 
-  ProfileVideo updateProfileVideo(VideoForm videoForm, HttpServletRequest request);
+  ProfileVideo updateProfileVideo(Long videoId, VideoForm videoForm, User user);
 
-  CRAPIResponse deleteProfileVideo(Long videoId, HttpServletRequest request);
+  CRAPIResponse deleteProfileVideo(Long videoId, User user);
 
-  CRAPIResponse deleteAdminProfileVideo(Long videoId, HttpServletRequest request);
+  CRAPIResponse deleteAdminProfileVideo(Long videoId, User user);
 
-  CRAPIResponse convertVideo(Long videoId, HttpServletRequest request);
+  CRAPIResponse convertVideo(Long videoId, User user, HttpServletRequest request);
 }
