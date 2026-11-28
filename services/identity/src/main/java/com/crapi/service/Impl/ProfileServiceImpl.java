@@ -18,6 +18,7 @@ import com.crapi.constant.UserMessage;
 import com.crapi.entity.ProfileVideo;
 import com.crapi.entity.User;
 import com.crapi.entity.UserDetails;
+import com.crapi.enums.ERole;
 import com.crapi.exception.CRAPIExceptionHandler;
 import com.crapi.exception.IOExceptionHandler;
 import com.crapi.model.CRAPIResponse;
@@ -113,6 +114,22 @@ public class ProfileServiceImpl implements ProfileService {
   }
 
   /**
+   * @param videoId requested video reference (untrusted)
+   * @param user authenticated user
+   * @return the video only when it belongs to the given user, otherwise null
+   */
+  private ProfileVideo findOwnedVideo(Long videoId, User user) {
+    if (videoId == null || user == null) {
+      return null;
+    }
+    ProfileVideo ownedVideo = profileVideoRepository.findByUser_id(user.getId());
+    if (ownedVideo != null && ownedVideo.getId() == videoId) {
+      return ownedVideo;
+    }
+    return null;
+  }
+
+  /**
    * @param videoId
    * @param request getting jwt token for user from request header
    * @return get profile video details.
@@ -139,11 +156,12 @@ public class ProfileServiceImpl implements ProfileService {
    */
   @Transactional
   @Override
-  public ProfileVideo updateProfileVideo(VideoForm videoForm, HttpServletRequest request) {
+  public ProfileVideo updateProfileVideo(
+      Long videoId, VideoForm videoForm, HttpServletRequest request) {
     User user;
     ProfileVideo profileVideo;
     user = userService.getUserFromToken(request);
-    profileVideo = profileVideoRepository.findByUser_id(user.getId());
+    profileVideo = findOwnedVideo(videoId, user);
     if (profileVideo != null) {
       profileVideo.setVideo_name(videoForm.getVideoName());
       profileVideo.setConversion_params(
@@ -164,10 +182,8 @@ public class ProfileServiceImpl implements ProfileService {
   @Transactional
   @Override
   public CRAPIResponse deleteProfileVideo(Long videoId, HttpServletRequest request) {
-    Optional<ProfileVideo> optionalProfileVideo;
-    ProfileVideo profileVideo;
-    optionalProfileVideo = profileVideoRepository.findById(videoId);
-    if (optionalProfileVideo.isPresent()) {
+    User user = userService.getUserFromToken(request);
+    if (findOwnedVideo(videoId, user) != null) {
       return new CRAPIResponse(UserMessage.THIS_IS_ADMIN_FUNCTION, 403);
     }
     throw new CRAPIExceptionHandler(UserMessage.SORRY_DIDNT_GET_PROFILE, 404);
@@ -181,12 +197,14 @@ public class ProfileServiceImpl implements ProfileService {
   @Transactional
   @Override
   public CRAPIResponse deleteAdminProfileVideo(Long videoId, HttpServletRequest request) {
-    Optional<ProfileVideo> optionalProfileVideo;
     ProfileVideo profileVideo;
-    optionalProfileVideo = profileVideoRepository.findById(videoId);
     User user = userService.getUserFromToken(request);
-    if (optionalProfileVideo.isPresent()) {
-      profileVideo = optionalProfileVideo.get();
+    if (user.getRole() == ERole.ROLE_ADMIN) {
+      profileVideo = profileVideoRepository.findById(videoId).orElse(null);
+    } else {
+      profileVideo = findOwnedVideo(videoId, user);
+    }
+    if (profileVideo != null) {
       profileVideo.setUser(null);
       profileVideoRepository.delete(profileVideo);
       return new CRAPIResponse(UserMessage.VIDEO_DELETED_SUCCESS_MESSAGE, 200);
@@ -219,7 +237,9 @@ public class ProfileServiceImpl implements ProfileService {
     try {
       if (xForwardedHost == null) {
         if (videoId != null && videoId > 0) {
-          Optional<ProfileVideo> optionalProfileVideo = profileVideoRepository.findById(videoId);
+          User user = userService.getUserFromToken(request);
+          Optional<ProfileVideo> optionalProfileVideo =
+              Optional.ofNullable(findOwnedVideo(videoId, user));
           if (optionalProfileVideo.isPresent() && !enable_shell_injection) {
             profileVideo = optionalProfileVideo.get();
             if (ProfileValidator.checkContains(profileVideo.getConversion_params())) {
