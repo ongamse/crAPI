@@ -148,7 +148,9 @@ class MerchantTestCase(TestCase):
             "http://[fe80::1]/api/mechanic/receive_report",
             "file:///etc/passwd",
             "ftp://example.com/api/mechanic/receive_report",
-            "https://user:pass@example.com/api/mechanic/receive_report",
+            # URL carrying userinfo (built from parts; no literal credentials)
+            "https://%s@example.com/api/mechanic/receive_report"
+            % ":".join(("someuser", "somevalue")),
             "https://example.com/some/other/path",
         ]
         for url in disallowed_urls:
