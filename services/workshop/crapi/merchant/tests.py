@@ -27,7 +27,7 @@ import bcrypt
 from django.test import TestCase, Client
 from django.utils import timezone
 from utils import messages
-from utils.helper import validate_header_value
+from utils.helper import build_bearer_authorization, validate_header_value
 from crapi.user.models import User, Vehicle, VehicleModel, VehicleCompany
 
 
@@ -180,9 +180,24 @@ class MerchantTestCase(TestCase):
             "Bearer abc\x7f",
         ):
             self.assertIsNone(validate_header_value(bad), repr(bad))
+            self.assertIsNone(build_bearer_authorization(bad), repr(bad))
+        # the header is re-assembled from a strictly parsed bearer token
+        self.assertEqual(
+            build_bearer_authorization("Bearer aB-_.9Z+/=="), "Bearer aB-_.9Z+/=="
+        )
+        for malformed in (
+            "Basic abc",
+            "Bearer",
+            "Bearer ",
+            "Bearer a b",
+            "Bearer abc, Other xyz",
+            "Bearer abc;X-Injected: 1",
+            "bearer abc",
+        ):
+            self.assertIsNone(build_bearer_authorization(malformed), repr(malformed))
         with patch("crapi.merchant.views.requests.get") as mock_get:
             with patch(
-                "crapi.merchant.views.validate_header_value", return_value=None
+                "crapi.merchant.views.build_bearer_authorization", return_value=None
             ):
                 res = self.client.post(
                     "/workshop/api/merchant/contact_mechanic",
