@@ -9,3 +9,6 @@ services/certs/
 services/**/server.key
 services/gateway-service/private.key
 docker-compose.local.yml
+# JWKS signing keys contain RSA private members; supply locally / mount at runtime, never commit
+services/identity/jwks.json
+deploy/*/keys/jwks.json

@@ -68,6 +68,15 @@ public class JwtProviderTest {
   }
 
   @Test
+  public void missingJwksGeneratesEphemeralKey() throws Exception {
+    JwtProvider ephemeral = new JwtProvider("");
+    String token = signRs256(rsaKey, new Date(System.currentTimeMillis() + 60000));
+    Assert.assertFalse(ephemeral.validateJwtToken(token));
+    Assert.assertTrue(ephemeral.getPublicJwkSet().contains("\"RSA\""));
+    Assert.assertFalse(ephemeral.getPublicJwkSet().contains("\"d\""));
+  }
+
+  @Test
   public void expiredTokenIsRejected() throws Exception {
     String token = signRs256(rsaKey, new Date(System.currentTimeMillis() - 60000));
     Assert.assertFalse(jwtProvider.validateJwtToken(token));
