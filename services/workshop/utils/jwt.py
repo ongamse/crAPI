@@ -21,10 +21,7 @@ from rest_framework.response import Response
 from django.conf import settings
 from utils import messages
 from crapi.user.models import User
-import urllib3
 import logging
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger()
 
@@ -50,9 +47,8 @@ def jwt_auth_required(func):
                 tokenJson = {"token": token}
                 identity_url = settings.IDENTITY_VERIFY
                 logger.debug(f"Identity url: {identity_url}, tokenJson: {tokenJson}")
-                token_verify_response = requests.post(
-                    identity_url, json=tokenJson, verify=False
-                )
+                # TLS verification stays on; trust custom CAs via REQUESTS_CA_BUNDLE
+                token_verify_response = requests.post(identity_url, json=tokenJson)
                 logger.debug(
                     f"Identity url: {identity_url}, token_verify_response: {token_verify_response}"
                 )

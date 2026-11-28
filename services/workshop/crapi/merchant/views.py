@@ -114,7 +114,6 @@ class ContactMechanicView(APIView):
                     request_url,
                     params=request_data,
                     headers={"Authorization": authorization},
-                    verify=False,
                     allow_redirects=False,
                 )
                 if mechanic_response.status_code == status.HTTP_200_OK:
