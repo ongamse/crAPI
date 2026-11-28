@@ -43,4 +43,10 @@ class SMTPMailServerTest {
     smtpMailServer.sendMail("victim@example.com", "body", "subject\r\nBcc: attacker@example.com");
     Mockito.verify(mailConfiguration, Mockito.never()).sendmail();
   }
+
+  @Test
+  void sendMailRejectsMalformedRecipientAddress() {
+    smtpMailServer.sendMail("victim example.com <attacker", "body", "subject");
+    Mockito.verify(mailConfiguration, Mockito.never()).sendmail();
+  }
 }

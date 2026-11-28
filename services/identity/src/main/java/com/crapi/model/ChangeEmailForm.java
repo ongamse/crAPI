@@ -14,19 +14,29 @@
 
 package com.crapi.model;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
 public class ChangeEmailForm {
 
+  // Strict address charset: rejects CR/LF, whitespace, quotes, angle brackets and commas so the
+  // values can never carry extra headers or recipients into a mail.
+  public static final String EMAIL_PATTERN = "[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+";
+
   @NotBlank
   @Size(min = 3, max = 40)
+  @Email
+  @Pattern(regexp = EMAIL_PATTERN)
   private String old_email;
 
   @NotBlank
   @Size(min = 3, max = 40)
+  @Email
+  @Pattern(regexp = EMAIL_PATTERN)
   private String new_email;
 
   private String token;
