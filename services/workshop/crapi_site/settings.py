@@ -99,7 +99,16 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Comma separated list of origins allowed to make cross-origin requests.
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:8888,https://localhost:8443,"
+        "http://127.0.0.1:8888,https://127.0.0.1:8443",
+    ).split(",")
+    if origin.strip() and origin.strip() != "*"
+]
 
 ROOT_URLCONF = "crapi_site.urls"
 

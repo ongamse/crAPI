@@ -18,3 +18,4 @@ data:
     MONGO_DB_PASSWORD: crapisecretpassword
     MONGO_DB_NAME: crapi
     SERVER_PORT: "8000"
+    CORS_ALLOWED_ORIGINS: "http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443,http://localhost:30080,https://localhost:30443"

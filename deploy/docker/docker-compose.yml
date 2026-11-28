@@ -42,6 +42,7 @@ services:
       - JWT_EXPIRATION=604800000
       - ENABLE_LOG4J=${ENABLE_LOG4J:-false}
       - API_GATEWAY_URL=https://api.mypremiumdealership.com
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443}
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - TLS_KEYSTORE_TYPE=PKCS12
       - TLS_KEYSTORE=classpath:certs/server.p12
@@ -127,6 +128,7 @@ services:
       - MONGO_DB_NAME=crapi
       - SECRET_KEY=crapi
       - API_GATEWAY_URL=https://api.mypremiumdealership.com
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443}
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - TLS_CERTIFICATE=certs/server.crt
       - TLS_KEY=certs/server.key
