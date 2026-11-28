@@ -93,7 +93,7 @@ class MerchantTestCase(TestCase):
             vehicle_model=self.vehicle_model,
         )
         self.contact_mechanic_request_body = {
-            "mechanic_api": "https://www.google.com",
+            "mechanic_api": "https://example.com/workshop/api/mechanic/receive_report",
             "repeat_request_if_failed": True,
             "number_of_repeats": 5,
             "mechanic_code": self.mechanic["mechanic_code"],
@@ -134,20 +134,54 @@ class MerchantTestCase(TestCase):
         )
         self.assertNotEqual(res.status_code, 200)
 
+    def test_disallowed_mechanic_api_urls(self):
+        """
+        mechanic_api pointing to link-local/metadata targets, non http(s)
+        schemes, or paths other than receive_report must be rejected
+        without any outbound request
+        :return: None
+        """
+        disallowed_urls = [
+            "http://169.254.169.254/latest/meta-data/",
+            "http://169.254.169.254/api/mechanic/receive_report",
+            "http://[fe80::1]/api/mechanic/receive_report",
+            "file:///etc/passwd",
+            "ftp://example.com/api/mechanic/receive_report",
+            "https://user:pass@example.com/api/mechanic/receive_report",
+            "https://example.com/some/other/path",
+        ]
+        for url in disallowed_urls:
+            self.contact_mechanic_request_body["mechanic_api"] = url
+            with patch("crapi.merchant.views.requests.get") as mock_get:
+                res = self.client.post(
+                    "/workshop/api/merchant/contact_mechanic",
+                    self.contact_mechanic_request_body,
+                    **self.user_auth_headers,
+                    content_type="application/json"
+                )
+                mock_get.assert_not_called()
+            self.assertEqual(res.status_code, 400, url)
+            self.assertEqual(res.json()["message"], messages.INVALID_MECHANIC_API)
+
     def test_contact_mechanic(self):
         """
         gives all correct field for contact mechanic
         should get a valid response from mechanic_api
         :return: None
         """
-        res = self.client.post(
-            "/workshop/api/merchant/contact_mechanic",
-            self.contact_mechanic_request_body,
-            **self.user_auth_headers,
-            content_type="application/json"
-        )
+        with patch("crapi.merchant.views.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"message": "ok"}
+            res = self.client.post(
+                "/workshop/api/merchant/contact_mechanic",
+                self.contact_mechanic_request_body,
+                **self.user_auth_headers,
+                content_type="application/json"
+            )
         self.assertEqual(res.status_code, 200)
-        self.assertIn("<title>Google</title>", res.json()["response_from_mechanic_api"])
+        self.assertEqual(
+            res.json()["response_from_mechanic_api"], {"message": "ok"}
+        )
 
     def test_repeat_missing_request(self):
         """
