@@ -128,6 +128,7 @@ services:
       - MONGO_DB_NAME=crapi
       - SECRET_KEY=crapi
       - API_GATEWAY_URL=https://api.mypremiumdealership.com
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,[::1],0.0.0.0,crapi-workshop,workshop}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:8888,https://localhost:8443,http://127.0.0.1:8888,https://127.0.0.1:8443}
       - TLS_ENABLED=${TLS_ENABLED:-false}
       - TLS_CERTIFICATE=certs/server.crt

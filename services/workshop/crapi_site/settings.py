@@ -61,7 +61,18 @@ DEBUG = os.environ.get("DEBUG", False)
 if LOG_LEVEL == "DEBUG":
     DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Comma separated list of Host header values this service will serve (no
+# wildcard, to prevent DNS rebinding / Host header attacks). Defaults cover
+# localhost, the in-container health check, and the docker-compose / k8s /
+# helm service names used by the web client proxy.
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,[::1],0.0.0.0,crapi-workshop,workshop",
+    ).split(",")
+    if host.strip() and host.strip() != "*"
+]
 
 API_GATEWAY_URL = get_env_value("API_GATEWAY_URL")
 API_GATEWAY_USERNAME = "vendorcrapi"
