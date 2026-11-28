@@ -13,6 +13,22 @@ def basic_auth(username, password=""):
     return f"Basic {token}"
 
 
+def validate_header_value(value):
+    """
+    Validates a request derived value before it is forwarded in an outbound
+    HTTP header. Rejects CR/LF and any other control character to prevent
+    header injection / response splitting.
+    :param value: header value taken from the incoming request
+    :returns the value unchanged if safe, or None if it is not allowed
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    for char in value:
+        if not 0x20 <= ord(char) <= 0x7E:
+            return None
+    return value
+
+
 def _is_blocked_address(address):
     """
     True for addresses that must never be reached from user supplied URLs:
