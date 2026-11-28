@@ -3,6 +3,8 @@ Setup | crAPI
 
 > **Note**: A custom jwks key can be passed by adding a *jwks.json* file in *keys* folder in each deployment folder such as `/deploy/docker/keys` (create the folder yourself; no key is committed). If none is supplied, the identity service generates an ephemeral RSA key at startup, so issued tokens become invalid after a restart.
 
+> **Credentials**: no passwords or secret keys are committed. Before starting crAPI with docker compose, copy `deploy/docker/.env.example` variables into `deploy/docker/.env` (or export them) and set `DB_PASSWORD`, `MONGO_DB_PASSWORD`, `SECRET_KEY` and `API_GATEWAY_PASSWORD` to values of your own, for example `openssl rand -hex 16`. Docker compose refuses to start while any of them is unset. For local development of a single service, export the same variables in your shell before sourcing that service's `.env` file. On Kubernetes, `deploy/k8s/base/create-secrets.sh` (called by the deploy scripts) creates a `crapi-credentials` Secret from the same variables, generating random values for any that are unset; the Helm chart does the same (see `credentials` in `values.yaml`, or set `credentials.existingSecret`).
+
 ## Docker and docker compose
 
 You'll need to have Docker and docker-compose installed and running on your host system. Also, the version of docker-compose should be `1.27.0` or above. Check your docker-compose version using:

@@ -5,6 +5,7 @@ kubectl create namespace crapi
 
 # Optional: supply your own signing key; otherwise the identity service generates an ephemeral one
 [ -f ../keys/jwks.json ] && kubectl create -n crapi secret generic jwt-key-secret --from-file=../keys
+./create-secrets.sh crapi
 kubectl apply -n crapi -f ./rbac
 kubectl apply -n crapi -f ./mongodb
 kubectl apply -n crapi -f ./postgres

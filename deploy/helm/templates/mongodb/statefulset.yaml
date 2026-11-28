@@ -25,6 +25,12 @@ spec:
           imagePullPolicy: {{ .Values.mongodb.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.mongodb.port }}
+          env:
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "crapi.credentialsSecretName" . }}
+                  key: MONGO_DB_PASSWORD
           envFrom:
             - configMapRef:
                 name: {{ .Values.mongodb.config.name }}

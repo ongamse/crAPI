@@ -6,9 +6,7 @@ metadata:
     app: crapi-identity
 data:
   DB_HOST: postgresdb
-  JWT_SECRET: crapi #Used for creating a JWT. Can be anything
   DB_USER: admin
-  DB_PASSWORD: crapisecretpassword
   DB_NAME: crapi
   DB_PORT: "5432"
   APP_NAME: "crapi-identity"
@@ -20,7 +18,6 @@ data:
   SMTP_HOST: "smtp.example.com"
   SMTP_PORT: "587"
   SMTP_EMAIL: "user@example.com"
-  SMTP_PASS: "xxxxxxxxxxxxxx"
   SMTP_FROM: "no-reply@example.com"
   SMTP_AUTH: "true"
   JWT_EXPIRATION: "604800000"

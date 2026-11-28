@@ -48,6 +48,22 @@ spec:
               readOnly: true
           ports:
           - containerPort: {{ .Values.identity.port }}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "crapi.credentialsSecretName" . }}
+                  key: DB_PASSWORD
+            - name: SMTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "crapi.credentialsSecretName" . }}
+                  key: SMTP_PASS
+            - name: API_GATEWAY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "crapi.credentialsSecretName" . }}
+                  key: API_GATEWAY_PASSWORD
           envFrom:
               - configMapRef:
                   name: {{ .Values.identity.config.name }}

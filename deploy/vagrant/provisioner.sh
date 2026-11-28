@@ -42,6 +42,11 @@ mkdir /opt/crapi
 cp "$MOUNT_DIR/deploy/docker/docker-compose.yml" /opt/crapi \
     && sed -i /opt/crapi/docker-compose.yml \
     -e 's/${LISTEN_IP:-127\.0\.0\.1}:8888:80/80:80/; s/${LISTEN_IP:-127\.0\.0\.1}:8025:8025/8025:8025/'
+# Generate credentials for this VM (docker compose refuses to start without them)
+( umask 077
+  for name in DB_PASSWORD MONGO_DB_PASSWORD SECRET_KEY API_GATEWAY_PASSWORD; do
+      echo "$name=$(openssl rand -hex 16)"
+  done > /opt/crapi/.env )
 cp "$MOUNT_DIR/deploy/vagrant/crapi.service" /etc/systemd/system/ \
     && systemctl daemon-reload \
     && systemctl enable crapi.service

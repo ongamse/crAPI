@@ -21,7 +21,8 @@ MONGO_CLIENT_KWARGS = {
 POSTGRES_HOST = os.environ.get("DB_HOST", "postgresdb")
 POSTGRES_PORT = os.environ.get("DB_PORT", "5432")
 POSTGRES_USER = os.environ.get("DB_USER", "admin")
-POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD", "crapisecretpassword")
+# The Postgres password must be supplied via the environment (no hard-coded default).
+POSTGRES_PASSWORD = os.environ["DB_PASSWORD"]
 POSTGRES_DB = os.environ.get("DB_NAME", "crapi")
 
 # Built from discrete fields; SQLAlchemy handles escaping of the password.
